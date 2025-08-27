@@ -82,12 +82,29 @@ const ClusterList: React.FC = () => {
       title: '集群名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
+      fixed: 'left' as const,
       render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <ClusterOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-          <div>
-            <div style={{ fontWeight: 'bold' }}>{text}</div>
-            <div style={{ color: '#666', fontSize: '12px' }}>{record.apiServer}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <ClusterOutlined style={{ marginRight: 8, color: '#1890ff', flexShrink: 0, marginTop: 2 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ 
+              fontWeight: 'bold',
+              whiteSpace: 'normal',
+              wordBreak: 'break-all',
+              lineHeight: '1.4'
+            }}>
+              {text}
+            </div>
+            <div style={{ 
+              color: '#666', 
+              fontSize: '12px',
+              whiteSpace: 'normal',
+              wordBreak: 'break-all',
+              lineHeight: '1.2'
+            }}>
+              {record.apiServer}
+            </div>
           </div>
         </div>
       ),
@@ -96,6 +113,7 @@ const ClusterList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status) => getStatusTag(status),
       filters: [
         { text: '健康', value: 'healthy' },
@@ -107,10 +125,14 @@ const ClusterList: React.FC = () => {
       title: '版本',
       dataIndex: 'version',
       key: 'version',
+      width: 120,
+      responsive: ['md'],
     },
     {
       title: '节点数',
       key: 'nodeCount',
+      width: 100,
+      responsive: ['lg'],
       render: (_, record) => `${record.readyNodes}/${record.nodeCount}`,
       sorter: (a, b) => a.nodeCount - b.nodeCount,
     },
@@ -118,6 +140,8 @@ const ClusterList: React.FC = () => {
       title: 'CPU使用率',
       dataIndex: 'cpuUsage',
       key: 'cpuUsage',
+      width: 120,
+      responsive: ['lg'] as const,
       render: (usage) => (
         <Progress
           percent={Math.round(usage)}
@@ -131,6 +155,8 @@ const ClusterList: React.FC = () => {
       title: '内存使用率',
       dataIndex: 'memoryUsage',
       key: 'memoryUsage',
+      width: 120,
+      responsive: ['xl'],
       render: (usage) => (
         <Progress
           percent={Math.round(usage)}
@@ -144,11 +170,15 @@ const ClusterList: React.FC = () => {
       title: '最后心跳',
       dataIndex: 'lastHeartbeat',
       key: 'lastHeartbeat',
+      width: 150,
+      responsive: ['xl'] as const,
       render: (time) => new Date(time).toLocaleString(),
     },
     {
       title: '操作',
       key: 'action',
+      width: 150,
+      fixed: 'right' as const,
       render: (_, record) => (
         <Space size="middle">
           <Tooltip title="查看详情">
@@ -293,6 +323,8 @@ const ClusterList: React.FC = () => {
           dataSource={filteredClusters}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1200 }}
+          size="middle"
           pagination={{
             total: filteredClusters.length,
             pageSize: 10,

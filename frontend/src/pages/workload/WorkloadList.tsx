@@ -246,12 +246,27 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
+      fixed: 'left' as const,
       render: (text: string, record: WorkloadInfo) => (
         <Button
           type="link"
           onClick={() => navigate(`/clusters/${selectedClusterId}/workloads/${record.namespace}/${record.name}?type=${record.type}`)}
+          style={{ 
+            padding: 0, 
+            height: 'auto',
+            whiteSpace: 'normal',
+            wordBreak: 'break-all',
+            textAlign: 'left'
+          }}
         >
-          {text}
+          <div style={{
+            whiteSpace: 'normal',
+            wordBreak: 'break-all',
+            lineHeight: '1.4'
+          }}>
+            {text}
+          </div>
         </Button>
       ),
     },
@@ -259,12 +274,14 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
       title: '命名空间',
       dataIndex: 'namespace',
       key: 'namespace',
+      width: 130,
       render: (text: string) => <Tag color="blue">{text}</Tag>,
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 120,
       render: (text: string) => {
         const typeConfig = WorkloadService.getWorkloadTypes().find(t => t.value === text);
         return (
@@ -278,6 +295,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
       title: '状态',
       dataIndex: 'ready',
       key: 'ready',
+      width: 120,
       render: (text: string, record: WorkloadInfo) => {
         const { status, color } = WorkloadService.formatStatus(record);
         return <Badge status={color as any} text={status} />;
@@ -286,6 +304,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
     {
       title: '副本数',
       key: 'replicas',
+      width: 80,
       render: (record: WorkloadInfo) => {
         if (record.type.toLowerCase() === 'daemonset') {
           return <span>-</span>;
@@ -301,33 +320,52 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
       title: '镜像',
       dataIndex: 'images',
       key: 'images',
-      render: (images: string[]) => (
-        <div>
-          {images.slice(0, 2).map((image, index) => (
-            <Tooltip key={index} title={image}>
-              <Tag style={{ marginBottom: 4 }}>
-                {image.split('/').pop()?.split(':')[0] || image}
+      width: 200,
+      render: (images: string[]) => {
+        if (!images || images.length === 0) return '-';
+        
+        const firstImage = images[0];
+        const imageName = firstImage.split('/').pop()?.split(':')[0] || firstImage;
+        
+        return (
+          <div>
+            <Tooltip title={firstImage}>
+              <Tag style={{ marginBottom: 2, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {imageName}
               </Tag>
             </Tooltip>
-          ))}
-          {images.length > 2 && (
-            <Tag>+{images.length - 2} more</Tag>
-          )}
-        </div>
-      ),
+            {images.length > 1 && (
+              <Tooltip title={images.slice(1).join('\n')}>
+                <Tag style={{ marginBottom: 2 }}>
+                  +{images.length - 1}
+                </Tag>
+              </Tooltip>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 150,
+      responsive: ['lg'],
       render: (text: string) => {
         if (!text) return '-';
-        return new Date(text).toLocaleString('zh-CN');
+        const date = new Date(text);
+        return (
+          <Tooltip title={date.toLocaleString('zh-CN')}>
+            <span>{date.toLocaleDateString('zh-CN')}</span>
+          </Tooltip>
+        );
       },
     },
     {
       title: '操作',
       key: 'actions',
+      width: 180,
+      fixed: 'right' as const,
       render: (record: WorkloadInfo) => {
         const canScale = ['deployment', 'statefulset', 'Deployment', 'StatefulSet'].includes(record.type);
         
@@ -353,16 +391,18 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
             icon: <DeleteOutlined />,
             label: '删除',
             danger: true,
+            onClick: () => handleDelete(record),
           },
         ];
 
         return (
-          <Space>
+          <Space size="small">
             <Button
               type="link"
               size="small"
               icon={<EyeOutlined />}
               onClick={() => navigate(`/clusters/${selectedClusterId}/workloads/${record.namespace}/${record.name}?type=${record.type}`)}
+              style={{ padding: '0 4px' }}
             >
               详情
             </Button>
@@ -376,26 +416,41 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
                   setScaleReplicas(record.replicas || 1);
                   setScaleModalVisible(true);
                 }}
+                style={{ padding: '0 4px' }}
               >
                 扩缩容
               </Button>
             )}
-            <Popconfirm
-              title="确认删除"
-              description={`确定要删除工作负载 ${record.name} 吗？`}
-              onConfirm={() => handleDelete(record)}
-              okText="确定"
-              cancelText="取消"
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'delete',
+                    icon: <DeleteOutlined />,
+                    label: '删除',
+                    danger: true,
+                    onClick: () => {
+                      Modal.confirm({
+                        title: '确认删除',
+                        content: `确定要删除工作负载 ${record.name} 吗？`,
+                        okText: '确定',
+                        cancelText: '取消',
+                        okType: 'danger',
+                        onOk: () => handleDelete(record),
+                      });
+                    },
+                  },
+                ],
+              }}
+              trigger={['click']}
             >
               <Button
                 type="link"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
-              >
-                删除
-              </Button>
-            </Popconfirm>
+                icon={<MoreOutlined />}
+                style={{ padding: '0 4px' }}
+              />
+            </Dropdown>
           </Space>
         );
       },
@@ -403,18 +458,26 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '16px 24px' }}>
       {/* 页面头部 */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1>工作负载管理</h1>
-            <p>管理集群中的工作负载，包括 Deployment、StatefulSet、DaemonSet 等</p>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div style={{ flex: 1, minWidth: '300px' }}>
+            <h1 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>工作负载管理</h1>
+            <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+              管理集群中的工作负载，包括 Deployment、StatefulSet、DaemonSet 等
+            </p>
           </div>
-          <Space>
+          <Space wrap>
             <Select
               value={selectedClusterId}
-              style={{ width: 200 }}
+              style={{ width: 200, minWidth: 150 }}
               onChange={handleClusterChange}
               placeholder="选择集群"
               loading={clusters.length === 0}
@@ -434,59 +497,69 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <Space wrap>
-            <Select
-              placeholder="选择命名空间"
-              style={{ width: 200 }}
-              value={selectedNamespace}
-              onChange={setSelectedNamespace}
-              allowClear
-            >
-              {getNamespaces().map(ns => (
-                <Option key={ns} value={ns}>{ns}</Option>
-              ))}
-            </Select>
-            
-            <Select
-              placeholder="选择工作负载类型"
-              style={{ width: 200 }}
-              value={selectedType}
-              onChange={setSelectedType}
-              allowClear
-            >
-              {WorkloadService.getWorkloadTypes().map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.icon} {type.label}
-                </Option>
-              ))}
-            </Select>
-            
-            <Search
-              placeholder="搜索工作负载名称"
-              style={{ width: 300 }}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-            />
-            
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate(`/clusters/${selectedClusterId}/yaml/apply`)}
-            >
-              创建工作负载
-            </Button>
-            
-            {selectedRowKeys.length > 0 && (
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => setBatchDeleteModalVisible(true)}
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: '12px',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', flex: 1 }}>
+              <Select
+                placeholder="选择命名空间"
+                style={{ width: 180, minWidth: 120 }}
+                value={selectedNamespace}
+                onChange={setSelectedNamespace}
+                allowClear
               >
-                批量删除 ({selectedRowKeys.length})
+                {getNamespaces().map(ns => (
+                  <Option key={ns} value={ns}>{ns}</Option>
+                ))}
+              </Select>
+              
+              <Select
+                placeholder="选择工作负载类型"
+                style={{ width: 180, minWidth: 120 }}
+                value={selectedType}
+                onChange={setSelectedType}
+                allowClear
+              >
+                {WorkloadService.getWorkloadTypes().map(type => (
+                  <Option key={type.value} value={type.value}>
+                    {type.icon} {type.label}
+                  </Option>
+                ))}
+              </Select>
+              
+              <Search
+                placeholder="搜索工作负载名称"
+                style={{ width: 250, minWidth: 200, maxWidth: 300 }}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+              />
+            </div>
+            
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => navigate(`/clusters/${selectedClusterId}/yaml/apply`)}
+              >
+                创建工作负载
               </Button>
-            )}
-          </Space>
+              
+              {selectedRowKeys.length > 0 && (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => setBatchDeleteModalVisible(true)}
+                >
+                  批量删除 ({selectedRowKeys.length})
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <Table
@@ -495,6 +568,8 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
           rowKey={(record) => `${record.namespace}-${record.name}-${record.type}`}
           rowSelection={rowSelection}
           loading={loading}
+          scroll={{ x: 1400 }}
+          size="middle"
           pagination={{
             current: currentPage,
             pageSize: pageSize,
@@ -506,6 +581,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
               setCurrentPage(page);
               setPageSize(size || 20);
             },
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
         />
       </Card>

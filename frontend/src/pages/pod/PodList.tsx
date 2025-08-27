@@ -149,14 +149,27 @@ const PodList: React.FC<PodListProps> = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 200,
+      width: 220,
+      fixed: 'left' as const,
       render: (text: string, record: PodInfo) => (
         <Button
           type="link"
           onClick={() => handleViewDetail(record)}
-          style={{ padding: 0, height: 'auto' }}
+          style={{ 
+            padding: 0, 
+            height: 'auto',
+            whiteSpace: 'normal',
+            wordBreak: 'break-all',
+            textAlign: 'left'
+          }}
         >
-          {text}
+          <div style={{
+            whiteSpace: 'normal',
+            wordBreak: 'break-all',
+            lineHeight: '1.4'
+          }}>
+            {text}
+          </div>
         </Button>
       ),
     },
@@ -182,6 +195,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'nodeName',
       key: 'nodeName',
       width: 150,
+      responsive: ['md'],
       render: (text: string) => text || '-',
     },
     {
@@ -189,6 +203,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'podIP',
       key: 'podIP',
       width: 120,
+      responsive: ['lg'],
       render: (text: string) => text || '-',
     },
     {
@@ -196,6 +211,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'restartCount',
       key: 'restartCount',
       width: 100,
+      responsive: ['md'],
       render: (count: number) => (
         <Tag color={count > 0 ? 'orange' : 'green'}>{count}</Tag>
       ),
@@ -204,6 +220,7 @@ const PodList: React.FC<PodListProps> = () => {
       title: '容器',
       key: 'containers',
       width: 200,
+      responsive: ['lg'],
       render: (record: PodInfo) => (
         <Space wrap>
           {record.containers.map((container, index) => (
@@ -224,12 +241,14 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'createdAt',
       key: 'age',
       width: 100,
+      responsive: ['xl'],
       render: (createdAt: string) => PodService.getAge(createdAt),
     },
     {
       title: '操作',
       key: 'actions',
       width: 200,
+      fixed: 'right' as const,
       render: (record: PodInfo) => (
         <Space>
           <Tooltip title="查看详情">
@@ -346,7 +365,7 @@ const PodList: React.FC<PodListProps> = () => {
               setPageSize(size || 20);
             },
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1400 }}
           size="small"
         />
       </Card>

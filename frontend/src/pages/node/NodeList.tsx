@@ -343,11 +343,21 @@ const NodeList: React.FC = () => {
       title: '节点名称',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
+      width: 180,
+      fixed: 'left' as const,
       render: (text) => (
-        <Space>
-          <DesktopOutlined style={{ color: '#1890ff' }} />
-          <a onClick={() => handleViewDetail(text)}>{text}</a>
+        <Space style={{ width: '100%' }}>
+          <DesktopOutlined style={{ color: '#1890ff', flexShrink: 0 }} />
+          <a 
+            onClick={() => handleViewDetail(text)}
+            style={{
+              whiteSpace: 'normal',
+              wordBreak: 'break-all',
+              lineHeight: '1.4'
+            }}
+          >
+            {text}
+          </a>
         </Space>
       ),
     },
@@ -355,6 +365,7 @@ const NodeList: React.FC = () => {
       title: '角色',
       key: 'roles',
       width: 80,
+      responsive: ['md'],
       render: (_, record) => getRoleTags(record.roles),
     },
     {
@@ -362,6 +373,7 @@ const NodeList: React.FC = () => {
       dataIndex: 'version',
       key: 'version',
       width: 100,
+      responsive: ['lg'],
     },
     {
       title: '就绪状态',
@@ -373,6 +385,7 @@ const NodeList: React.FC = () => {
       title: 'CPU使用率',
       key: 'cpuUsage',
       width: 100,
+      responsive: ['md'],
       render: (_, record) => (
         <Progress
           percent={record.cpuUsage}
@@ -391,6 +404,7 @@ const NodeList: React.FC = () => {
       title: '内存使用率',
       key: 'memoryUsage',
       width: 100,
+      responsive: ['md'] as const,
       render: (_, record) => (
         <Progress
           percent={record.memoryUsage}
@@ -409,12 +423,14 @@ const NodeList: React.FC = () => {
       title: 'Pod数量',
       key: 'podCount',
       width: 80,
+      responsive: ['lg'] as const,
       render: (_, record) => `${record.podCount}/${record.maxPods}`,
     },
     {
       title: '污点',
       key: 'taints',
       width: 100,
+      responsive: ['xl'],
       render: (_, record) => (
         <Tooltip title={getTaintTooltip(record.taints)}>
           <Tag color={record.taints?.length ? 'orange' : 'default'}>
@@ -428,12 +444,14 @@ const NodeList: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 120,
+      responsive: ['xl'] as const,
       render: (text) => new Date(text).toLocaleString(),
     },
     {
       title: '操作',
       key: 'action',
       width: 150,
+      fixed: 'right' as const,
       render: (_, record) => (
         <Space>
           <Button
@@ -628,6 +646,8 @@ const NodeList: React.FC = () => {
           dataSource={filteredNodes}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1300 }}
+          size="middle"
           pagination={{
             total: filteredNodes.length,
             pageSize: 10,
