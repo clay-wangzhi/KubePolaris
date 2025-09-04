@@ -86,111 +86,10 @@ const ClusterDetail: React.FC = () => {
     }
   };
 
-  // 获取节点列表 - 暂时使用模拟数据，后续可以添加到clusterService中
-  const fetchNodes = async () => {
-    if (!id) return;
-    
-    setLoadingNodes(true);
-    try {
-      // 这里应该使用真实API，暂时使用模拟数据
-      const mockNodes: Node[] = [
-        {
-          id: '1',
-          name: 'master-node-1',
-          clusterId: id || '',
-          status: 'Ready',
-          roles: ['master', 'control-plane'],
-          version: 'v1.28.2',
-          osImage: 'Ubuntu 20.04.6 LTS',
-          kernelVersion: '5.4.0-150-generic',
-          containerRuntime: 'containerd://1.6.21',
-          cpuCapacity: '4',
-          memoryCapacity: '8Gi',
-          cpuUsage: 45,
-          memoryUsage: 62,
-          podCount: 15,
-          maxPods: 110,
-          conditions: [],
-          taints: [],
-          createdAt: '2024-01-15T10:30:00Z',
-        },
-        {
-          id: '2',
-          name: 'worker-node-1',
-          clusterId: id || '',
-          status: 'Ready',
-          roles: ['worker'],
-          version: 'v1.28.2',
-          osImage: 'Ubuntu 20.04.6 LTS',
-          kernelVersion: '5.4.0-150-generic',
-          containerRuntime: 'containerd://1.6.21',
-          cpuCapacity: '8',
-          memoryCapacity: '16Gi',
-          cpuUsage: 78,
-          memoryUsage: 85,
-          podCount: 25,
-          maxPods: 110,
-          conditions: [],
-          taints: [],
-          createdAt: '2024-01-15T10:35:00Z',
-        },
-      ];
-      setNodes(mockNodes);
-    } catch (error) {
-      console.error('获取节点列表失败:', error);
-      setNodes([]);
-    } finally {
-      setLoadingNodes(false);
-    }
-  };
-
-  // 获取Pod列表 - 暂时使用模拟数据，后续可以添加到clusterService中
-  const fetchPods = async () => {
-    if (!id) return;
-    
-    setLoadingPods(true);
-    try {
-      // 这里应该使用真实API，暂时使用模拟数据
-      const mockPods: Pod[] = [
-        {
-          id: '1',
-          name: 'nginx-deployment-7d5c6d8b4f-abc123',
-          namespace: 'default',
-          clusterId: id || '',
-          nodeName: 'worker-node-1',
-          status: 'Running',
-          phase: 'Running',
-          restartCount: 0,
-          cpuUsage: 0.1,
-          memoryUsage: 64,
-          containers: [
-            {
-              name: 'nginx',
-              image: 'nginx:1.21',
-              ready: true,
-              restartCount: 0,
-              state: { running: { startedAt: '2024-01-15T10:40:00Z' } },
-            },
-          ],
-          labels: { app: 'nginx', version: 'v1' },
-          createdAt: '2024-01-15T10:40:00Z',
-        },
-      ];
-      setPods(mockPods);
-    } catch (error) {
-      console.error('获取Pod列表失败:', error);
-      setPods([]);
-    } finally {
-      setLoadingPods(false);
-    }
-  };
-
   // 刷新所有数据
   const refreshAllData = () => {
     fetchClusterDetail();
     fetchClusterOverview();
-    fetchNodes();
-    fetchPods();
   };
 
   // 获取状态标签
@@ -211,118 +110,6 @@ const ClusterDetail: React.FC = () => {
     );
   };
 
-  // 节点表格列定义
-  const nodeColumns: ColumnsType<Node> = [
-    {
-      title: '节点名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text) => (
-        <Space>
-          <DesktopOutlined style={{ color: '#1890ff' }} />
-          <a onClick={() => navigate(`/nodes/${text}`)}>{text}</a>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => getStatusTag(status),
-    },
-    {
-      title: '角色',
-      dataIndex: 'roles',
-      key: 'roles',
-      render: (roles: string[]) => (
-        <Space>
-          {roles.map(role => (
-            <Tag key={role} color={role === 'master' ? 'gold' : 'blue'}>
-              {role}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      title: 'CPU使用率',
-      dataIndex: 'cpuUsage',
-      key: 'cpuUsage',
-      render: (usage) => (
-        <Progress
-          percent={usage}
-          size="small"
-          status={usage > 80 ? 'exception' : usage > 60 ? 'active' : 'success'}
-        />
-      ),
-    },
-    {
-      title: '内存使用率',
-      dataIndex: 'memoryUsage',
-      key: 'memoryUsage',
-      render: (usage) => (
-        <Progress
-          percent={usage}
-          size="small"
-          status={usage > 80 ? 'exception' : usage > 60 ? 'active' : 'success'}
-        />
-      ),
-    },
-    {
-      title: 'Pod数量',
-      key: 'podCount',
-      render: (_, record) => `${record.podCount}/${record.maxPods}`,
-    },
-  ];
-
-  // Pod表格列定义
-  const podColumns: ColumnsType<Pod> = [
-    {
-      title: 'Pod名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text, record) => (
-        <Space>
-          <AppstoreOutlined style={{ color: '#52c41a' }} />
-          <a onClick={() => navigate(`/pods/${record.namespace}/${text}`)}>{text}</a>
-        </Space>
-      ),
-    },
-    {
-      title: '命名空间',
-      dataIndex: 'namespace',
-      key: 'namespace',
-      render: (namespace) => <Tag color="blue">{namespace}</Tag>,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => getStatusTag(status),
-    },
-    {
-      title: '节点',
-      dataIndex: 'nodeName',
-      key: 'nodeName',
-    },
-    {
-      title: '重启次数',
-      dataIndex: 'restartCount',
-      key: 'restartCount',
-      render: (count) => (
-        <Badge
-          count={count}
-          style={{ backgroundColor: count > 0 ? '#faad14' : '#52c41a' }}
-        />
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (time) => new Date(time).toLocaleString(),
-    },
-  ];
 
   // 使用监控图表组件
   const ClusterMonitoring = () => (
@@ -341,64 +128,6 @@ const ClusterDetail: React.FC = () => {
     //   ),
     //   children: <ClusterMonitoring />,
     // },
-    {
-      key: 'nodes',
-      label: (
-        <span>
-          <DesktopOutlined />
-          节点 ({nodes.length})
-        </span>
-      ),
-      children: (
-        <Table
-          columns={nodeColumns}
-          dataSource={nodes}
-          rowKey="id"
-          pagination={false}
-          loading={loadingNodes}
-          locale={{ emptyText: '暂无节点数据' }}
-        />
-      ),
-    },
-    {
-      key: 'pods',
-      label: (
-        <span>
-          <AppstoreOutlined />
-          Pod ({pods.length})
-        </span>
-      ),
-      children: (
-        <Table
-          columns={podColumns}
-          dataSource={pods}
-          rowKey="id"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个Pod`,
-          }}
-          loading={loadingPods}
-          locale={{ emptyText: '暂无Pod数据' }}
-        />
-      ),
-    },
-    {
-      key: 'terminal',
-      label: (
-        <span>
-          <CodeOutlined />
-          Kubectl终端
-        </span>
-      ),
-      children: (
-        <KubectlTerminal
-          clusterId={id || ''}
-          namespace="default"
-        />
-      ),
-    },
     {
       key: 'events',
       label: '事件',
@@ -456,52 +185,110 @@ const ClusterDetail: React.FC = () => {
           </Card>
 
           {/* 统计卡片 */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="节点"
-                  value={clusterOverview?.nodes?.total || 0}
-                  prefix={<DesktopOutlined />}
-                  valueStyle={{ color: '#1890ff' }}
-                  loading={loadingOverview}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="命名空间"
-                  value={clusterOverview?.namespaces?.total || 0}
-                  prefix={<FolderFilled />}
-                  valueStyle={{ color: '#fa8c16' }}
-                  loading={loadingOverview}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Service"
-                  value={clusterOverview?.services?.total || 0}
-                  prefix={<CloudServerOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                  loading={loadingOverview}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Pod"
-                  value={clusterOverview?.pods?.total || 0}
-                  prefix={<AppstoreOutlined />}
-                  valueStyle={{ color: '#722ed1' }}
-                  loading={loadingOverview}
-                />
-              </Card>
-            </Col>
-          </Row>
+          <Card style={{ marginBottom: 24 }} bodyStyle={{ padding: 16 }}>
+            <Title level={4} style={{ marginBottom: 16 }}>资源概览</Title>
+            <Row gutter={[16, 16]}>
+              {/* 节点概览 */}
+              <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                <Card bordered={false} bodyStyle={{ padding: 16 }}>
+                  <Row align="middle" gutter={16}>
+                    <Col flex="120px">
+                      <Progress
+                        type="circle"
+                        percent={Math.min(100, Math.round(((clusterOverview?.nodes?.ready || 0) / (clusterOverview?.nodes?.total || 1)) * 100))}
+                        strokeColor="#52c41a"
+                        width={100}
+                        format={() => String(clusterOverview?.nodes?.total || 0)}
+                      />
+                    </Col>
+                    <Col flex="auto">
+                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        <Text strong>节点总数</Text>
+                        <Text type="secondary">运行中 {clusterOverview?.nodes?.ready || 0}</Text>
+                        <Button type="primary" size="small" onClick={() => navigate(`/clusters/${id}/nodes`)}>
+                          查看节点列表
+                        </Button>
+                      </Space>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+
+              {/* 工作负载概览 */}
+              <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                <Card bordered={false} bodyStyle={{ padding: 16 }}>
+                  <Row align="middle" gutter={16}>
+                    <Col flex="120px">
+                      <Progress
+                        type="circle"
+                        percent={100}
+                        strokeColor="#52c41a"
+                        width={100}
+                        format={() => String(
+                          (clusterOverview?.deployments?.total || 0) +
+                          (clusterOverview?.statefulSets?.total || 0) +
+                          (clusterOverview?.daemonSets?.total || 0) +
+                          (clusterOverview?.jobs?.total || 0)
+                        )}
+                      />
+                    </Col>
+                    <Col flex="auto">
+                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        <Text strong>工作负载总数</Text>
+                        <Text type="secondary">
+                          运行中 {
+                            (clusterOverview?.deployments?.total || 0) +
+                            (clusterOverview?.statefulSets?.total || 0) +
+                            (clusterOverview?.daemonSets?.total || 0) +
+                            (clusterOverview?.jobs?.total || 0)
+                          }
+                        </Text>
+                        <Button type="primary" size="small" onClick={() => navigate(`/clusters/${id}/workloads`)}>
+                          查看工作负载列表
+                        </Button>
+                      </Space>
+                    </Col>
+                  </Row>
+
+                  {/* 工作负载类型分类 */}
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col xs={12} sm={12} md={12} lg={12}>
+                      <Card size="small" bordered>
+                        <Space direction="vertical" size={4}>
+                          <Text type="secondary">Deployment</Text>
+                          <Text strong>{clusterOverview?.deployments?.total || 0}</Text>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={12} md={12} lg={12}>
+                      <Card size="small" bordered>
+                        <Space direction="vertical" size={4}>
+                          <Text type="secondary">StatefulSet</Text>
+                          <Text strong>{clusterOverview?.statefulSets?.total || 0}</Text>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={12} md={12} lg={12}>
+                      <Card size="small" bordered>
+                        <Space direction="vertical" size={4}>
+                          <Text type="secondary">DaemonSet</Text>
+                          <Text strong>{clusterOverview?.daemonSets?.total || 0}</Text>
+                        </Space>
+                      </Card>
+                    </Col>
+                    <Col xs={12} sm={12} md={12} lg={12}>
+                      <Card size="small" bordered>
+                        <Space direction="vertical" size={4}>
+                          <Text type="secondary">Job</Text>
+                          <Text strong>{clusterOverview?.jobs?.total || 0}</Text>
+                        </Space>
+                      </Card>
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
 
           {/* 详细信息标签页 */}
           <Card>
