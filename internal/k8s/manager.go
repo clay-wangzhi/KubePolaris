@@ -80,6 +80,8 @@ func (m *ClusterInformerManager) EnsureForCluster(cluster *models.Cluster) (*Clu
 	_ = factory.Core().V1().Namespaces().Informer()
 	_ = factory.Core().V1().Services().Informer()
 	_ = factory.Apps().V1().Deployments().Informer()
+	_ = factory.Apps().V1().StatefulSets().Informer()
+	_ = factory.Apps().V1().DaemonSets().Informer()
 	_ = factory.Batch().V1().Jobs().Informer()
 	_ = factory.Batch().V1beta1().CronJobs().Informer()
 
@@ -108,6 +110,8 @@ func (m *ClusterInformerManager) waitForSync(ctx context.Context, rt *ClusterRun
 			rt.factory.Core().V1().Namespaces().Informer().HasSynced,
 			rt.factory.Core().V1().Services().Informer().HasSynced,
 			rt.factory.Apps().V1().Deployments().Informer().HasSynced,
+			rt.factory.Apps().V1().StatefulSets().Informer().HasSynced,
+			rt.factory.Apps().V1().DaemonSets().Informer().HasSynced,
 			rt.factory.Batch().V1().Jobs().Informer().HasSynced,
 			rt.factory.Batch().V1beta1().CronJobs().Informer().HasSynced,
 		)
@@ -265,6 +269,26 @@ func (m *ClusterInformerManager) DeploymentsLister(clusterID uint) appsv1listers
 	defer m.mu.RUnlock()
 	if rt, ok := m.clusters[clusterID]; ok {
 		return rt.factory.Apps().V1().Deployments().Lister()
+	}
+	return nil
+}
+
+// StatefulSetsLister 返回 StatefulSets 的 Lister
+func (m *ClusterInformerManager) StatefulSetsLister(clusterID uint) appsv1listers.StatefulSetLister {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if rt, ok := m.clusters[clusterID]; ok {
+		return rt.factory.Apps().V1().StatefulSets().Lister()
+	}
+	return nil
+}
+
+// DaemonSetsLister 返回 DaemonSets 的 Lister
+func (m *ClusterInformerManager) DaemonSetsLister(clusterID uint) appsv1listers.DaemonSetLister {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if rt, ok := m.clusters[clusterID]; ok {
+		return rt.factory.Apps().V1().DaemonSets().Lister()
 	}
 	return nil
 }

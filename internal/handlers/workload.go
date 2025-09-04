@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -101,69 +102,134 @@ func (h *WorkloadHandler) GetWorkloads(c *gin.Context) {
 		return
 	}
 
-	// 创建K8s客户端
-	var k8sClient *services.K8sClient
-	if cluster.KubeconfigEnc != "" {
-		k8sClient, err = services.NewK8sClientFromKubeconfig(cluster.KubeconfigEnc)
-	} else {
-		k8sClient, err = services.NewK8sClientFromToken(cluster.APIServer, cluster.SATokenEnc, cluster.CAEnc)
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "创建K8s客户端失败: " + err.Error(),
-		})
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// 确保 informer 缓存就绪
+	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		return
+	}
+
 	var workloads []WorkloadInfo
+	sel := labels.Everything()
 
-	// 根据类型获取不同的工作负载
+	// Deployments
 	if workloadType == "" || workloadType == string(WorkloadTypeDeployment) {
-		deployments, err := h.getDeployments(ctx, k8sClient, namespace)
-		if err != nil {
-			logger.Error("获取Deployment失败", "error", err)
+		if namespace != "" {
+			deps, err := h.k8sMgr.DeploymentsLister(cluster.ID).Deployments(namespace).List(sel)
+			if err != nil {
+				logger.Error("读取Deployment缓存失败", "error", err)
+			} else {
+				for _, d := range deps {
+					workloads = append(workloads, h.convertDeploymentToWorkloadInfo(d))
+				}
+			}
 		} else {
-			workloads = append(workloads, deployments...)
+			deps, err := h.k8sMgr.DeploymentsLister(cluster.ID).List(sel)
+			if err != nil {
+				logger.Error("读取Deployment缓存失败", "error", err)
+			} else {
+				for _, d := range deps {
+					workloads = append(workloads, h.convertDeploymentToWorkloadInfo(d))
+				}
+			}
 		}
 	}
 
+	// StatefulSets
 	if workloadType == "" || workloadType == string(WorkloadTypeStatefulSet) {
-		statefulSets, err := h.getStatefulSets(ctx, k8sClient, namespace)
-		if err != nil {
-			logger.Error("获取StatefulSet失败", "error", err)
-		} else {
-			workloads = append(workloads, statefulSets...)
+		if l := h.k8sMgr.StatefulSetsLister(cluster.ID); l != nil {
+			if namespace != "" {
+				items, err := l.StatefulSets(namespace).List(sel)
+				if err != nil {
+					logger.Error("读取StatefulSet缓存失败", "error", err)
+				} else {
+					for _, it := range items {
+						workloads = append(workloads, h.convertStatefulSetToWorkloadInfo(it))
+					}
+				}
+			} else {
+				items, err := l.List(sel)
+				if err != nil {
+					logger.Error("读取StatefulSet缓存失败", "error", err)
+				} else {
+					for _, it := range items {
+						workloads = append(workloads, h.convertStatefulSetToWorkloadInfo(it))
+					}
+				}
+			}
 		}
 	}
 
+	// DaemonSets
 	if workloadType == "" || workloadType == string(WorkloadTypeDaemonSet) {
-		daemonSets, err := h.getDaemonSets(ctx, k8sClient, namespace)
-		if err != nil {
-			logger.Error("获取DaemonSet失败", "error", err)
-		} else {
-			workloads = append(workloads, daemonSets...)
+		if l := h.k8sMgr.DaemonSetsLister(cluster.ID); l != nil {
+			if namespace != "" {
+				items, err := l.DaemonSets(namespace).List(sel)
+				if err != nil {
+					logger.Error("读取DaemonSet缓存失败", "error", err)
+				} else {
+					for _, it := range items {
+						workloads = append(workloads, h.convertDaemonSetToWorkloadInfo(it))
+					}
+				}
+			} else {
+				items, err := l.List(sel)
+				if err != nil {
+					logger.Error("读取DaemonSet缓存失败", "error", err)
+				} else {
+					for _, it := range items {
+						workloads = append(workloads, h.convertDaemonSetToWorkloadInfo(it))
+					}
+				}
+			}
 		}
 	}
 
+	// Jobs
 	if workloadType == "" || workloadType == string(WorkloadTypeJob) {
-		jobs, err := h.getJobs(ctx, k8sClient, namespace)
-		if err != nil {
-			logger.Error("获取Job失败", "error", err)
+		if namespace != "" {
+			items, err := h.k8sMgr.JobsLister(cluster.ID).Jobs(namespace).List(sel)
+			if err != nil {
+				logger.Error("读取Job缓存失败", "error", err)
+			} else {
+				for _, it := range items {
+					workloads = append(workloads, h.convertJobToWorkloadInfo(it))
+				}
+			}
 		} else {
-			workloads = append(workloads, jobs...)
+			items, err := h.k8sMgr.JobsLister(cluster.ID).List(sel)
+			if err != nil {
+				logger.Error("读取Job缓存失败", "error", err)
+			} else {
+				for _, it := range items {
+					workloads = append(workloads, h.convertJobToWorkloadInfo(it))
+				}
+			}
 		}
 	}
 
+	// CronJobs
 	if workloadType == "" || workloadType == string(WorkloadTypeCronJob) {
-		cronJobs, err := h.getCronJobs(ctx, k8sClient, namespace)
-		if err != nil {
-			logger.Error("获取CronJob失败", "error", err)
+		if namespace != "" {
+			items, err := h.k8sMgr.CronJobsLister(cluster.ID).CronJobs(namespace).List(sel)
+			if err != nil {
+				logger.Error("读取CronJob缓存失败", "error", err)
+			} else {
+				for _, it := range items {
+					workloads = append(workloads, h.convertCronJobToWorkloadInfo(it))
+				}
+			}
 		} else {
-			workloads = append(workloads, cronJobs...)
+			items, err := h.k8sMgr.CronJobsLister(cluster.ID).List(sel)
+			if err != nil {
+				logger.Error("读取CronJob缓存失败", "error", err)
+			} else {
+				for _, it := range items {
+					workloads = append(workloads, h.convertCronJobToWorkloadInfo(it))
+				}
+			}
 		}
 	}
 

@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // ClusterHandler 集群处理器
@@ -755,46 +756,19 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 
 // getClusterNodeInfo 获取集群节点信息
 func (h *ClusterHandler) getClusterNodeInfo(cluster *models.Cluster) (int, int) {
-	// 如果没有连接信息，返回默认值
-	if cluster.KubeconfigEnc == "" && cluster.SATokenEnc == "" {
+	// 使用 informer+lister 读取节点并统计（不直连 API）
+	if _, err := h.k8sMgr.EnsureAndWait(context.Background(), cluster, 5*time.Second); err != nil {
+		logger.Error("informer 未就绪", "error", err)
 		return 0, 0
 	}
-
-	var k8sClient *services.K8sClient
-	var err error
-
-	// 根据存储的信息创建客户端
-	if cluster.KubeconfigEnc != "" {
-		k8sClient, err = services.NewK8sClientFromKubeconfig(cluster.KubeconfigEnc)
-	} else if cluster.SATokenEnc != "" {
-		k8sClient, err = services.NewK8sClientFromToken(cluster.APIServer, cluster.SATokenEnc, cluster.CAEnc)
-	}
-
+	nodes, err := h.k8sMgr.NodesLister(cluster.ID).List(labels.Everything())
 	if err != nil {
-		logger.Error("创建K8s客户端失败 (集群: %s): %v", cluster.Name, err)
+		logger.Error("读取节点缓存失败", "error", err)
 		return 0, 0
 	}
-
-	// 获取节点列表
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	nodes, err := k8sClient.GetClientset().CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		logger.Error("获取节点列表失败 (集群: %s): %v", cluster.Name, err)
-		// 如果直接获取失败，尝试通过TestConnection
-		clusterInfo, testErr := k8sClient.TestConnection()
-		if testErr != nil {
-			logger.Error("TestConnection也失败 (集群: %s): %v", cluster.Name, testErr)
-			return 0, 0
-		}
-		return clusterInfo.NodeCount, clusterInfo.ReadyNodes
-	}
-
-	// 统计就绪节点数量
-	nodeCount := len(nodes.Items)
+	nodeCount := len(nodes)
 	readyNodes := 0
-	for _, node := range nodes.Items {
+	for _, node := range nodes {
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == "Ready" && condition.Status == "True" {
 				readyNodes++
@@ -802,7 +776,6 @@ func (h *ClusterHandler) getClusterNodeInfo(cluster *models.Cluster) (int, int) 
 			}
 		}
 	}
-
 	return nodeCount, readyNodes
 }
 
