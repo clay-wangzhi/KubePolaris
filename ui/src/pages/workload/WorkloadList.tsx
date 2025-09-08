@@ -14,34 +14,24 @@ import {
   Badge,
   Dropdown,
   InputNumber,
-  Popconfirm,
-  Checkbox,
   Alert,
   Segmented,
 } from 'antd';
 import {
-  ReloadOutlined,
-  SearchOutlined,
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   ExpandAltOutlined,
   EyeOutlined,
   MoreOutlined,
-  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { WorkloadService } from '../../services/workloadService';
 import type { WorkloadInfo } from '../../services/workloadService';
-import { clusterService } from '../../services/clusterService';
-import type { Cluster } from '../../types';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Option } = Select;
 const { Search } = Input;
 
-interface WorkloadListProps {}
-
-const WorkloadList: React.FC<WorkloadListProps> = () => {
+const WorkloadList: React.FC = () => {
   const { clusterId: routeClusterId } = useParams<{ clusterId: string }>();
   const navigate = useNavigate();
   
@@ -79,19 +69,8 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
   const [scaleModalVisible, setScaleModalVisible] = useState(false);
   const [scaleWorkload, setScaleWorkload] = useState<WorkloadInfo | null>(null);
   const [scaleReplicas, setScaleReplicas] = useState(1);
-  const [clusters, setClusters] = useState<Cluster[]>([]);
   const [selectedClusterId, setSelectedClusterId] = useState<string>(routeClusterId || '1');
 
-  // 获取集群列表
-  // const fetchClusters = useCallback(async () => {
-  //   try {
-  //     const response = await clusterService.getClusters();
-  //     setClusters(response.data.items || []);
-  //   } catch (error) {
-  //     message.error('获取集群列表失败');
-  //     console.error('获取集群列表失败:', error);
-  //   }
-  // }, []);
 
   // 获取工作负载列表
   const fetchWorkloads = useCallback(async () => {
@@ -122,15 +101,17 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
     }
   }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize]);
 
-  // 集群切换
-  const handleClusterChange = (clusterId: string) => {
-    setSelectedClusterId(clusterId);
-    setCurrentPage(1);
-    // 重置搜索和筛选条件
-    setSearchText('');
-    setSelectedNamespace('');
-    setSelectedType('');
-  };
+  // 集群切换 - 监听路由参数变化
+  useEffect(() => {
+    if (routeClusterId && routeClusterId !== selectedClusterId) {
+      setSelectedClusterId(routeClusterId);
+      setCurrentPage(1);
+      // 重置搜索和筛选条件
+      setSearchText('');
+      setSelectedNamespace('');
+      setSelectedType('');
+    }
+  }, [routeClusterId, selectedClusterId]);
 
   // 扩缩容工作负载
   const handleScale = async () => {
@@ -230,7 +211,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
     onChange: (keys: React.Key[]) => {
       setSelectedRowKeys(keys as string[]);
     },
-    onSelectAll: (selected: boolean, selectedRows: WorkloadInfo[], changeRows: WorkloadInfo[]) => {
+    onSelectAll: (selected: boolean) => {
       if (selected) {
         const allKeys = filteredWorkloads.map(w => `${w.namespace}-${w.name}-${w.type}`);
         setSelectedRowKeys(allKeys);
@@ -243,6 +224,10 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
   // 获取唯一的命名空间列表
   const getNamespaces = () => {
     const namespaces = Array.from(new Set(workloads.map(w => w.namespace)));
+    // 如果没有数据，返回一些常见的命名空间
+    if (namespaces.length === 0) {
+      return ['default', 'kube-system', 'kube-public', 'kube-node-lease'];
+    }
     return namespaces.sort();
   };
 
@@ -268,11 +253,6 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
   });
 
   // 初始化加载
-  // useEffect(() => {
-  //   fetchClusters();
-  // }, [fetchClusters]);
-
-  // 当选中的集群ID变化时，重新获取数据
   useEffect(() => {
     if (selectedClusterId) {
       fetchWorkloads();
@@ -296,7 +276,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
         </Tag>
       );
     });
-  }, [category, selectedType]);
+  }, [selectedType, getCategoryTypes]);
 
 
 
@@ -357,7 +337,7 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
       width: 120,
       render: (text: string, record: WorkloadInfo) => {
         const { status, color } = WorkloadService.formatStatus(record);
-        return <Badge status={color as any} text={status} />;
+        return <Badge status={color as 'success' | 'error' | 'default' | 'processing' | 'warning'} text={status} />;
       },
     },
     {
@@ -429,32 +409,6 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
         const t = (record.type || '').toLowerCase();
         const canScale = ['deployment', 'statefulset', 'argo-rollout'].includes(t);
         
-        const menuItems = [
-          {
-            key: 'view',
-            icon: <EyeOutlined />,
-            label: '查看详情',
-            onClick: () => navigate(`/clusters/${selectedClusterId}/workloads/${record.namespace}/${record.name}?type=${record.type}`),
-          },
-          ...(canScale ? [{
-            key: 'scale',
-            icon: <ExpandAltOutlined />,
-            label: '扩缩容',
-            onClick: () => {
-              setScaleWorkload(record);
-              setScaleReplicas(record.replicas || 1);
-              setScaleModalVisible(true);
-            },
-          }] : []),
-          {
-            key: 'delete',
-            icon: <DeleteOutlined />,
-            label: '删除',
-            danger: true,
-            onClick: () => handleDelete(record),
-          },
-        ];
-
         return (
           <Space size="small">
             <Button
@@ -593,9 +547,10 @@ const WorkloadList: React.FC<WorkloadListProps> = () => {
               <Select
                 placeholder="选择命名空间"
                 style={{ width: 180, minWidth: 120 }}
-                value={selectedNamespace}
+                value={selectedNamespace || undefined}
                 onChange={setSelectedNamespace}
                 allowClear
+                loading={workloads.length === 0}
               >
                 {getNamespaces().map(ns => (
                   <Option key={ns} value={ns}>{ns}</Option>

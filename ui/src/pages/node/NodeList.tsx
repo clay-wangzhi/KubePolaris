@@ -16,14 +16,11 @@ import {
   Badge,
   Modal,
   Dropdown,
-  Menu,
   message,
 } from 'antd';
 import {
-  PlusOutlined,
   ReloadOutlined,
   EyeOutlined,
-  BarChartOutlined,
   MoreOutlined,
   DatabaseOutlined,
   CheckCircleOutlined,
@@ -31,12 +28,10 @@ import {
   CloseCircleOutlined,
   DesktopOutlined,
   CodeOutlined,
-  PauseCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { Node, NodeTaint, Cluster } from '../../types';
+import type { Node, NodeTaint } from '../../types';
 import { nodeService, type NodeListParams, type NodeOverview } from '../../services/nodeService';
-import { clusterService } from '../../services/clusterService';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -48,7 +43,6 @@ const NodeList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [overview, setOverview] = useState<NodeOverview | null>(null);
-  const [clusters, setClusters] = useState<Cluster[]>([]);
   const [selectedClusterId, setSelectedClusterId] = useState<string>(routeClusterId || '1');
   const [pagination, setPagination] = useState({
     current: 1,
@@ -59,16 +53,6 @@ const NodeList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedNodes, setSelectedNodes] = useState<React.Key[]>([]);
 
-  // 获取集群列表 - 使用useCallback优化
-  const fetchClusters = useCallback(async () => {
-    try {
-      const response = await clusterService.getClusters();
-      setClusters(response.data.items || []);
-    } catch (error) {
-      message.error('获取集群列表失败');
-      console.error('获取集群列表失败:', error);
-    }
-  }, []);
 
   // 获取节点列表 - 使用useCallback优化
   const fetchNodes = useCallback(async (params: NodeListParams = { clusterId: selectedClusterId }) => {
@@ -80,8 +64,8 @@ const NodeList: React.FC = () => {
     try {
       const response = await nodeService.getNodes({
         ...params,
-        page: params.page || pagination.current,
-        pageSize: params.pageSize || pagination.pageSize,
+        page: params.page || 1,
+        pageSize: params.pageSize || 10,
       });
       
       setNodes(response.data.items || []);
@@ -95,7 +79,7 @@ const NodeList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClusterId, pagination.current, pagination.pageSize]);
+  }, [selectedClusterId]);
 
   // 获取节点概览 - 使用useCallback优化
   const fetchNodeOverview = useCallback(async () => {
@@ -111,53 +95,17 @@ const NodeList: React.FC = () => {
     }
   }, [selectedClusterId]);
 
-  // 集群切换
-  const handleClusterChange = (clusterId: string) => {
-    setSelectedClusterId(clusterId);
-    setPagination({ ...pagination, current: 1 });
-    // 重置搜索和筛选条件
-    setSearchText('');
-    setStatusFilter('all');
-  };
+  // 集群切换 - 监听路由参数变化
+  useEffect(() => {
+    if (routeClusterId && routeClusterId !== selectedClusterId) {
+      setSelectedClusterId(routeClusterId);
+      setPagination({ ...pagination, current: 1 });
+      // 重置搜索和筛选条件
+      setSearchText('');
+      setStatusFilter('all');
+    }
+  }, [routeClusterId, selectedClusterId, pagination]);
 
-  // 搜索节点
-  const handleSearch = (value: string) => {
-    setSearchText(value);
-    setPagination({ ...pagination, current: 1 });
-    fetchNodes({
-      clusterId: selectedClusterId,
-      search: value,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    });
-  };
-
-  // 状态筛选
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value);
-    setPagination({ ...pagination, current: 1 });
-    fetchNodes({
-      clusterId: selectedClusterId,
-      search: searchText,
-      status: value !== 'all' ? value : undefined,
-    });
-  };
-
-  // 表格分页变化
-  const handleTableChange = (pagination: any) => {
-    setPagination({
-      current: pagination.current,
-      pageSize: pagination.pageSize,
-      total: pagination.total,
-    });
-    
-    fetchNodes({
-      clusterId: selectedClusterId,
-      page: pagination.current,
-      pageSize: pagination.pageSize,
-      search: searchText,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    });
-  };
 
   // 节点选择变化
   const handleSelectionChange = (selectedRowKeys: React.Key[]) => {
@@ -236,29 +184,6 @@ const NodeList: React.FC = () => {
     });
   };
 
-  const handleEditLabels = (name: string) => {
-    message.info(`编辑节点 ${name} 的标签`);
-    // TODO: 实现编辑标签逻辑
-  };
-
-  const handleEditTaints = (name: string) => {
-    message.info(`编辑节点 ${name} 的污点`);
-    // TODO: 实现编辑污点逻辑
-  };
-
-  const handleViewEvents = (name: string) => {
-    message.info(`查看节点 ${name} 的事件`);
-    // TODO: 实现查看事件逻辑
-  };
-
-  const handleViewPods = (name: string) => {
-    navigate(`/clusters/${selectedClusterId}/pods?node=${name}`);
-  };
-
-  const handleNodeMetrics = (name: string) => {
-    message.info(`查看节点 ${name} 的监控指标`);
-    // TODO: 实现查看监控指标逻辑
-  };
 
   // 获取节点状态标签
   const getStatusTag = (status: string) => {
@@ -504,13 +429,7 @@ const NodeList: React.FC = () => {
 
   // 初始化加载
   useEffect(() => {
-    fetchClusters();
-  }, [fetchClusters]);
-
-  // 当选中的集群ID变化时，重新获取数据
-  useEffect(() => {
     if (selectedClusterId) {
-      console.log('Calling fetchNodes and fetchNodeOverview with clusterId:', selectedClusterId);
       fetchNodes({ clusterId: selectedClusterId });
       fetchNodeOverview();
     }
@@ -547,19 +466,6 @@ const NodeList: React.FC = () => {
             <p>管理集群中的节点，查看节点状态和资源使用情况</p>
           </div>
           <Space>
-            <Select
-              value={selectedClusterId}
-              style={{ width: 200 }}
-              onChange={handleClusterChange}
-              placeholder="选择集群"
-              loading={clusters.length === 0}
-            >
-              {clusters.map(cluster => (
-                <Option key={cluster.id} value={cluster.id.toString()}>
-                  {cluster.name}
-                </Option>
-              ))}
-            </Select>
             <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
               刷新
             </Button>

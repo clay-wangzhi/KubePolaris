@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
@@ -7,7 +7,6 @@ import {
   Space,
   Tag,
   Input,
-  Select,
   message,
   Popconfirm,
   Badge,
@@ -29,11 +28,8 @@ import type { PodInfo } from '../../services/podService';
 
 const { Title } = Typography;
 const { Search } = Input;
-const { Option } = Select;
 
-interface PodListProps {}
-
-const PodList: React.FC<PodListProps> = () => {
+const PodList: React.FC = () => {
   const { clusterId: routeClusterId } = useParams<{ clusterId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -51,7 +47,7 @@ const PodList: React.FC<PodListProps> = () => {
   const [searchText, setSearchText] = useState('');
 
   // 获取Pod列表
-  const fetchPods = async () => {
+  const fetchPods = useCallback(async () => {
     const clusterId = selectedClusterId;
     if (!clusterId) return;
     
@@ -79,7 +75,7 @@ const PodList: React.FC<PodListProps> = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClusterId, namespace, nodeName, page, pageSize]);
 
   // 删除Pod
   const handleDelete = async (pod: PodInfo) => {
@@ -132,9 +128,21 @@ const PodList: React.FC<PodListProps> = () => {
     // TODO: 实现本地搜索或服务端搜索
   };
 
+  // 集群切换 - 监听路由参数变化
+  useEffect(() => {
+    if (routeClusterId && routeClusterId !== selectedClusterId) {
+      setSelectedClusterId(routeClusterId);
+      setPage(1);
+      // 重置搜索和筛选条件
+      setSearchText('');
+      setNamespace('');
+      setNodeName('');
+    }
+  }, [routeClusterId, selectedClusterId]);
+
   useEffect(() => {
     fetchPods();
-  }, [selectedClusterId, namespace, nodeName, page, pageSize]);
+  }, [fetchPods]);
 
   // 过滤Pod列表（本地搜索）
   const filteredPods = pods.filter(pod => {
@@ -187,7 +195,7 @@ const PodList: React.FC<PodListProps> = () => {
       width: 120,
       render: (text: string, record: PodInfo) => {
         const { status, color } = PodService.formatStatus(record);
-        return <Badge status={color as any} text={status} />;
+        return <Badge status={color as 'success' | 'error' | 'default' | 'processing' | 'warning'} text={status} />;
       },
     },
     {
@@ -195,7 +203,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'nodeName',
       key: 'nodeName',
       width: 150,
-      responsive: ['md'],
+      responsive: ['md'] as ('xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl')[],
       render: (text: string) => text || '-',
     },
     {
@@ -203,7 +211,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'podIP',
       key: 'podIP',
       width: 120,
-      responsive: ['lg'],
+      responsive: ['lg'] as ('xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl')[],
       render: (text: string) => text || '-',
     },
     {
@@ -211,7 +219,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'restartCount',
       key: 'restartCount',
       width: 100,
-      responsive: ['md'],
+      responsive: ['md'] as ('xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl')[],
       render: (count: number) => (
         <Tag color={count > 0 ? 'orange' : 'green'}>{count}</Tag>
       ),
@@ -220,7 +228,7 @@ const PodList: React.FC<PodListProps> = () => {
       title: '容器',
       key: 'containers',
       width: 200,
-      responsive: ['lg'],
+      responsive: ['lg'] as ('xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl')[],
       render: (record: PodInfo) => (
         <Space wrap>
           {record.containers.map((container, index) => (
@@ -241,7 +249,7 @@ const PodList: React.FC<PodListProps> = () => {
       dataIndex: 'createdAt',
       key: 'age',
       width: 100,
-      responsive: ['xl'],
+      responsive: ['xl'] as ('xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl')[],
       render: (createdAt: string) => PodService.getAge(createdAt),
     },
     {

@@ -10,13 +10,9 @@ import {
   Avatar,
   Space,
   Select,
-  Tag,
   message,
 } from 'antd';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  HomeOutlined,
   ClusterOutlined,
   DesktopOutlined,
   RocketOutlined,
@@ -24,21 +20,13 @@ import {
   SearchOutlined,
   BellOutlined,
   UserOutlined,
-  PlusOutlined,
-  ImportOutlined,
   BarChartOutlined,
-  UnorderedListOutlined,
   SettingOutlined,
-  DatabaseOutlined,
-  SafetyOutlined,
-  MonitorOutlined,
   FileTextOutlined,
   AlertOutlined,
-  DollarOutlined,
   EyeOutlined,
   UploadOutlined,
   ApiOutlined,
-  CloudServerOutlined,
   HddOutlined,
   KeyOutlined,
   TagsOutlined,
@@ -47,7 +35,6 @@ import {
   ContainerOutlined,
 } from '@ant-design/icons';
 import type { MenuProps as AntMenuProps } from 'antd';
-import KubernetesIcon from '../components/KubernetesIcon';
 import type {  Cluster } from '../types';
 import { clusterService } from '../services/clusterService';
 
@@ -146,7 +133,7 @@ const MainLayout: React.FC = () => {
 
   // 判断是否在集群详情页面
   const isClusterDetailPage = () => {
-    return location.pathname.match(/\/clusters\/[^\/]+\//);
+    return location.pathname.match(/\/clusters\/[^/]+\//);
   };
   
   // 获取所有需要展开的菜单键
@@ -161,24 +148,24 @@ const MainLayout: React.FC = () => {
     const path = location.pathname;
     
     // 集群详情页面的路由匹配
-    if (path.match(/\/clusters\/[^\/]+\/overview/)) return ['cluster-overview'];
-    if (path.match(/\/clusters\/[^\/]+\/workloads/)) return ['k8s-workloads'];
-    if (path.match(/\/clusters\/[^\/]+\/pods/)) return ['k8s-pods'];
-    if (path.match(/\/clusters\/[^\/]+\/services/)) return ['k8s-services'];
-    if (path.match(/\/clusters\/[^\/]+\/storage/)) return ['k8s-storage'];
-    if (path.match(/\/clusters\/[^\/]+\/configs/)) return ['k8s-configs'];
-    if (path.match(/\/clusters\/[^\/]+\/namespaces/)) return ['k8s-namespaces'];
-    if (path.match(/\/clusters\/[^\/]+\/nodes/)) return ['cluster-nodes'];
-    if (path.match(/\/clusters\/[^\/]+\/config-center/)) return ['cluster-config'];
-    if (path.match(/\/clusters\/[^\/]+\/upgrade/)) return ['cluster-upgrade'];
-    if (path.match(/\/clusters\/[^\/]+\/plugins/)) return ['cluster-plugins'];
-    if (path.match(/\/clusters\/[^\/]+\/monitoring/)) return ['observability-monitoring'];
-    if (path.match(/\/clusters\/[^\/]+\/logs/)) return ['observability-logs'];
-    if (path.match(/\/clusters\/[^\/]+\/alerts/)) return ['observability-alerts'];
-    if (path.match(/\/clusters\/[^\/]+\/cost-insights/)) return ['cost-insights'];
+    if (path.match(/\/clusters\/[^/]+\/overview/)) return ['cluster-overview'];
+    if (path.match(/\/clusters\/[^/]+\/workloads/)) return ['k8s-workloads'];
+    if (path.match(/\/clusters\/[^/]+\/pods/)) return ['k8s-pods'];
+    if (path.match(/\/clusters\/[^/]+\/services/)) return ['k8s-services'];
+    if (path.match(/\/clusters\/[^/]+\/storage/)) return ['k8s-storage'];
+    if (path.match(/\/clusters\/[^/]+\/configs/)) return ['k8s-configs'];
+    if (path.match(/\/clusters\/[^/]+\/namespaces/)) return ['k8s-namespaces'];
+    if (path.match(/\/clusters\/[^/]+\/nodes/)) return ['cluster-nodes'];
+    if (path.match(/\/clusters\/[^/]+\/config-center/)) return ['cluster-config'];
+    if (path.match(/\/clusters\/[^/]+\/upgrade/)) return ['cluster-upgrade'];
+    if (path.match(/\/clusters\/[^/]+\/plugins/)) return ['cluster-plugins'];
+    if (path.match(/\/clusters\/[^/]+\/monitoring/)) return ['observability-monitoring'];
+    if (path.match(/\/clusters\/[^/]+\/logs/)) return ['observability-logs'];
+    if (path.match(/\/clusters\/[^/]+\/alerts/)) return ['observability-alerts'];
+    if (path.match(/\/clusters\/[^/]+\/cost-insights/)) return ['cost-insights'];
     
     // 主页面的路由匹配
-    if (path.startsWith('/clusters') && !path.match(/\/clusters\/[^\/]+\//)) return ['cluster-management'];
+    if (path.startsWith('/clusters') && !path.match(/\/clusters\/[^/]+\//)) return ['cluster-management'];
     if (path.startsWith('/permissions')) return ['permission-management'];
     
     return ['overview'];
@@ -209,7 +196,7 @@ const MainLayout: React.FC = () => {
       key: 'cluster-overview',
       label: '概览',
       onClick: () => {
-        const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+        const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
         if (clusterMatch) {
           navigate(`/clusters/${clusterMatch[1]}/overview`);
         }
@@ -224,7 +211,7 @@ const MainLayout: React.FC = () => {
           icon: <RocketOutlined />,
           label: '工作负载',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/workloads`);
             }
@@ -235,7 +222,7 @@ const MainLayout: React.FC = () => {
           icon: <ContainerOutlined />,
           label: '容器组',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/pods`);
             }
@@ -246,7 +233,7 @@ const MainLayout: React.FC = () => {
           icon: <ApiOutlined />,
           label: '服务',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/services`);
             }
@@ -257,7 +244,7 @@ const MainLayout: React.FC = () => {
           icon: <HddOutlined />,
           label: '存储',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/storage`);
             }
@@ -268,7 +255,7 @@ const MainLayout: React.FC = () => {
           icon: <KeyOutlined />,
           label: '配置与密钥',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/configs`);
             }
@@ -279,7 +266,7 @@ const MainLayout: React.FC = () => {
           icon: <TagsOutlined />,
           label: '命名空间',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/namespaces`);
             }
@@ -296,7 +283,7 @@ const MainLayout: React.FC = () => {
           icon: <DesktopOutlined />,
           label: '节点管理',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/nodes`);
             }
@@ -307,7 +294,7 @@ const MainLayout: React.FC = () => {
           icon: <SettingOutlined />,
           label: '配置中心',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/config-center`);
             }
@@ -318,7 +305,7 @@ const MainLayout: React.FC = () => {
           icon: <UploadOutlined />,
           label: '集群升级',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/upgrade`);
             }
@@ -329,7 +316,7 @@ const MainLayout: React.FC = () => {
           icon: <AppstoreOutlined />,
           label: '插件中心',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/plugins`);
             }
@@ -346,7 +333,7 @@ const MainLayout: React.FC = () => {
           icon: <BarChartOutlined />,
           label: '监控中心',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/monitoring`);
             }
@@ -357,7 +344,7 @@ const MainLayout: React.FC = () => {
           icon: <FileTextOutlined />,
           label: '日志中心',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/logs`);
             }
@@ -368,7 +355,7 @@ const MainLayout: React.FC = () => {
           icon: <AlertOutlined />,
           label: '告警中心',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/alerts`);
             }
@@ -385,7 +372,7 @@ const MainLayout: React.FC = () => {
           icon: <EyeOutlined />,
           label: '成本洞察',
           onClick: () => {
-            const clusterMatch = location.pathname.match(/\/clusters\/([^\/]+)/);
+            const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {
               navigate(`/clusters/${clusterMatch[1]}/cost-insights`);
             }
@@ -416,14 +403,15 @@ const MainLayout: React.FC = () => {
   };
 
   const ClusterSelector = () => {
-    const { id } = useParams();
+    const { id, clusterId } = useParams();
     const navigate = useNavigate();
     const { Option } = Select;
     const [clusters, setClusters] = useState<Cluster[]>([]);
-    const [currentCluster, setCurrentCluster] = useState(null);
+    // 优先使用 clusterId，如果没有则使用 id
+    const currentClusterId = clusterId || id;
     const openTerminal = () => {
-      if (id) {
-        window.open(`/clusters/${id}/terminal`);
+      if (currentClusterId) {
+        window.open(`/clusters/${currentClusterId}/terminal`);
       } else {
         message.error('无法获取集群ID');
       }
@@ -457,12 +445,12 @@ const MainLayout: React.FC = () => {
         <span>当前集群：</span>
 
         <Select
-          value={id}
+          value={currentClusterId}
           style={{ minWidth: 200 }}
-          onChange={(clusterId) => {
+          onChange={(newClusterId) => {
             // 保持当前子路由，只切换集群ID
             const currentPath = location.pathname;
-            const newPath = currentPath.replace(/\/clusters\/[^\/]+/, `/clusters/${clusterId}`);
+            const newPath = currentPath.replace(/\/clusters\/[^/]+/, `/clusters/${newClusterId}`);
             navigate(newPath);
           }}
         >
