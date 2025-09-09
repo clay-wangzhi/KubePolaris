@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
@@ -7,17 +7,14 @@ import {
   Space,
   Tag,
   Input,
+  Select,
   message,
   Popconfirm,
   Badge,
   Typography,
-  Row,
-  Col,
   Tooltip,
 } from 'antd';
 import {
-  ReloadOutlined,
-  SearchOutlined,
   DeleteOutlined,
   EyeOutlined,
   FileTextOutlined,
@@ -31,7 +28,7 @@ const { Search } = Input;
 
 const PodList: React.FC = () => {
   const { clusterId: routeClusterId } = useParams<{ clusterId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
   const [pods, setPods] = useState<PodInfo[]>([]);
@@ -45,9 +42,19 @@ const PodList: React.FC = () => {
   const [namespace, setNamespace] = useState(searchParams.get('namespace') || '');
   const [nodeName, setNodeName] = useState(searchParams.get('nodeName') || '');
   const [searchText, setSearchText] = useState('');
+  
+  // 下拉框选项
+  const [namespaceOptions, setNamespaceOptions] = useState<string[]>([]);
+  const [nodeOptions, setNodeOptions] = useState<string[]>([]);
+  const [loadingNamespaces, setLoadingNamespaces] = useState(false);
+  const [loadingNodes, setLoadingNodes] = useState(false);
+  
+  // 用于存储最新的searchText，避免useEffect依赖问题
+  const searchTextRef = useRef(searchText);
 
   // 获取Pod列表
-  const fetchPods = useCallback(async () => {
+  const fetchPods = useCallback(async (search?: string) => {
+    console.log('🔍 fetchPods called with search:', search, 'length:', search?.length);
     const clusterId = selectedClusterId;
     if (!clusterId) return;
     
@@ -59,9 +66,12 @@ const PodList: React.FC = () => {
         nodeName || undefined,
         undefined, // labelSelector
         undefined, // fieldSelector
+        search || undefined, // search
         page,
         pageSize
       );
+      
+      console.log('📡 API response received for search:', search);
       
       if (response.code === 200) {
         setPods(response.data.items);
@@ -77,6 +87,48 @@ const PodList: React.FC = () => {
     }
   }, [selectedClusterId, namespace, nodeName, page, pageSize]);
 
+  // 获取命名空间列表
+  const fetchNamespaces = useCallback(async () => {
+    const clusterId = selectedClusterId;
+    if (!clusterId) return;
+    
+    setLoadingNamespaces(true);
+    try {
+      const response = await PodService.getPodNamespaces(clusterId);
+      if (response.code === 200) {
+        setNamespaceOptions(response.data);
+      } else {
+        message.error(response.message || '获取命名空间列表失败');
+      }
+    } catch (error) {
+      console.error('获取命名空间列表失败:', error);
+      message.error('获取命名空间列表失败');
+    } finally {
+      setLoadingNamespaces(false);
+    }
+  }, [selectedClusterId]);
+
+  // 获取节点列表
+  const fetchNodes = useCallback(async () => {
+    const clusterId = selectedClusterId;
+    if (!clusterId) return;
+    
+    setLoadingNodes(true);
+    try {
+      const response = await PodService.getPodNodes(clusterId);
+      if (response.code === 200) {
+        setNodeOptions(response.data);
+      } else {
+        message.error(response.message || '获取节点列表失败');
+      }
+    } catch (error) {
+      console.error('获取节点列表失败:', error);
+      message.error('获取节点列表失败');
+    } finally {
+      setLoadingNodes(false);
+    }
+  }, [selectedClusterId]);
+
   // 删除Pod
   const handleDelete = async (pod: PodInfo) => {
     const clusterId = selectedClusterId;
@@ -87,7 +139,7 @@ const PodList: React.FC = () => {
       
       if (response.code === 200) {
         message.success('删除成功');
-        fetchPods();
+        fetchPods(searchText);
       } else {
         message.error(response.message || '删除失败');
       }
@@ -112,20 +164,16 @@ const PodList: React.FC = () => {
     navigate(`/clusters/${selectedClusterId}/pods/${pod.namespace}/${pod.name}/terminal`);
   };
 
-  // 筛选条件变化
-  const handleFilterChange = () => {
-    const params = new URLSearchParams();
-    if (namespace) params.set('namespace', namespace);
-    if (nodeName) params.set('nodeName', nodeName);
-    setSearchParams(params);
-    setPage(1);
-    fetchPods();
-  };
-
   // 搜索
   const handleSearch = (value: string) => {
     setSearchText(value);
-    // TODO: 实现本地搜索或服务端搜索
+  };
+
+  // 搜索文本变化
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchText(value);
+    searchTextRef.current = value; // 更新ref
   };
 
   // 集群切换 - 监听路由参数变化
@@ -140,17 +188,50 @@ const PodList: React.FC = () => {
     }
   }, [routeClusterId, selectedClusterId]);
 
+  // 初始加载命名空间和节点列表
   useEffect(() => {
-    fetchPods();
-  }, [fetchPods]);
+    console.log('📋 Loading namespaces and nodes');
+    fetchNamespaces();
+    fetchNodes();
+  }, [fetchNamespaces, fetchNodes]);
 
-  // 过滤Pod列表（本地搜索）
-  const filteredPods = pods.filter(pod => {
-    if (!searchText) return true;
-    return pod.name.toLowerCase().includes(searchText.toLowerCase()) ||
-           pod.namespace.toLowerCase().includes(searchText.toLowerCase()) ||
-           pod.nodeName.toLowerCase().includes(searchText.toLowerCase());
-  });
+  // 筛选条件变化时重新加载（不包括搜索）
+  useEffect(() => {
+    console.log('🔄 Filter conditions changed (excluding search), calling fetchPods with current searchText:', searchTextRef.current);
+    fetchPods(searchTextRef.current);
+  }, [selectedClusterId, namespace, nodeName, page, pageSize, fetchPods]);
+
+  // 搜索文本变化处理
+  useEffect(() => {
+    console.log('🔍 Search text changed, searchText:', searchText, 'length:', searchText?.length);
+    
+    // 如果搜索文本为空，立即重新加载所有数据
+    if (!searchText || searchText.trim().length === 0) {
+      console.log('📝 Search text is empty, reloading all data');
+      setPage(1);
+      fetchPods('');
+      return;
+    }
+    
+    console.log('searchText', searchText, searchText.trim().length);
+    // 如果搜索文本长度小于等于2，不触发搜索
+    if (searchText.trim().length <= 2) {
+      console.log('⏸️ Search text too short, not triggering search');
+      return;
+    }
+    
+    console.log('⏰ Setting search timer for:', searchText);
+    const timer = setTimeout(() => {
+      console.log('🚀 Search timer fired, calling fetchPods with:', searchText);
+      setPage(1); // 搜索时重置到第一页
+      fetchPods(searchText);
+    }, 500); // 500ms 防抖
+
+    return () => {
+      console.log('🧹 Cleaning up search timer');
+      clearTimeout(timer);
+    };
+  }, [searchText, fetchPods]);
 
   const columns = [
     {
@@ -305,60 +386,77 @@ const PodList: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '16px 24px' }}>
       {/* 页面头部 */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 16 }}>
         <Title level={3}>Pod 管理</Title>
-        
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col span={6}>
-            <Input
-              placeholder="命名空间"
-              value={namespace}
-              onChange={(e) => setNamespace(e.target.value)}
-              onPressEnter={handleFilterChange}
-            />
-          </Col>
-          <Col span={6}>
-            <Input
-              placeholder="节点名称"
-              value={nodeName}
-              onChange={(e) => setNodeName(e.target.value)}
-              onPressEnter={handleFilterChange}
-            />
-          </Col>
-          <Col span={6}>
-            <Search
-              placeholder="搜索Pod名称、命名空间、节点"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onSearch={handleSearch}
-              enterButton={<SearchOutlined />}
-            />
-          </Col>
-          <Col span={6}>
-            <Space>
-              <Button
-                type="primary"
-                icon={<ReloadOutlined />}
-                onClick={fetchPods}
-                loading={loading}
-              >
-                刷新
-              </Button>
-              <Button onClick={handleFilterChange}>
-                应用筛选
-              </Button>
-            </Space>
-          </Col>
-        </Row>
       </div>
 
       {/* Pod列表 */}
       <Card>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: '12px',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', flex: 1 }}>
+              <Select
+                placeholder="选择命名空间"
+                style={{ width: 180, minWidth: 120 }}
+                value={namespace || undefined}
+                onChange={(value) => setNamespace(value || '')}
+                allowClear
+                loading={loadingNamespaces}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={namespaceOptions.map(ns => ({ label: ns, value: ns }))}
+              />
+
+              <Select
+                placeholder="选择节点"
+                style={{ width: 180, minWidth: 120 }}
+                value={nodeName || undefined}
+                onChange={(value) => setNodeName(value || '')}
+                allowClear
+                loading={loadingNodes}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={nodeOptions.map(node => ({ label: node, value: node }))}
+              />
+
+            <Search
+              placeholder="搜索Pod名称、命名空间、节点"
+                style={{ width: 300, minWidth: 250, maxWidth: 400 }}
+              value={searchText}
+                onChange={handleSearchChange}
+              onSearch={handleSearch}
+                allowClear
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {/* <Button
+                type="primary"
+                icon={<ReloadOutlined />}
+                onClick={() => fetchPods(searchText)}
+                loading={loading}
+              >
+                刷新
+              </Button> */}
+            </div>
+          </div>
+      </div>
+
         <Table
           columns={columns}
-          dataSource={filteredPods}
+          dataSource={pods}
           rowKey={(record) => `${record.namespace}/${record.name}`}
           loading={loading}
           pagination={{

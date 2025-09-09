@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -271,6 +272,11 @@ func (h *WorkloadHandler) GetWorkloads(c *gin.Context) {
 		}
 		workloads = filteredWorkloads
 	}
+
+	// 按创建时间排序（最新的在前）
+	sort.Slice(workloads, func(i, j int) bool {
+		return workloads[i].CreatedAt.After(workloads[j].CreatedAt)
+	})
 
 	// 分页处理
 	total := len(workloads)
@@ -687,5 +693,163 @@ func (h *WorkloadHandler) DeleteWorkload(c *gin.Context) {
 		"code":    200,
 		"message": "删除成功",
 		"data":    nil,
+	})
+}
+
+// GetWorkloadNamespaces 获取工作负载的命名空间列表
+func (h *WorkloadHandler) GetWorkloadNamespaces(c *gin.Context) {
+	clusterId := c.Param("clusterID")
+	workloadType := c.Query("type")
+
+	logger.Info("获取工作负载命名空间列表: cluster=%s, type=%s", clusterId, workloadType)
+
+	// 从集群服务获取集群信息
+	clusterID := parseClusterID(clusterId)
+	cluster, err := h.clusterService.GetCluster(clusterID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "集群不存在",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 确保 informer 缓存就绪
+	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		return
+	}
+
+	namespaceSet := make(map[string]bool)
+	sel := labels.Everything()
+
+	// 根据类型获取命名空间
+	switch WorkloadType(workloadType) {
+	case WorkloadTypeStateless:
+		// Deployments
+		deps, err := h.k8sMgr.DeploymentsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, d := range deps {
+				namespaceSet[d.Namespace] = true
+			}
+		}
+		// Rollouts
+		rs, err := h.k8sMgr.RolloutsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, r := range rs {
+				namespaceSet[r.Namespace] = true
+			}
+		}
+	case WorkloadTypeRollout:
+		rs, err := h.k8sMgr.RolloutsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, r := range rs {
+				namespaceSet[r.Namespace] = true
+			}
+		}
+	case WorkloadTypeDeployment:
+		deps, err := h.k8sMgr.DeploymentsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, d := range deps {
+				namespaceSet[d.Namespace] = true
+			}
+		}
+	case WorkloadTypeStatefulSet:
+		if l := h.k8sMgr.StatefulSetsLister(cluster.ID); l != nil {
+			items, err := l.List(sel)
+			if err == nil {
+				for _, it := range items {
+					namespaceSet[it.Namespace] = true
+				}
+			}
+		}
+	case WorkloadTypeDaemonSet:
+		if l := h.k8sMgr.DaemonSetsLister(cluster.ID); l != nil {
+			items, err := l.List(sel)
+			if err == nil {
+				for _, it := range items {
+					namespaceSet[it.Namespace] = true
+				}
+			}
+		}
+	case WorkloadTypeJob:
+		items, err := h.k8sMgr.JobsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, it := range items {
+				namespaceSet[it.Namespace] = true
+			}
+		}
+	case WorkloadTypeCronJob:
+		// CronJobs 暂时注释掉
+		// if l := h.k8sMgr.CronJobsLister(cluster.ID); l != nil {
+		// 	items, err := l.List(sel)
+		// 	if err == nil {
+		// 		for _, it := range items {
+		// 			namespaceSet[it.Namespace] = true
+		// 		}
+		// 	}
+		// }
+	default:
+		// 获取所有类型的命名空间
+		// Deployments
+		deps, err := h.k8sMgr.DeploymentsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, d := range deps {
+				namespaceSet[d.Namespace] = true
+			}
+		}
+		// Rollouts
+		rs, err := h.k8sMgr.RolloutsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, r := range rs {
+				namespaceSet[r.Namespace] = true
+			}
+		}
+		// StatefulSets
+		if l := h.k8sMgr.StatefulSetsLister(cluster.ID); l != nil {
+			items, err := l.List(sel)
+			if err == nil {
+				for _, it := range items {
+					namespaceSet[it.Namespace] = true
+				}
+			}
+		}
+		// DaemonSets
+		if l := h.k8sMgr.DaemonSetsLister(cluster.ID); l != nil {
+			items, err := l.List(sel)
+			if err == nil {
+				for _, it := range items {
+					namespaceSet[it.Namespace] = true
+				}
+			}
+		}
+		// Jobs
+		items, err := h.k8sMgr.JobsLister(cluster.ID).List(sel)
+		if err == nil {
+			for _, it := range items {
+				namespaceSet[it.Namespace] = true
+			}
+		}
+	}
+
+	// 转换为切片并排序
+	var namespaces []string
+	for ns := range namespaceSet {
+		namespaces = append(namespaces, ns)
+	}
+	sort.Strings(namespaces)
+
+	// 如果没有找到命名空间，返回默认的
+	if len(namespaces) == 0 {
+		namespaces = []string{"default", "kube-system", "kube-public", "kube-node-lease"}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "获取成功",
+		"data":    namespaces,
 	})
 }

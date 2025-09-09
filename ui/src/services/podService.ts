@@ -94,6 +94,7 @@ export class PodService {
     nodeName?: string,
     labelSelector?: string,
     fieldSelector?: string,
+    search?: string,
     page = 1,
     pageSize = 20
   ): Promise<PodListResponse> {
@@ -116,6 +117,10 @@ export class PodService {
     
     if (fieldSelector) {
       params.append('fieldSelector', fieldSelector);
+    }
+    
+    if (search) {
+      params.append('search', search);
     }
     
     return request.get(`/clusters/${clusterId}/pods?${params}`);
@@ -260,5 +265,15 @@ export class PodService {
       return container.state.reason || '已终止';
     }
     return container.state.state;
+  }
+
+  // 获取Pod命名空间列表
+  static async getPodNamespaces(clusterId: string): Promise<{ code: number; message: string; data: string[] }> {
+    return request.get(`/clusters/${clusterId}/pods/namespaces`);
+  }
+
+  // 获取Pod节点列表
+  static async getPodNodes(clusterId: string): Promise<{ code: number; message: string; data: string[] }> {
+    return request.get(`/clusters/${clusterId}/pods/nodes`);
   }
 }

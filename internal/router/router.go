@@ -112,6 +112,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				pods := cluster.Group("/pods")
 				{
 					pods.GET("", podHandler.GetPods) // 可考虑使用 query 过滤 namespace/name
+					pods.GET("/namespaces", podHandler.GetPodNamespaces)
+					pods.GET("/nodes", podHandler.GetPodNodes)
 					pods.GET("/:namespace/:name", podHandler.GetPod)
 					pods.DELETE("/:namespace/:name", podHandler.DeletePod)
 					pods.GET("/:namespace/:name/logs", podHandler.GetPodLogs)
@@ -122,6 +124,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				workloads := cluster.Group("/workloads")
 				{
 					workloads.GET("", workloadHandler.GetWorkloads)
+					workloads.GET("/namespaces", workloadHandler.GetWorkloadNamespaces)
 					workloads.GET("/:namespace/:name", workloadHandler.GetWorkload)
 					workloads.POST("/:namespace/:name/scale", workloadHandler.ScaleWorkload)
 					// YAML apply 可以考虑放 /apply 到 cluster 级别或 workloads 级别均可

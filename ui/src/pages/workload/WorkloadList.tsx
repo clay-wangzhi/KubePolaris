@@ -35,88 +35,44 @@ const WorkloadList: React.FC = () => {
   const { clusterId: routeClusterId } = useParams<{ clusterId: string }>();
   const navigate = useNavigate();
   
+  // ==================== 状态管理 ====================
+  // 数据状态
   const [workloads, setWorkloads] = useState<WorkloadInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
+  
+  // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  
+  // 筛选状态
   const [selectedNamespace, setSelectedNamespace] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
-  // 新增：分类（无状态/有状态/守护进程集/普通任务/定时任务）
   const [category, setCategory] = useState<'stateless' | 'stateful' | 'daemonset' | 'job' | 'cronjob'>('stateless');
-
-  // 基于分类动态生成的类型标签列表
-  const getCategoryTypes = useCallback((): Array<{ label: string; value: string }> => {
-    switch (category) {
-      case 'stateless':
-        return [
-          { label: 'Deployment', value: 'Deployment' },
-          { label: 'Argo Rollout', value: 'Rollout' },
-        ];
-      case 'stateful':
-        return [{ label: 'StatefulSet', value: 'StatefulSet' }];
-      case 'daemonset':
-        return [{ label: 'DaemonSet', value: 'DaemonSet' }];
-      case 'job':
-        return [{ label: 'Job', value: 'Job' }];
-      case 'cronjob':
-        return [{ label: 'CronJob', value: 'CronJob' }];
-      default:
-        return [];
-    }
-  }, [category]);
   const [searchText, setSearchText] = useState('');
+  
+  // 命名空间列表状态
+  const [namespaces, setNamespaces] = useState<string[]>([]);
+  const [namespacesLoading, setNamespacesLoading] = useState(false);
+  
+  // 集群状态
+  const [selectedClusterId, setSelectedClusterId] = useState<string>(routeClusterId || '1');
+  
+  // 操作状态
   const [scaleModalVisible, setScaleModalVisible] = useState(false);
   const [scaleWorkload, setScaleWorkload] = useState<WorkloadInfo | null>(null);
   const [scaleReplicas, setScaleReplicas] = useState(1);
-  const [selectedClusterId, setSelectedClusterId] = useState<string>(routeClusterId || '1');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [batchDeleteModalVisible, setBatchDeleteModalVisible] = useState(false);
   
-  // 搜索防抖
+  // 防抖引用
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
-  // 获取工作负载列表
-  const fetchWorkloads = useCallback(async () => {
-    if (!selectedClusterId) return;
-    
-    setLoading(true);
-    try {
-      const response = await WorkloadService.getWorkloads(
-        selectedClusterId,
-        selectedNamespace || undefined,
-        selectedType || undefined,
-        currentPage,
-        pageSize,
-        searchText || undefined // 传递搜索参数
-      );
-      
-      if (response.code === 200) {
-        // 后端返回的数据结构是 { items: [], total: number }
-        setWorkloads(response.data.items || []);
-        setTotal(response.data.total || response.data.items?.length || 0);
-      } else {
-        message.error(response.message || '获取工作负载列表失败');
-      }
-    } catch (error) {
-      console.error('获取工作负载列表失败:', error);
-      message.error('获取工作负载列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize, searchText]);
-
-  // 集群切换 - 监听路由参数变化
-  useEffect(() => {
-    if (routeClusterId && routeClusterId !== selectedClusterId) {
-      setSelectedClusterId(routeClusterId);
-      setCurrentPage(1);
-      // 重置搜索和筛选条件
-      setSearchText('');
-      setSelectedNamespace('');
-      setSelectedType('');
-    }
-  }, [routeClusterId, selectedClusterId]);
-
+  // ==================== 核心业务逻辑 ====================
+  
+  // ==================== 操作处理函数 ====================
+  
   // 扩缩容工作负载
   const handleScale = async () => {
     if (!scaleWorkload || !selectedClusterId) return;
@@ -133,7 +89,7 @@ const WorkloadList: React.FC = () => {
       if (response.code === 200) {
         message.success('扩缩容成功');
         setScaleModalVisible(false);
-        fetchWorkloads();
+        loadWorkloads();
       } else {
         message.error(response.message || '扩缩容失败');
       }
@@ -143,7 +99,6 @@ const WorkloadList: React.FC = () => {
     }
   };
 
-  // 删除工作负载
   // 删除工作负载
   const handleDelete = async (workload: WorkloadInfo) => {
     if (!selectedClusterId) return;
@@ -158,7 +113,7 @@ const WorkloadList: React.FC = () => {
       
       if (response.code === 200) {
         message.success('删除成功');
-        fetchWorkloads();
+        loadWorkloads();
       } else {
         message.error(response.message || '删除失败');
       }
@@ -167,10 +122,6 @@ const WorkloadList: React.FC = () => {
       message.error('删除失败');
     }
   };
-
-  // 添加缺失的状态变量
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [batchDeleteModalVisible, setBatchDeleteModalVisible] = useState(false);
 
   // 批量删除工作负载
   const handleBatchDelete = async () => {
@@ -202,12 +153,91 @@ const WorkloadList: React.FC = () => {
       
       setBatchDeleteModalVisible(false);
       setSelectedRowKeys([]);
-      fetchWorkloads();
+      loadWorkloads();
     } catch (error) {
       console.error('批量删除失败:', error);
       message.error('批量删除失败');
     }
   };
+
+  // ==================== 工具函数 ====================
+  
+  // 基于分类动态生成的类型标签列表
+  const getCategoryTypes = useCallback((): Array<{ label: string; value: string }> => {
+    switch (category) {
+      case 'stateless':
+        return [
+          { label: 'Deployment', value: 'Deployment' },
+          { label: 'Argo Rollout', value: 'Rollout' },
+        ];
+      case 'stateful':
+        return [{ label: 'StatefulSet', value: 'StatefulSet' }];
+      case 'daemonset':
+        return [{ label: 'DaemonSet', value: 'DaemonSet' }];
+      case 'job':
+        return [{ label: 'Job', value: 'Job' }];
+      case 'cronjob':
+        return [{ label: 'CronJob', value: 'CronJob' }];
+      default:
+        return [];
+    }
+  }, [category]);
+
+  // 获取命名空间列表
+  const fetchNamespaces = useCallback(async () => {
+    if (!selectedClusterId) return;
+    
+    setNamespacesLoading(true);
+    try {
+      const response = await WorkloadService.getWorkloadNamespaces(
+        selectedClusterId,
+        selectedType || undefined
+      );
+      
+      if (response.code === 200) {
+        setNamespaces(response.data || []);
+      } else {
+        console.error('获取命名空间列表失败:', response.message);
+        // 如果获取失败，使用默认命名空间
+        setNamespaces(['default', 'kube-system', 'kube-public', 'kube-node-lease']);
+      }
+    } catch (error) {
+      console.error('获取命名空间列表失败:', error);
+      // 如果获取失败，使用默认命名空间
+      setNamespaces(['default', 'kube-system', 'kube-public', 'kube-node-lease']);
+    } finally {
+      setNamespacesLoading(false);
+    }
+  }, [selectedClusterId, selectedType]);
+
+  // 获取唯一的命名空间列表（保留作为备用）
+  const getNamespaces = () => {
+    // 优先使用从 API 获取的命名空间列表
+    if (namespaces.length > 0) {
+      return namespaces;
+    }
+    
+    // 备用方案：从当前数据中提取
+    const localNamespaces = Array.from(new Set(workloads.map(w => w.namespace)));
+    if (localNamespaces.length === 0) {
+      return ['default', 'kube-system', 'kube-public', 'kube-node-lease'];
+    }
+    return localNamespaces.sort();
+  };
+
+  // 过滤工作负载（按分类）
+  const filteredWorkloads = workloads.filter(workload => {
+    const type = (workload.type || '').toLowerCase();
+    const categoryType = (selectedType || '').toLowerCase();
+    const inCategory =
+       categoryType === 'stateless' ? (type === 'deployment' || type === 'rollout')
+      : categoryType === 'stateful' ? (type === 'statefulset')
+      : categoryType === 'daemonset' ? (type === 'daemonset')
+      : categoryType === 'job' ? (type === 'job')
+      : categoryType === 'cronjob' ? (type === 'cronjob')
+      : true;
+    return inCategory;
+  });
 
   // 行选择配置
   const rowSelection = {
@@ -225,59 +255,111 @@ const WorkloadList: React.FC = () => {
     },
   };
 
-  // 获取唯一的命名空间列表
-  const getNamespaces = () => {
-    const namespaces = Array.from(new Set(workloads.map(w => w.namespace)));
-    // 如果没有数据，返回一些常见的命名空间
-    if (namespaces.length === 0) {
-      return ['default', 'kube-system', 'kube-public', 'kube-node-lease'];
+  // ==================== 副作用处理 ====================
+  
+  // 集群切换处理
+  useEffect(() => {
+    if (routeClusterId && routeClusterId !== selectedClusterId) {
+      setSelectedClusterId(routeClusterId);
+      setCurrentPage(1);
+      setSearchText('');
+      setSelectedNamespace('');
+      setSelectedType('');
     }
-    return namespaces.sort();
-  };
+  }, [routeClusterId, selectedClusterId]);
 
-  // 过滤工作负载（按分类）
-  const filteredWorkloads = workloads.filter(workload => {
-    const type = (workload.type || '').toLowerCase();
-    const category = (selectedType || '').toLowerCase();
-    // 分类规则
-    const inCategory =
-       category === 'stateless' ? (type === 'deployment' || type === 'rollout')
-      : category === 'stateful' ? (type === 'statefulset')
-      : category === 'daemonset' ? (type === 'daemonset')
-      : category === 'job' ? (type === 'job')
-      : category === 'cronjob' ? (type === 'cronjob')
-      : true;
-
-    return inCategory;
-  });
+  // 统一的加载函数，避免重复代码
+  const loadWorkloads = useCallback(async (page: number = currentPage, search: string = searchText) => {
+    if (!selectedClusterId) return;
+    
+    setLoading(true);
+    try {
+      const response = await WorkloadService.getWorkloads(
+        selectedClusterId,
+        selectedNamespace || undefined,
+        selectedType || undefined,
+        page,
+        pageSize,
+        search || undefined
+      );
+      
+      if (response.code === 200) {
+        setWorkloads(response.data.items || []);
+        setTotal(response.data.total || response.data.items?.length || 0);
+      } else {
+        message.error(response.message || '获取工作负载列表失败');
+      }
+    } catch (error) {
+      console.error('获取工作负载列表失败:', error);
+      message.error('获取工作负载列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize, searchText]);
 
   // 搜索防抖处理
   useEffect(() => {
+    // 如果搜索文本为空，不触发防抖逻辑
+    if (!searchText.trim()) {
+      return;
+    }
+    
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     
     searchTimeoutRef.current = setTimeout(() => {
-      if (selectedClusterId) {
-        setCurrentPage(1); // 搜索时重置到第一页
-        fetchWorkloads();
-      }
-    }, 500); // 500ms 防抖延迟
+      // 搜索时重置到第一页
+      setCurrentPage(1);
+      // 直接调用 API，避免触发翻页筛选 useEffect
+      const performSearch = async () => {
+        setLoading(true);
+        try {
+          const response = await WorkloadService.getWorkloads(
+            selectedClusterId,
+            selectedNamespace || undefined,
+            selectedType || undefined,
+            1, // 搜索时强制使用第一页
+            pageSize,
+            searchText || undefined
+          );
+          
+          if (response.code === 200) {
+            setWorkloads(response.data.items || []);
+            setTotal(response.data.total || response.data.items?.length || 0);
+          } else {
+            message.error(response.message || '获取工作负载列表失败');
+          }
+        } catch (error) {
+          console.error('搜索请求失败:', error);
+          message.error('搜索请求失败');
+        } finally {
+          setLoading(false);
+        }
+      };
+      performSearch();
+    }, 500);
     
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchText, selectedClusterId, fetchWorkloads]);
+  }, [searchText, selectedClusterId, selectedNamespace, selectedType, pageSize]);
 
-  // 初始化加载
+  // 翻页和筛选条件变化时重新加载（排除搜索文本变化）
   useEffect(() => {
-    if (selectedClusterId) {
-      fetchWorkloads();
-    }
-  }, [selectedClusterId, fetchWorkloads]);
+    loadWorkloads();
+  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize, loadWorkloads]);
 
+  // 获取命名空间列表
+  useEffect(() => {
+    fetchNamespaces();
+  }, [fetchNamespaces]);
+
+  // ==================== UI 组件 ====================
+  
+  // 类型标签组件
   const typeTags = useMemo(() => {
     return getCategoryTypes().map(t => {
       const active = selectedType === t.value;
@@ -569,7 +651,7 @@ const WorkloadList: React.FC = () => {
                 value={selectedNamespace || undefined}
                 onChange={setSelectedNamespace}
                 allowClear
-                loading={workloads.length === 0}
+                loading={namespacesLoading}
               >
                 {getNamespaces().map(ns => (
                   <Option key={ns} value={ns}>{ns}</Option>

@@ -89,6 +89,20 @@ export class WorkloadService {
     return request.get(`/clusters/${clusterId}/workloads?${params}`);
   }
 
+  // 获取工作负载命名空间列表
+  static async getWorkloadNamespaces(
+    clusterId: string,
+    workloadType?: string
+  ): Promise<{ code: number; message: string; data: string[] }> {
+    const params = new URLSearchParams();
+    
+    if (workloadType) {
+      params.append('type', workloadType);
+    }
+    
+    return request.get(`/clusters/${clusterId}/workloads/namespaces?${params}`);
+  }
+
   // 获取工作负载详情
   static async getWorkloadDetail(
     clusterId: string,
