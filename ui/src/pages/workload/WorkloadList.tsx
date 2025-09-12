@@ -269,7 +269,7 @@ const WorkloadList: React.FC = () => {
   }, [routeClusterId, selectedClusterId]);
 
   // 统一的加载函数，避免重复代码
-  const loadWorkloads = useCallback(async (page: number = currentPage, search: string = searchText) => {
+  const loadWorkloads = useCallback(async (page: number = currentPage, search: string = '') => {
     if (!selectedClusterId) return;
     
     setLoading(true);
@@ -295,12 +295,19 @@ const WorkloadList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize, searchText]);
+  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize]);
 
   // 搜索防抖处理
   useEffect(() => {
-    // 如果搜索文本为空，不触发防抖逻辑
-    if (!searchText.trim()) {
+    // 如果搜索文本为空，立即重新加载所有数据
+    if (!searchText || searchText.trim().length === 0) {
+      setCurrentPage(1);
+      loadWorkloads(1, '');
+      return;
+    }
+    
+    // 如果搜索文本长度小于等于2，不触发搜索
+    if (searchText.trim().length <= 2) {
       return;
     }
     
@@ -345,12 +352,12 @@ const WorkloadList: React.FC = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchText, selectedClusterId, selectedNamespace, selectedType, pageSize]);
+  }, [searchText, selectedClusterId, selectedNamespace, selectedType, pageSize, loadWorkloads]);
 
   // 翻页和筛选条件变化时重新加载（排除搜索文本变化）
   useEffect(() => {
     loadWorkloads();
-  }, [selectedClusterId, selectedNamespace, selectedType, currentPage, pageSize, loadWorkloads]);
+  }, [loadWorkloads]);
 
   // 获取命名空间列表
   useEffect(() => {

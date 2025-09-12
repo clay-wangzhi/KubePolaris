@@ -54,7 +54,6 @@ const PodList: React.FC = () => {
 
   // 获取Pod列表
   const fetchPods = useCallback(async (search?: string) => {
-    console.log('🔍 fetchPods called with search:', search, 'length:', search?.length);
     const clusterId = selectedClusterId;
     if (!clusterId) return;
     
@@ -71,7 +70,6 @@ const PodList: React.FC = () => {
         pageSize
       );
       
-      console.log('📡 API response received for search:', search);
       
       if (response.code === 200) {
         setPods(response.data.items);
@@ -190,45 +188,36 @@ const PodList: React.FC = () => {
 
   // 初始加载命名空间和节点列表
   useEffect(() => {
-    console.log('📋 Loading namespaces and nodes');
     fetchNamespaces();
     fetchNodes();
   }, [fetchNamespaces, fetchNodes]);
 
   // 筛选条件变化时重新加载（不包括搜索）
   useEffect(() => {
-    console.log('🔄 Filter conditions changed (excluding search), calling fetchPods with current searchText:', searchTextRef.current);
     fetchPods(searchTextRef.current);
   }, [selectedClusterId, namespace, nodeName, page, pageSize, fetchPods]);
 
   // 搜索文本变化处理
   useEffect(() => {
-    console.log('🔍 Search text changed, searchText:', searchText, 'length:', searchText?.length);
     
     // 如果搜索文本为空，立即重新加载所有数据
     if (!searchText || searchText.trim().length === 0) {
-      console.log('📝 Search text is empty, reloading all data');
       setPage(1);
       fetchPods('');
       return;
     }
     
-    console.log('searchText', searchText, searchText.trim().length);
     // 如果搜索文本长度小于等于2，不触发搜索
     if (searchText.trim().length <= 2) {
-      console.log('⏸️ Search text too short, not triggering search');
       return;
     }
     
-    console.log('⏰ Setting search timer for:', searchText);
     const timer = setTimeout(() => {
-      console.log('🚀 Search timer fired, calling fetchPods with:', searchText);
       setPage(1); // 搜索时重置到第一页
       fetchPods(searchText);
     }, 500); // 500ms 防抖
 
     return () => {
-      console.log('🧹 Cleaning up search timer');
       clearTimeout(timer);
     };
   }, [searchText, fetchPods]);
