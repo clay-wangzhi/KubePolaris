@@ -147,6 +147,32 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					// YAML apply 可以考虑放 /apply 到 cluster 级别或 workloads 级别均可
 					workloads.POST("/yaml/apply", workloadHandler.ApplyYAML)
 				}
+
+				/** genAI_main_start */
+				// configmaps 子分组
+				configMapHandler := handlers.NewConfigMapHandler(db, cfg, clusterSvc, k8sMgr)
+				configmaps := cluster.Group("/configmaps")
+				{
+					configmaps.GET("", configMapHandler.GetConfigMaps)
+					configmaps.GET("/namespaces", configMapHandler.GetConfigMapNamespaces)
+					configmaps.GET("/:namespace/:name", configMapHandler.GetConfigMap)
+					configmaps.POST("", configMapHandler.CreateConfigMap)
+					configmaps.PUT("/:namespace/:name", configMapHandler.UpdateConfigMap)
+					configmaps.DELETE("/:namespace/:name", configMapHandler.DeleteConfigMap)
+				}
+
+				// secrets 子分组
+				secretHandler := handlers.NewSecretHandler(db, cfg, clusterSvc, k8sMgr)
+				secrets := cluster.Group("/secrets")
+				{
+					secrets.GET("", secretHandler.GetSecrets)
+					secrets.GET("/namespaces", secretHandler.GetSecretNamespaces)
+					secrets.GET("/:namespace/:name", secretHandler.GetSecret)
+					secrets.POST("", secretHandler.CreateSecret)
+					secrets.PUT("/:namespace/:name", secretHandler.UpdateSecret)
+					secrets.DELETE("/:namespace/:name", secretHandler.DeleteSecret)
+				}
+				/** genAI_main_end */
 			}
 		}
 

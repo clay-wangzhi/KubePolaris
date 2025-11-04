@@ -18,6 +18,7 @@ import WorkloadDetail from './pages/workload/WorkloadDetail';
 import YAMLEditor from './pages/yaml/YAMLEditor';
 import GlobalSearch from './pages/search/GlobalSearch';
 import KubectlTerminalPage from './pages/terminal/kubectlTerminal';
+import { ConfigSecretManagement, ConfigMapDetail, SecretDetail } from './pages/config';
 import './App.css';
 
 const App: React.FC = () => {
@@ -48,6 +49,10 @@ const App: React.FC = () => {
               <Route path="workloads" element={<WorkloadList />} />
               <Route path="workloads/:type/:namespace/:name" element={<WorkloadDetail />} />
               <Route path="search" element={<GlobalSearch />} />
+              {/* 配置与密钥路由 */}
+              <Route path="clusters/:clusterId/configs" element={<ConfigSecretManagement />} />
+              <Route path="clusters/:clusterId/configs/configmap/:namespace/:name" element={<ConfigMapDetail />} />
+              <Route path="clusters/:clusterId/configs/secret/:namespace/:name" element={<SecretDetail />} />
             </Route>
           </Routes>
         </Router>
