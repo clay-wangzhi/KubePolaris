@@ -7,6 +7,7 @@ import MainLayout from './layouts/MainLayout';
 import ClusterList from './pages/cluster/ClusterList';
 import ClusterDetail from './pages/cluster/ClusterDetail';
 import ClusterImport from './pages/cluster/ClusterImport';
+import ConfigCenter from './pages/cluster/ConfigCenter';
 import NodeList from './pages/node/NodeList';
 import NodeDetail from './pages/node/NodeDetail';
 import PodList from './pages/pod/PodList';
@@ -44,6 +45,7 @@ const App: React.FC = () => {
               <Route index element={<Navigate to="/clusters" replace />} />
               <Route path="clusters" element={<ClusterList />} />
               <Route path="clusters/:id/overview" element={<ClusterDetail />} />
+              <Route path="clusters/:clusterId/config-center" element={<ConfigCenter />} />
               <Route path="clusters/import" element={<ClusterImport />} />
               <Route path="clusters/:id/terminal" element={<KubectlTerminalPage  />} />
               <Route path="clusters/:clusterId/nodes" element={<NodeList />} />

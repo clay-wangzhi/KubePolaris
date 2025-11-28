@@ -1,6 +1,6 @@
 /** genAI_main_start */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Select, Button, Space, Spin, Alert, Switch } from 'antd';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Card, Row, Col, Statistic, Select, Button, Space, Spin, Alert, Switch, Skeleton } from 'antd';
 import { Line, Area } from '@ant-design/plots';
 import { ReloadOutlined } from '@ant-design/icons';
 import api from '../utils/api';
@@ -139,6 +139,7 @@ interface MonitoringChartsProps {
   podName?: string;
   workloadName?: string;
   type: 'cluster' | 'node' | 'pod' | 'workload';
+  lazyLoad?: boolean; // 是否懒加载，默认 false
 }
 /** genAI_main_end */
 
@@ -151,6 +152,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
   podName,
   workloadName,
   type,
+  lazyLoad = false,
 }) => {
 /** genAI_main_end */
   const [metrics, setMetrics] = useState<ClusterMetricsData | null>(null);
@@ -159,11 +161,40 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
   const [step, setStep] = useState('15s');
   /* genAI_main_start */
   const [autoRefresh, setAutoRefresh] = useState(false); // 默认关闭自动刷新
+  const [hasLoaded, setHasLoaded] = useState(false); // 是否已加载过数据
+  const metricsCacheRef = useRef<{ key: string; data: ClusterMetricsData; timestamp: number } | null>(null);
+  const CACHE_DURATION = 30000; // 缓存30秒
   /* genAI_main_end */
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /** genAI_main_start */
-  const fetchMetrics = useCallback(async () => {
+  // 生成缓存键
+  const cacheKey = useMemo(() => {
+    return `${clusterId}-${type}-${timeRange}-${step}-${clusterName || ''}-${nodeName || ''}-${namespace || ''}-${podName || ''}-${workloadName || ''}`;
+  }, [clusterId, type, timeRange, step, clusterName, nodeName, namespace, podName, workloadName]);
+
+  // 检查缓存
+  const getCachedData = useCallback(() => {
+    if (metricsCacheRef.current && metricsCacheRef.current.key === cacheKey) {
+      const now = Date.now();
+      if (now - metricsCacheRef.current.timestamp < CACHE_DURATION) {
+        return metricsCacheRef.current.data;
+      }
+    }
+    return null;
+  }, [cacheKey]);
+
+  const fetchMetrics = useCallback(async (forceRefresh = false) => {
+    // 检查缓存
+    if (!forceRefresh) {
+      const cachedData = getCachedData();
+      if (cachedData) {
+        setMetrics(cachedData);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       let url = '';
@@ -192,22 +223,59 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       }
 
       const response = await api.get(`${url}?${params.toString()}`);
-      setMetrics(response.data.data);
+      const data = response.data.data;
+      setMetrics(data);
+      
+      // 更新缓存
+      metricsCacheRef.current = {
+        key: cacheKey,
+        data: data,
+        timestamp: Date.now(),
+      };
+      
+      setHasLoaded(true);
     } catch (error) {
       console.error('获取监控数据失败:', error);
     } finally {
       setLoading(false);
     }
-  }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, workloadName, type]);
+  }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, workloadName, type, cacheKey, getCachedData]);
   /** genAI_main_end */
 
   /* genAI_main_start */
   useEffect(() => {
-    fetchMetrics();
+    // 如果是懒加载模式且未加载过，延迟自动加载
+    if (lazyLoad && !hasLoaded) {
+      // 延迟自动加载，给用户更好的体验
+      const timer = setTimeout(() => {
+        // 检查缓存
+        const cachedData = getCachedData();
+        if (cachedData) {
+          setMetrics(cachedData);
+          setHasLoaded(true);
+          return;
+        }
+        fetchMetrics();
+      }, 100); // 100ms 后自动加载
+      return () => clearTimeout(timer);
+    }
+    
+    // 非懒加载模式或已加载过，正常加载
+    if (!lazyLoad || hasLoaded) {
+      // 检查缓存
+      const cachedData = getCachedData();
+      if (cachedData) {
+        setMetrics(cachedData);
+        setHasLoaded(true);
+        return;
+      }
+      
+      fetchMetrics();
+    }
     
     // 只在开启自动刷新时设置定时器
     if (autoRefresh) {
-      intervalRef.current = setInterval(fetchMetrics, 30000); // 30秒刷新一次
+      intervalRef.current = setInterval(() => fetchMetrics(true), 30000); // 30秒刷新一次，强制刷新
     }
 
     return () => {
@@ -216,7 +284,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
         intervalRef.current = null;
       }
     };
-  }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, fetchMetrics, autoRefresh]);
+  }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, fetchMetrics, autoRefresh, lazyLoad, hasLoaded, getCachedData]);
   /* genAI_main_end */
 
   const formatTimestamp = (timestamp: number) => {
@@ -426,14 +494,28 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
     return <Area {...config} />;
   };
 
-  if (loading && !metrics) {
+  /* genAI_main_start */
+  // 懒加载处理 - 显示骨架屏，自动加载（通过 useEffect 触发）
+  if (lazyLoad && !hasLoaded && !loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16 }}>加载监控数据中...</div>
+      <div style={{ padding: '24px' }}>
+        <Card title="监控图表">
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </Card>
       </div>
     );
   }
+
+  if (loading && !metrics) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Card title="监控图表">
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </Card>
+      </div>
+    );
+  }
+  /* genAI_main_end */
 
   if (!metrics) {
     return (

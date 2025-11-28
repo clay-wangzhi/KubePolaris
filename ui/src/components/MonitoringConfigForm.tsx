@@ -10,11 +10,12 @@ import {
   Divider,
   Row,
   Col,
+  Modal,
   Alert,
   Typography,
   Collapse,
 } from 'antd';
-import { SaveOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { SaveOutlined, ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import api from '../utils/api';
 
 const { Option } = Select;
@@ -58,6 +59,10 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
   const [testing, setTesting] = useState(false);
   const [templates, setTemplates] = useState<MonitoringTemplates | null>(null);
   const [configType, setConfigType] = useState<string>('disabled');
+  /** genAI_main_start */
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null);
+  /** genAI_main_end */
 
   const loadTemplates = async () => {
     try {
@@ -94,36 +99,101 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
     }
   };
 
+  /** genAI_main_start */
   const handleSave = async () => {
     try {
       setLoading(true);
+      setSaveResult(null);
+      
+      // 表单验证
       const values = await form.validateFields();
       
-      await api.put(`/clusters/${clusterId}/monitoring/config`, values);
-      message.success('监控配置保存成功');
+      // 发送保存请求
+      const response = await api.put(`/clusters/${clusterId}/monitoring/config`, values);
+      
+      // 显示成功消息
+      const successMsg = response.data?.message || '监控配置保存成功';
+      message.success(successMsg);
+      setSaveResult({ success: true, message: successMsg });
       onConfigChange?.();
     } catch (error: unknown) {
       console.error('保存监控配置失败:', error);
-      message.error('保存监控配置失败');
+      
+      // 处理表单验证错误
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        const errorMsg = '请检查表单填写是否正确';
+        message.error(errorMsg);
+        setSaveResult({ success: false, message: errorMsg });
+        return;
+      }
+      
+      // 处理API错误
+      let errorMsg = '保存监控配置失败';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        errorMsg = axiosError.response?.data?.message || errorMsg;
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
+      message.error(errorMsg);
+      setSaveResult({ success: false, message: errorMsg });
     } finally {
       setLoading(false);
     }
   };
+  /** genAI_main_end */
 
+  /** genAI_main_start */
   const handleTest = async () => {
     try {
       setTesting(true);
+      setTestResult(null);
+      
+      // 表单验证
       const values = await form.validateFields();
       
-      await api.post(`/clusters/${clusterId}/monitoring/test-connection`, values);
-      message.success('连接测试成功');
+      // 如果监控类型是禁用，不允许测试
+      if (values.type === 'disabled') {
+        message.warning('请先选择监控类型');
+        setTestResult({ success: false, message: '监控功能已禁用，无法测试连接' });
+        return;
+      }
+      
+      // 发送测试请求
+      const response = await api.post(`/clusters/${clusterId}/monitoring/test-connection`, values);
+      
+      // 显示成功消息
+      const successMsg = response.data?.message || '连接测试成功';
+      message.success(successMsg);
+      setTestResult({ success: true, message: successMsg });
     } catch (error: unknown) {
       console.error('连接测试失败:', error);
-      message.error('连接测试失败');
+      
+      // 处理表单验证错误
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        const errorMsg = '请检查表单填写是否正确';
+        message.error(errorMsg);
+        setTestResult({ success: false, message: errorMsg });
+        return;
+      }
+      
+      // 处理API错误
+      let errorMsg = '连接测试失败';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        errorMsg = axiosError.response?.data?.message || errorMsg;
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
+      message.error(errorMsg);
+      setTestResult({ success: false, message: errorMsg });
     } finally {
       setTesting(false);
     }
   };
+  /** genAI_main_end */
 
   const renderAuthConfig = () => {
     const authType = form.getFieldValue(['auth', 'type']);
@@ -257,6 +327,54 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
           </Button>
         </Space>
       }>
+        {/* genAI_main_start */}
+        {/* 测试结果弹窗 */}
+        <Modal
+          open={testResult !== null}
+          title={
+            <Space>
+              {testResult?.success ? (
+                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />
+              ) : (
+                <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />
+              )}
+              <span>{testResult?.success ? '连接测试成功' : '连接测试失败'}</span>
+            </Space>
+          }
+          onCancel={() => setTestResult(null)}
+          footer={[
+            <Button key="ok" type="primary" onClick={() => setTestResult(null)}>
+              确定
+            </Button>
+          ]}
+        >
+          <p>{testResult?.message}</p>
+        </Modal>
+        
+        {/* 保存结果弹窗 */}
+        <Modal
+          open={saveResult !== null}
+          title={
+            <Space>
+              {saveResult?.success ? (
+                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />
+              ) : (
+                <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />
+              )}
+              <span>{saveResult?.success ? '配置保存成功' : '配置保存失败'}</span>
+            </Space>
+          }
+          onCancel={() => setSaveResult(null)}
+          footer={[
+            <Button key="ok" type="primary" onClick={() => setSaveResult(null)}>
+              确定
+            </Button>
+          ]}
+        >
+          <p>{saveResult?.message}</p>
+        </Modal>
+        {/* genAI_main_end */}
+        
         <Form
           form={form}
           layout="vertical"

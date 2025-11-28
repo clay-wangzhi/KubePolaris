@@ -30,13 +30,11 @@ import {
   ClusterOutlined,
   CalendarOutlined,
   ApiOutlined,
-  CodeOutlined,
   FolderFilled,
   CloudServerOutlined,
 } from '@ant-design/icons';
 import KubectlTerminal from '../../components/KubectlTerminal';
 import MonitoringCharts from '../../components/MonitoringCharts';
-import MonitoringConfigForm from '../../components/MonitoringConfigForm';
 import type { ColumnsType } from 'antd/es/table';
 import type { Cluster, Node, Pod, K8sEvent, ClusterOverview } from '../../types';
 import { clusterService } from '../../services/clusterService';
@@ -211,16 +209,17 @@ const ClusterDetail: React.FC = () => {
     },
   ];
 
-  // 使用监控图表组件
+  // 使用监控图表组件（启用懒加载）
   const ClusterMonitoring = () => (
     <MonitoringCharts 
       clusterId={id || ''} 
       clusterName={cluster?.name || ''}
       type="cluster"
+      lazyLoad={true}
     />
   );
 
-  // Tabs配置
+  // Tabs配置（使用懒加载，只有激活时才渲染）
   const tabItems = [
     {
       key: 'monitoring',
@@ -230,24 +229,7 @@ const ClusterDetail: React.FC = () => {
           监控概览
         </span>
       ),
-      children: <ClusterMonitoring />,
-    },
-    {
-      key: 'config',
-      label: (
-        <span>
-          <CodeOutlined />
-          监控配置
-        </span>
-      ),
-      children: (
-        <MonitoringConfigForm 
-          clusterId={id || ''} 
-          onConfigChange={() => {
-            message.success('监控配置已更新');
-          }}
-        />
-      ),
+      children: activeTab === 'monitoring' ? <ClusterMonitoring /> : null,
     },
     {
       key: 'events',
@@ -291,6 +273,8 @@ const ClusterDetail: React.FC = () => {
     if (activeTab === 'events') {
       fetchClusterEvents(eventSearch);
     }
+    // 当切换到监控概览标签页时，自动触发加载（如果使用懒加载）
+    // 注意：MonitoringCharts 组件内部会处理懒加载逻辑
   }, [activeTab, id]);
 
   if (!cluster && !loading) {
