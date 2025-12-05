@@ -400,48 +400,257 @@ export class WorkloadService {
       return result;
     };
 
-    const labels = typeof formData.labels === 'string' 
-      ? parseKeyValue(formData.labels) 
-      : formData.labels || {};
-    const annotations = typeof formData.annotations === 'string'
-      ? parseKeyValue(formData.annotations)
-      : formData.annotations || {};
+    // 处理 labels（支持数组和对象格式）
+    let labels: Record<string, string> = {};
+    if (Array.isArray(formData.labels)) {
+      formData.labels.forEach((item: { key: string; value: string }) => {
+        if (item.key && item.value) {
+          labels[item.key] = item.value;
+        }
+      });
+    } else if (typeof formData.labels === 'string') {
+      labels = parseKeyValue(formData.labels);
+    } else if (formData.labels) {
+      labels = formData.labels;
+    }
 
-    // 基础metadata
+    // 处理 annotations（支持数组和对象格式）
+    let annotations: Record<string, string> = {};
+    if (Array.isArray(formData.annotations)) {
+      formData.annotations.forEach((item: { key: string; value: string }) => {
+        if (item.key && item.value) {
+          annotations[item.key] = item.value;
+        }
+      });
+    } else if (typeof formData.annotations === 'string') {
+      annotations = parseKeyValue(formData.annotations);
+    } else if (formData.annotations) {
+      annotations = formData.annotations;
+    }
+
+    // 基础metadata - 确保 name 不为 undefined
+    const workloadName = formData.name || `example-${workloadType.toLowerCase()}`;
     const metadata = {
-      name: formData.name,
+      name: workloadName,
       namespace: formData.namespace || 'default',
-      labels: Object.keys(labels).length > 0 ? labels : { app: formData.name },
+      labels: Object.keys(labels).length > 0 ? labels : { app: workloadName },
       ...(Object.keys(annotations).length > 0 && { annotations }),
     };
 
-    // 容器定义
-    const container = {
-      name: formData.containerName || 'main',
-      image: formData.image,
-      ...(formData.containerPort && {
-        ports: [{ containerPort: formData.containerPort }],
-      }),
-      ...(formData.env && formData.env.length > 0 && {
-        env: formData.env.map((e: any) => ({ name: e.name, value: e.value })),
-      }),
-      ...(formData.resources && {
-        resources: {
-          ...(formData.resources.requests && { requests: formData.resources.requests }),
-          ...(formData.resources.limits && { limits: formData.resources.limits }),
-        },
-      }),
+    // 构建容器 YAML 字符串的辅助函数
+    const buildContainerYAML = (): string => {
+      // 确保 image 不为 undefined
+      const containerImage = formData.image || 'nginx:latest';
+      const containerName = formData.containerName || 'main';
+      
+      let containerYAML = `      - name: ${containerName}
+        image: ${containerImage}`;
+      
+      if (formData.imagePullPolicy) {
+        containerYAML += `\n        imagePullPolicy: ${formData.imagePullPolicy}`;
+      }
+      
+      if (formData.containerPort) {
+        containerYAML += `\n        ports:\n        - containerPort: ${formData.containerPort}`;
+      }
+      
+      if (formData.env && formData.env.length > 0) {
+        containerYAML += `\n        env:`;
+        formData.env.forEach((e: { name: string; value: string }) => {
+          containerYAML += `\n        - name: ${e.name}\n          value: "${e.value}"`;
+        });
+      }
+      
+      if (formData.resources) {
+        containerYAML += `\n        resources:`;
+        if (formData.resources.requests) {
+          containerYAML += `\n          requests:`;
+          if (formData.resources.requests.cpu) {
+            containerYAML += `\n            cpu: ${formData.resources.requests.cpu}`;
+          }
+          if (formData.resources.requests.memory) {
+            containerYAML += `\n            memory: ${formData.resources.requests.memory}`;
+          }
+        }
+        if (formData.resources.limits) {
+          containerYAML += `\n          limits:`;
+          if (formData.resources.limits.cpu) {
+            containerYAML += `\n            cpu: ${formData.resources.limits.cpu}`;
+          }
+          if (formData.resources.limits.memory) {
+            containerYAML += `\n            memory: ${formData.resources.limits.memory}`;
+          }
+        }
+      }
+      
+      // 生命周期
+      if (formData.lifecycle) {
+        containerYAML += `\n        lifecycle:`;
+        if (formData.lifecycle.postStart?.exec?.command) {
+          const cmd = Array.isArray(formData.lifecycle.postStart.exec.command)
+            ? formData.lifecycle.postStart.exec.command
+            : formData.lifecycle.postStart.exec.command.split(',');
+          containerYAML += `\n          postStart:\n            exec:\n              command: [${cmd.map((c: string) => `"${c.trim()}"`).join(', ')}]`;
+        }
+        if (formData.lifecycle.preStop?.exec?.command) {
+          const cmd = Array.isArray(formData.lifecycle.preStop.exec.command)
+            ? formData.lifecycle.preStop.exec.command
+            : formData.lifecycle.preStop.exec.command.split(',');
+          containerYAML += `\n          preStop:\n            exec:\n              command: [${cmd.map((c: string) => `"${c.trim()}"`).join(', ')}]`;
+        }
+      }
+      
+      // 健康检查
+      if (formData.livenessProbe) {
+        containerYAML += `\n        livenessProbe:`;
+        if (formData.livenessProbe.httpGet) {
+          containerYAML += `\n          httpGet:\n            path: ${formData.livenessProbe.httpGet.path}\n            port: ${formData.livenessProbe.httpGet.port}`;
+        }
+        if (formData.livenessProbe.initialDelaySeconds !== undefined) {
+          containerYAML += `\n          initialDelaySeconds: ${formData.livenessProbe.initialDelaySeconds}`;
+        }
+        if (formData.livenessProbe.periodSeconds !== undefined) {
+          containerYAML += `\n          periodSeconds: ${formData.livenessProbe.periodSeconds}`;
+        }
+        if (formData.livenessProbe.failureThreshold !== undefined) {
+          containerYAML += `\n          failureThreshold: ${formData.livenessProbe.failureThreshold}`;
+        }
+      }
+      
+      if (formData.readinessProbe) {
+        containerYAML += `\n        readinessProbe:`;
+        if (formData.readinessProbe.httpGet) {
+          containerYAML += `\n          httpGet:\n            path: ${formData.readinessProbe.httpGet.path}\n            port: ${formData.readinessProbe.httpGet.port}`;
+        }
+        if (formData.readinessProbe.initialDelaySeconds !== undefined) {
+          containerYAML += `\n          initialDelaySeconds: ${formData.readinessProbe.initialDelaySeconds}`;
+        }
+        if (formData.readinessProbe.periodSeconds !== undefined) {
+          containerYAML += `\n          periodSeconds: ${formData.readinessProbe.periodSeconds}`;
+        }
+        if (formData.readinessProbe.failureThreshold !== undefined) {
+          containerYAML += `\n          failureThreshold: ${formData.readinessProbe.failureThreshold}`;
+        }
+      }
+      
+      // 安全上下文
+      if (formData.securityContext) {
+        containerYAML += `\n        securityContext:`;
+        if (formData.securityContext.privileged !== undefined) {
+          containerYAML += `\n          privileged: ${formData.securityContext.privileged}`;
+        }
+        if (formData.securityContext.runAsUser !== undefined) {
+          containerYAML += `\n          runAsUser: ${formData.securityContext.runAsUser}`;
+        }
+        if (formData.securityContext.runAsGroup !== undefined) {
+          containerYAML += `\n          runAsGroup: ${formData.securityContext.runAsGroup}`;
+        }
+        if (formData.securityContext.runAsNonRoot !== undefined) {
+          containerYAML += `\n          runAsNonRoot: ${formData.securityContext.runAsNonRoot}`;
+        }
+        if (formData.securityContext.readOnlyRootFilesystem !== undefined) {
+          containerYAML += `\n          readOnlyRootFilesystem: ${formData.securityContext.readOnlyRootFilesystem}`;
+        }
+        if (formData.securityContext.allowPrivilegeEscalation !== undefined) {
+          containerYAML += `\n          allowPrivilegeEscalation: ${formData.securityContext.allowPrivilegeEscalation}`;
+        }
+      }
+      
+      return containerYAML;
     };
-
-    // PodSpec
-    const podSpec = {
-      containers: [container],
+    
+    // 构建 PodSpec YAML 字符串的辅助函数
+    const buildPodSpecYAML = (): string => {
+      let podSpecYAML = buildContainerYAML();
+      
+      // 数据卷挂载（添加到容器）
+      if (formData.volumes && formData.volumes.length > 0) {
+        const volumeMounts = formData.volumes.map((vol: any) => 
+          `\n        - name: ${vol.name}\n          mountPath: ${vol.mountPath}${vol.readOnly ? '\n          readOnly: true' : ''}`
+        ).join('');
+        podSpecYAML += `\n        volumeMounts:${volumeMounts}`;
+      }
+      
+      // 镜像拉取密钥
+      if (formData.imagePullSecrets && formData.imagePullSecrets.length > 0) {
+        podSpecYAML += `\n      imagePullSecrets:`;
+        formData.imagePullSecrets.forEach((secret: string) => {
+          podSpecYAML += `\n      - name: ${secret}`;
+        });
+      }
+      
+      // 节点选择器
+      if (formData.nodeSelectorList && formData.nodeSelectorList.length > 0) {
+        podSpecYAML += `\n      nodeSelector:`;
+        formData.nodeSelectorList.forEach((item: { key: string; value: string }) => {
+          podSpecYAML += `\n        ${item.key}: ${item.value}`;
+        });
+      }
+      
+      // 容忍策略
+      if (formData.tolerations && formData.tolerations.length > 0) {
+        podSpecYAML += `\n      tolerations:`;
+        formData.tolerations.forEach((tol: any) => {
+          podSpecYAML += `\n      - key: ${tol.key}\n        operator: ${tol.operator}\n        effect: ${tol.effect}`;
+          if (tol.value) {
+            podSpecYAML += `\n        value: ${tol.value}`;
+          }
+          if (tol.tolerationSeconds !== undefined) {
+            podSpecYAML += `\n        tolerationSeconds: ${tol.tolerationSeconds}`;
+          }
+        });
+      }
+      
+      // DNS配置
+      if (formData.dnsPolicy) {
+        podSpecYAML += `\n      dnsPolicy: ${formData.dnsPolicy}`;
+      }
+      if (formData.dnsConfig) {
+        podSpecYAML += `\n      dnsConfig:`;
+        if (formData.dnsConfig.nameservers && formData.dnsConfig.nameservers.length > 0) {
+          podSpecYAML += `\n        nameservers: [${formData.dnsConfig.nameservers.map((ns: string) => `"${ns}"`).join(', ')}]`;
+        }
+        if (formData.dnsConfig.searches && formData.dnsConfig.searches.length > 0) {
+          podSpecYAML += `\n        searches: [${formData.dnsConfig.searches.map((s: string) => `"${s}"`).join(', ')}]`;
+        }
+      }
+      
+      // 终止宽限期
+      if (formData.terminationGracePeriodSeconds !== undefined) {
+        podSpecYAML += `\n      terminationGracePeriodSeconds: ${formData.terminationGracePeriodSeconds}`;
+      }
+      
+      return podSpecYAML;
     };
 
     let yaml = '';
 
     switch (workloadType) {
       case 'Deployment':
+        let deploymentStrategy = '';
+        if (formData.strategy) {
+          if (formData.strategy.type === 'Recreate') {
+            deploymentStrategy = `\n  strategy:\n    type: Recreate`;
+          } else if (formData.strategy.type === 'RollingUpdate' && formData.strategy.rollingUpdate) {
+            deploymentStrategy = `\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:`;
+            if (formData.strategy.rollingUpdate.maxUnavailable) {
+              deploymentStrategy += `\n      maxUnavailable: ${formData.strategy.rollingUpdate.maxUnavailable}`;
+            }
+            if (formData.strategy.rollingUpdate.maxSurge) {
+              deploymentStrategy += `\n      maxSurge: ${formData.strategy.rollingUpdate.maxSurge}`;
+            }
+            if (formData.strategy.rollingUpdate.minReadySeconds !== undefined) {
+              deploymentStrategy += `\n      minReadySeconds: ${formData.strategy.rollingUpdate.minReadySeconds}`;
+            }
+            if (formData.strategy.rollingUpdate.revisionHistoryLimit !== undefined) {
+              deploymentStrategy += `\n      revisionHistoryLimit: ${formData.strategy.rollingUpdate.revisionHistoryLimit}`;
+            }
+            if (formData.strategy.rollingUpdate.progressDeadlineSeconds !== undefined) {
+              deploymentStrategy += `\n      progressDeadlineSeconds: ${formData.strategy.rollingUpdate.progressDeadlineSeconds}`;
+            }
+          }
+        }
+        
         yaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -451,9 +660,9 @@ metadata:
 ${Object.entries(metadata.labels)
   .map(([k, v]) => `    ${k}: ${v}`)
   .join('\n')}
-${metadata.annotations ? `  annotations:\n${Object.entries(metadata.annotations).map(([k, v]) => `    ${k}: ${v}`).join('\n')}` : ''}
+${Object.keys(annotations).length > 0 ? `  annotations:\n${Object.entries(annotations).map(([k, v]) => `    ${k}: ${v}`).join('\n')}` : ''}
 spec:
-  replicas: ${formData.replicas || 1}
+  replicas: ${formData.replicas || 1}${deploymentStrategy}
   selector:
     matchLabels:
 ${Object.entries(metadata.labels)
@@ -467,11 +676,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
     spec:
       containers:
-      - name: ${container.name}
-        image: ${container.image}
-${container.ports ? `        ports:\n${container.ports.map((p: any) => `        - containerPort: ${p.containerPort}`).join('\n')}` : ''}
-${container.env ? `        env:\n${container.env.map((e: any) => `        - name: ${e.name}\n          value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `        resources:\n${container.resources.requests ? `          requests:\n            cpu: ${container.resources.requests.cpu}\n            memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n          limits:\n            cpu: ${container.resources.limits.cpu}\n            memory: ${container.resources.limits.memory}` : ''}` : ''}`;
+${buildPodSpecYAML()}${formData.volumes && formData.volumes.length > 0 ? `\n      volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n      - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n        emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n        hostPath:\n          path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n        configMap:\n          name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n        secret:\n          secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n        persistentVolumeClaim:\n          claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}`;
         break;
 
       case 'StatefulSet':
@@ -500,11 +719,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
     spec:
       containers:
-      - name: ${container.name}
-        image: ${container.image}
-${container.ports ? `        ports:\n${container.ports.map((p: any) => `        - containerPort: ${p.containerPort}`).join('\n')}` : ''}
-${container.env ? `        env:\n${container.env.map((e: any) => `        - name: ${e.name}\n          value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `        resources:\n${container.resources.requests ? `          requests:\n            cpu: ${container.resources.requests.cpu}\n            memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n          limits:\n            cpu: ${container.resources.limits.cpu}\n            memory: ${container.resources.limits.memory}` : ''}` : ''}`;
+${buildPodSpecYAML()}${formData.volumes && formData.volumes.length > 0 ? `\n      volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n      - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n        emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n        hostPath:\n          path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n        configMap:\n          name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n        secret:\n          secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n        persistentVolumeClaim:\n          claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}`;
         break;
 
       case 'DaemonSet':
@@ -531,11 +760,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
     spec:
       containers:
-      - name: ${container.name}
-        image: ${container.image}
-${container.ports ? `        ports:\n${container.ports.map((p: any) => `        - containerPort: ${p.containerPort}`).join('\n')}` : ''}
-${container.env ? `        env:\n${container.env.map((e: any) => `        - name: ${e.name}\n          value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `        resources:\n${container.resources.requests ? `          requests:\n            cpu: ${container.resources.requests.cpu}\n            memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n          limits:\n            cpu: ${container.resources.limits.cpu}\n            memory: ${container.resources.limits.memory}` : ''}` : ''}`;
+${buildPodSpecYAML()}${formData.volumes && formData.volumes.length > 0 ? `\n      volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n      - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n        emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n        hostPath:\n          path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n        configMap:\n          name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n        secret:\n          secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n        persistentVolumeClaim:\n          claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}`;
         break;
 
       case 'Rollout':
@@ -563,11 +802,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
     spec:
       containers:
-      - name: ${container.name}
-        image: ${container.image}
-${container.ports ? `        ports:\n${container.ports.map((p: any) => `        - containerPort: ${p.containerPort}`).join('\n')}` : ''}
-${container.env ? `        env:\n${container.env.map((e: any) => `        - name: ${e.name}\n          value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `        resources:\n${container.resources.requests ? `          requests:\n            cpu: ${container.resources.requests.cpu}\n            memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n          limits:\n            cpu: ${container.resources.limits.cpu}\n            memory: ${container.resources.limits.memory}` : ''}` : ''}
+${buildPodSpecYAML()}${formData.volumes && formData.volumes.length > 0 ? `\n      volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n      - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n        emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n        hostPath:\n          path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n        configMap:\n          name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n        secret:\n          secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n        persistentVolumeClaim:\n          claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}
   strategy:
     canary:
       steps:
@@ -599,10 +848,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
     spec:
       containers:
-      - name: ${container.name}
-        image: ${container.image}
-${container.env ? `        env:\n${container.env.map((e: any) => `        - name: ${e.name}\n          value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `        resources:\n${container.resources.requests ? `          requests:\n            cpu: ${container.resources.requests.cpu}\n            memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n          limits:\n            cpu: ${container.resources.limits.cpu}\n            memory: ${container.resources.limits.memory}` : ''}` : ''}
+${buildPodSpecYAML()}${formData.volumes && formData.volumes.length > 0 ? `\n      volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n      - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n        emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n        hostPath:\n          path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n        configMap:\n          name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n        secret:\n          secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n        persistentVolumeClaim:\n          claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}
       restartPolicy: Never`;
         break;
 
@@ -629,10 +889,21 @@ ${Object.entries(metadata.labels)
   .join('\n')}
         spec:
           containers:
-          - name: ${container.name}
-            image: ${container.image}
-${container.env ? `            env:\n${container.env.map((e: any) => `            - name: ${e.name}\n              value: "${e.value}"`).join('\n')}` : ''}
-${container.resources ? `            resources:\n${container.resources.requests ? `              requests:\n                cpu: ${container.resources.requests.cpu}\n                memory: ${container.resources.requests.memory}` : ''}${container.resources.limits ? `\n              limits:\n                cpu: ${container.resources.limits.cpu}\n                memory: ${container.resources.limits.memory}` : ''}` : ''}
+${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && formData.volumes.length > 0 ? `\n          volumes:` + formData.volumes.map((vol: any) => {
+          let volYAML = `\n          - name: ${vol.name}`;
+          if (vol.type === 'emptyDir') {
+            volYAML += `\n            emptyDir: {}`;
+          } else if (vol.type === 'hostPath' && vol.hostPath) {
+            volYAML += `\n            hostPath:\n              path: ${vol.hostPath}`;
+          } else if (vol.type === 'configMap' && vol.configMapName) {
+            volYAML += `\n            configMap:\n              name: ${vol.configMapName}`;
+          } else if (vol.type === 'secret' && vol.secretName) {
+            volYAML += `\n            secret:\n              secretName: ${vol.secretName}`;
+          } else if (vol.type === 'persistentVolumeClaim' && vol.pvcName) {
+            volYAML += `\n            persistentVolumeClaim:\n              claimName: ${vol.pvcName}`;
+          }
+          return volYAML;
+        }).join('') : ''}
           restartPolicy: OnFailure`;
         break;
 

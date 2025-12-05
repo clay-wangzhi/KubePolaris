@@ -16,7 +16,7 @@ import PodLogs from './pages/pod/PodLogs';
 import PodTerminal from './pages/pod/PodTerminal';
 import WorkloadList from './pages/workload/WorkloadList';
 import WorkloadDetail from './pages/workload/WorkloadDetail';
-import DeploymentCreate from './pages/workload/DeploymentCreate';
+import DeploymentCreate from './pages/workload/DeploymentCreateV2';
 /** genAI_main_start */
 import DeploymentDetail from './pages/workload/DeploymentDetail';
 import RolloutDetail from './pages/workload/RolloutDetail';

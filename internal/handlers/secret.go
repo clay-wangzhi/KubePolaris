@@ -65,6 +65,7 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 	clusterID := c.Param("clusterID")
 	namespace := c.Query("namespace") // 支持过滤命名空间
 	name := c.Query("name")           // 支持搜索名称
+	secretType := c.Query("type")     // 支持按类型过滤 (如 kubernetes.io/dockerconfigjson)
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("pageSize", "10")
 
@@ -130,6 +131,11 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 	for _, secret := range secrets {
 		// 名称过滤
 		if name != "" && !strings.Contains(strings.ToLower(secret.Name), strings.ToLower(name)) {
+			continue
+		}
+
+		// 类型过滤
+		if secretType != "" && string(secret.Type) != secretType {
 			continue
 		}
 
