@@ -207,6 +207,10 @@ const DeploymentCreateV2: React.FC = () => {
         parallelism: values.parallelism,
         backoffLimit: values.backoffLimit,
         activeDeadlineSeconds: values.activeDeadlineSeconds,
+        /** genAI_main_start */
+        // Argo Rollout 策略
+        rolloutStrategy: values.rolloutStrategy,
+        /** genAI_main_end */
       };
       
       return WorkloadYamlService.formDataToYAML(workloadType, formData);

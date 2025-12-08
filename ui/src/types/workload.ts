@@ -244,6 +244,174 @@ export interface UpdateStrategyConfig {
   };
 }
 
+/** genAI_main_start */
+// Argo Rollout 金丝雀发布步骤
+export interface CanaryStep {
+  // 设置流量权重
+  setWeight?: number;
+  // 暂停 - 可以是无限期暂停或指定时长
+  pause?: {
+    duration?: string;  // 例如: "10m", "1h"
+  };
+  // 设置金丝雀副本数比例
+  setCanaryScale?: {
+    replicas?: number;
+    weight?: number;
+    matchTrafficWeight?: boolean;
+  };
+  // 分析运行
+  analysis?: {
+    templates?: Array<{
+      templateName: string;
+    }>;
+    args?: Array<{
+      name: string;
+      value: string;
+    }>;
+  };
+}
+
+// Argo Rollout 金丝雀策略配置
+export interface CanaryStrategyConfig {
+  // 发布步骤
+  steps?: CanaryStep[];
+  // 最大超量
+  maxSurge?: string | number;
+  // 最大不可用
+  maxUnavailable?: string | number;
+  // 金丝雀服务名称 (用于流量路由)
+  canaryService?: string;
+  // 稳定版本服务名称
+  stableService?: string;
+  // 流量路由配置
+  trafficRouting?: {
+    // Nginx Ingress
+    nginx?: {
+      stableIngress: string;
+      annotationPrefix?: string;
+      additionalIngressAnnotations?: Record<string, string>;
+    };
+    // Istio
+    istio?: {
+      virtualService?: {
+        name: string;
+        routes?: string[];
+      };
+      destinationRule?: {
+        name: string;
+        canarySubsetName?: string;
+        stableSubsetName?: string;
+      };
+    };
+    // ALB Ingress
+    alb?: {
+      ingress: string;
+      servicePort: number;
+      annotationPrefix?: string;
+    };
+  };
+  // 分析配置
+  analysis?: {
+    templates?: Array<{
+      templateName: string;
+    }>;
+    startingStep?: number;
+    args?: Array<{
+      name: string;
+      value?: string;
+      valueFrom?: {
+        podTemplateHashValue?: 'Latest' | 'Stable';
+        fieldRef?: {
+          fieldPath: string;
+        };
+      };
+    }>;
+  };
+  // 反亲和配置
+  antiAffinity?: {
+    requiredDuringSchedulingIgnoredDuringExecution?: Record<string, unknown>;
+    preferredDuringSchedulingIgnoredDuringExecution?: {
+      weight: number;
+    };
+  };
+  // 金丝雀元数据
+  canaryMetadata?: {
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+  // 稳定版本元数据
+  stableMetadata?: {
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+}
+
+// Argo Rollout 蓝绿发布策略配置
+export interface BlueGreenStrategyConfig {
+  // 活跃服务名称 (生产流量)
+  activeService: string;
+  // 预览服务名称 (测试流量)
+  previewService?: string;
+  // 自动晋升启用
+  autoPromotionEnabled?: boolean;
+  // 自动晋升延迟时间(秒)
+  autoPromotionSeconds?: number;
+  // 缩容延迟时间(秒)
+  scaleDownDelaySeconds?: number;
+  // 缩容延迟修订版本限制
+  scaleDownDelayRevisionLimit?: number;
+  // 预览副本数
+  previewReplicaCount?: number;
+  // 预览元数据
+  previewMetadata?: {
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+  // 活跃元数据
+  activeMetadata?: {
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+  // 反亲和配置
+  antiAffinity?: {
+    requiredDuringSchedulingIgnoredDuringExecution?: Record<string, unknown>;
+    preferredDuringSchedulingIgnoredDuringExecution?: {
+      weight: number;
+    };
+  };
+  // 预晋升分析
+  prePromotionAnalysis?: {
+    templates?: Array<{
+      templateName: string;
+    }>;
+    args?: Array<{
+      name: string;
+      value: string;
+    }>;
+  };
+  // 后晋升分析
+  postPromotionAnalysis?: {
+    templates?: Array<{
+      templateName: string;
+    }>;
+    args?: Array<{
+      name: string;
+      value: string;
+    }>;
+  };
+}
+
+// Argo Rollout 策略配置
+export interface RolloutStrategyConfig {
+  // 策略类型
+  type: 'Canary' | 'BlueGreen';
+  // 金丝雀策略
+  canary?: CanaryStrategyConfig;
+  // 蓝绿策略
+  blueGreen?: BlueGreenStrategyConfig;
+}
+/** genAI_main_end */
+
 // 完整的工作负载表单数据
 export interface WorkloadFormData {
   // 基本信息
@@ -307,6 +475,11 @@ export interface WorkloadFormData {
   backoffLimit?: number;
   activeDeadlineSeconds?: number;
   ttlSecondsAfterFinished?: number;
+  
+  /** genAI_main_start */
+  // Argo Rollout 特有
+  rolloutStrategy?: RolloutStrategyConfig;
+  /** genAI_main_end */
 }
 
 // 表单中调度策略的简化格式

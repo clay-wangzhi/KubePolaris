@@ -7,6 +7,10 @@ import type {
   VolumeConfig,
   SchedulingConfig,
   TolerationConfig,
+  RolloutStrategyConfig,
+  CanaryStrategyConfig,
+  BlueGreenStrategyConfig,
+  CanaryStep,
 } from '../types/workload';
 
 // 辅助函数：将逗号分隔的字符串转为数组
@@ -257,6 +261,416 @@ const buildSchedulingSpec = (scheduling: SchedulingConfig | undefined, formData:
   
   return Object.keys(affinity).length > 0 ? affinity : undefined;
 };
+
+/** genAI_main_start */
+// 构建 Argo Rollout 金丝雀策略
+const buildCanaryStrategy = (canary: CanaryStrategyConfig | undefined): Record<string, unknown> => {
+  if (!canary) {
+    // 默认金丝雀策略
+    return {
+      canary: {
+        steps: [
+          { setWeight: 20 },
+          { pause: { duration: '10m' } },
+          { setWeight: 50 },
+          { pause: { duration: '10m' } },
+          { setWeight: 80 },
+          { pause: { duration: '10m' } },
+        ],
+      },
+    };
+  }
+
+  const canarySpec: Record<string, unknown> = {};
+
+  // 发布步骤 - 将表单格式转换为 Argo Rollout 原始格式
+  // 表单格式: [{setWeight: 20, pause: {duration: '10m'}}]
+  // 原始格式: [{setWeight: 20}, {pause: {duration: '10m'}}]
+  if (canary.steps && canary.steps.length > 0) {
+    const rawSteps: Array<Record<string, unknown>> = [];
+    
+    canary.steps.forEach((step: CanaryStep) => {
+      // 添加 setWeight 步骤
+      if (step.setWeight !== undefined) {
+        rawSteps.push({ setWeight: step.setWeight });
+      }
+      
+      // 添加 pause 步骤（作为独立步骤）
+      if (step.pause !== undefined) {
+        if (step.pause.duration) {
+          rawSteps.push({ pause: { duration: step.pause.duration } });
+        } else {
+          rawSteps.push({ pause: {} });
+        }
+      }
+      
+      // 添加 setCanaryScale 步骤
+      if (step.setCanaryScale) {
+        rawSteps.push({ setCanaryScale: step.setCanaryScale });
+      }
+      
+      // 添加 analysis 步骤
+      if (step.analysis) {
+        rawSteps.push({ analysis: step.analysis });
+      }
+    });
+    
+    if (rawSteps.length > 0) {
+      canarySpec.steps = rawSteps;
+    }
+  }
+/** genAI_main_end */
+
+  // 基本配置
+  if (canary.maxSurge) canarySpec.maxSurge = canary.maxSurge;
+  if (canary.maxUnavailable) canarySpec.maxUnavailable = canary.maxUnavailable;
+
+  // 服务配置
+  if (canary.stableService) canarySpec.stableService = canary.stableService;
+  if (canary.canaryService) canarySpec.canaryService = canary.canaryService;
+
+  // 流量路由
+  if (canary.trafficRouting) {
+    const trafficRouting: Record<string, unknown> = {};
+    if (canary.trafficRouting.nginx?.stableIngress) {
+      trafficRouting.nginx = {
+        stableIngress: canary.trafficRouting.nginx.stableIngress,
+        ...(canary.trafficRouting.nginx.annotationPrefix && { 
+          annotationPrefix: canary.trafficRouting.nginx.annotationPrefix 
+        }),
+      };
+    }
+    if (canary.trafficRouting.istio) {
+      trafficRouting.istio = canary.trafficRouting.istio;
+    }
+    if (canary.trafficRouting.alb) {
+      trafficRouting.alb = canary.trafficRouting.alb;
+    }
+    if (Object.keys(trafficRouting).length > 0) {
+      canarySpec.trafficRouting = trafficRouting;
+    }
+  }
+
+  // 分析配置
+  if (canary.analysis) {
+    canarySpec.analysis = canary.analysis;
+  }
+
+  // 元数据
+  if (canary.canaryMetadata) canarySpec.canaryMetadata = canary.canaryMetadata;
+  if (canary.stableMetadata) canarySpec.stableMetadata = canary.stableMetadata;
+
+  // 反亲和
+  if (canary.antiAffinity) canarySpec.antiAffinity = canary.antiAffinity;
+
+  return { canary: canarySpec };
+};
+
+// 构建 Argo Rollout 蓝绿策略
+const buildBlueGreenStrategy = (blueGreen: BlueGreenStrategyConfig | undefined): Record<string, unknown> => {
+  if (!blueGreen || !blueGreen.activeService) {
+    // 默认蓝绿策略
+    return {
+      blueGreen: {
+        activeService: 'my-app-active',
+        previewService: 'my-app-preview',
+        autoPromotionEnabled: false,
+      },
+    };
+  }
+
+  const blueGreenSpec: Record<string, unknown> = {
+    activeService: blueGreen.activeService,
+  };
+
+  // 可选配置
+  if (blueGreen.previewService) blueGreenSpec.previewService = blueGreen.previewService;
+  if (blueGreen.autoPromotionEnabled !== undefined) {
+    blueGreenSpec.autoPromotionEnabled = blueGreen.autoPromotionEnabled;
+  }
+  if (blueGreen.autoPromotionSeconds !== undefined) {
+    blueGreenSpec.autoPromotionSeconds = blueGreen.autoPromotionSeconds;
+  }
+  if (blueGreen.scaleDownDelaySeconds !== undefined) {
+    blueGreenSpec.scaleDownDelaySeconds = blueGreen.scaleDownDelaySeconds;
+  }
+  if (blueGreen.scaleDownDelayRevisionLimit !== undefined) {
+    blueGreenSpec.scaleDownDelayRevisionLimit = blueGreen.scaleDownDelayRevisionLimit;
+  }
+  if (blueGreen.previewReplicaCount !== undefined) {
+    blueGreenSpec.previewReplicaCount = blueGreen.previewReplicaCount;
+  }
+
+  // 元数据
+  if (blueGreen.previewMetadata) blueGreenSpec.previewMetadata = blueGreen.previewMetadata;
+  if (blueGreen.activeMetadata) blueGreenSpec.activeMetadata = blueGreen.activeMetadata;
+
+  // 反亲和
+  if (blueGreen.antiAffinity) blueGreenSpec.antiAffinity = blueGreen.antiAffinity;
+
+  // 分析
+  if (blueGreen.prePromotionAnalysis) blueGreenSpec.prePromotionAnalysis = blueGreen.prePromotionAnalysis;
+  if (blueGreen.postPromotionAnalysis) blueGreenSpec.postPromotionAnalysis = blueGreen.postPromotionAnalysis;
+
+  return { blueGreen: blueGreenSpec };
+};
+
+// 构建 Argo Rollout 策略
+const buildRolloutStrategy = (rolloutStrategy: RolloutStrategyConfig | undefined): Record<string, unknown> => {
+  if (!rolloutStrategy) {
+    // 默认使用金丝雀策略
+    return buildCanaryStrategy(undefined);
+  }
+
+  if (rolloutStrategy.type === 'BlueGreen') {
+    return buildBlueGreenStrategy(rolloutStrategy.blueGreen);
+  }
+
+  // 默认金丝雀策略
+  return buildCanaryStrategy(rolloutStrategy.canary);
+};
+
+/** genAI_main_start */
+// 将 K8s affinity 结构解析为表单格式的 scheduling 数据
+const parseAffinityToScheduling = (affinity: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+  if (!affinity) return undefined;
+  
+  const scheduling: Record<string, unknown> = {};
+  
+  // 解析节点亲和性
+  const nodeAffinity = affinity.nodeAffinity as Record<string, unknown> | undefined;
+  if (nodeAffinity) {
+    // 必须满足 (requiredDuringSchedulingIgnoredDuringExecution)
+    const required = nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution as Record<string, unknown> | undefined;
+    if (required?.nodeSelectorTerms) {
+      const terms = required.nodeSelectorTerms as Array<Record<string, unknown>>;
+      const nodeAffinityRequired: Array<{key: string; operator: string; values: string}> = [];
+      
+      terms.forEach(term => {
+        const matchExpressions = term.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            nodeAffinityRequired.push({
+              key: expr.key,
+              operator: expr.operator,
+              values: (expr.values || []).join(', '),
+            });
+          });
+        }
+      });
+      
+      if (nodeAffinityRequired.length > 0) {
+        scheduling.nodeAffinityRequired = nodeAffinityRequired;
+      }
+    }
+    
+    // 尽量满足 (preferredDuringSchedulingIgnoredDuringExecution)
+    const preferred = nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution as Array<Record<string, unknown>> | undefined;
+    if (preferred && preferred.length > 0) {
+      const nodeAffinityPreferred: Array<{weight: number; key: string; operator: string; values: string}> = [];
+      
+      preferred.forEach(pref => {
+        const weight = pref.weight as number;
+        const preference = pref.preference as Record<string, unknown>;
+        const matchExpressions = preference?.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            nodeAffinityPreferred.push({
+              weight,
+              key: expr.key,
+              operator: expr.operator,
+              values: (expr.values || []).join(', '),
+            });
+          });
+        }
+      });
+      
+      if (nodeAffinityPreferred.length > 0) {
+        scheduling.nodeAffinityPreferred = nodeAffinityPreferred;
+      }
+    }
+  }
+  
+  // 解析 Pod 亲和性
+  const podAffinity = affinity.podAffinity as Record<string, unknown> | undefined;
+  if (podAffinity) {
+    // 必须满足
+    const required = podAffinity.requiredDuringSchedulingIgnoredDuringExecution as Array<Record<string, unknown>> | undefined;
+    if (required && required.length > 0) {
+      const podAffinityRequired: Array<{topologyKey: string; labelKey: string; operator: string; labelValues: string}> = [];
+      
+      required.forEach(term => {
+        const topologyKey = term.topologyKey as string;
+        const labelSelector = term.labelSelector as Record<string, unknown> | undefined;
+        const matchExpressions = labelSelector?.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            podAffinityRequired.push({
+              topologyKey,
+              labelKey: expr.key,
+              operator: expr.operator,
+              labelValues: (expr.values || []).join(', '),
+            });
+          });
+        }
+        
+        // 也处理 matchLabels
+        const matchLabels = labelSelector?.matchLabels as Record<string, string> | undefined;
+        if (matchLabels) {
+          Object.entries(matchLabels).forEach(([key, value]) => {
+            podAffinityRequired.push({
+              topologyKey,
+              labelKey: key,
+              operator: 'In',
+              labelValues: value,
+            });
+          });
+        }
+      });
+      
+      if (podAffinityRequired.length > 0) {
+        scheduling.podAffinityRequired = podAffinityRequired;
+      }
+    }
+    
+    // 尽量满足
+    const preferred = podAffinity.preferredDuringSchedulingIgnoredDuringExecution as Array<Record<string, unknown>> | undefined;
+    if (preferred && preferred.length > 0) {
+      const podAffinityPreferred: Array<{weight: number; topologyKey: string; labelKey: string; operator: string; labelValues: string}> = [];
+      
+      preferred.forEach(pref => {
+        const weight = pref.weight as number;
+        const podAffinityTerm = pref.podAffinityTerm as Record<string, unknown>;
+        const topologyKey = podAffinityTerm?.topologyKey as string;
+        const labelSelector = podAffinityTerm?.labelSelector as Record<string, unknown> | undefined;
+        const matchExpressions = labelSelector?.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            podAffinityPreferred.push({
+              weight,
+              topologyKey,
+              labelKey: expr.key,
+              operator: expr.operator,
+              labelValues: (expr.values || []).join(', '),
+            });
+          });
+        }
+        
+        // 也处理 matchLabels
+        const matchLabels = labelSelector?.matchLabels as Record<string, string> | undefined;
+        if (matchLabels) {
+          Object.entries(matchLabels).forEach(([key, value]) => {
+            podAffinityPreferred.push({
+              weight,
+              topologyKey,
+              labelKey: key,
+              operator: 'In',
+              labelValues: value,
+            });
+          });
+        }
+      });
+      
+      if (podAffinityPreferred.length > 0) {
+        scheduling.podAffinityPreferred = podAffinityPreferred;
+      }
+    }
+  }
+  
+  // 解析 Pod 反亲和性
+  const podAntiAffinity = affinity.podAntiAffinity as Record<string, unknown> | undefined;
+  if (podAntiAffinity) {
+    // 必须满足
+    const required = podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution as Array<Record<string, unknown>> | undefined;
+    if (required && required.length > 0) {
+      const podAntiAffinityRequired: Array<{topologyKey: string; labelKey: string; operator: string; labelValues: string}> = [];
+      
+      required.forEach(term => {
+        const topologyKey = term.topologyKey as string;
+        const labelSelector = term.labelSelector as Record<string, unknown> | undefined;
+        const matchExpressions = labelSelector?.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            podAntiAffinityRequired.push({
+              topologyKey,
+              labelKey: expr.key,
+              operator: expr.operator,
+              labelValues: (expr.values || []).join(', '),
+            });
+          });
+        }
+        
+        // 也处理 matchLabels
+        const matchLabels = labelSelector?.matchLabels as Record<string, string> | undefined;
+        if (matchLabels) {
+          Object.entries(matchLabels).forEach(([key, value]) => {
+            podAntiAffinityRequired.push({
+              topologyKey,
+              labelKey: key,
+              operator: 'In',
+              labelValues: value,
+            });
+          });
+        }
+      });
+      
+      if (podAntiAffinityRequired.length > 0) {
+        scheduling.podAntiAffinityRequired = podAntiAffinityRequired;
+      }
+    }
+    
+    // 尽量满足
+    const preferred = podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution as Array<Record<string, unknown>> | undefined;
+    if (preferred && preferred.length > 0) {
+      const podAntiAffinityPreferred: Array<{weight: number; topologyKey: string; labelKey: string; operator: string; labelValues: string}> = [];
+      
+      preferred.forEach(pref => {
+        const weight = pref.weight as number;
+        const podAffinityTerm = pref.podAffinityTerm as Record<string, unknown>;
+        const topologyKey = podAffinityTerm?.topologyKey as string;
+        const labelSelector = podAffinityTerm?.labelSelector as Record<string, unknown> | undefined;
+        const matchExpressions = labelSelector?.matchExpressions as Array<{key: string; operator: string; values?: string[]}> | undefined;
+        
+        if (matchExpressions) {
+          matchExpressions.forEach(expr => {
+            podAntiAffinityPreferred.push({
+              weight,
+              topologyKey,
+              labelKey: expr.key,
+              operator: expr.operator,
+              labelValues: (expr.values || []).join(', '),
+            });
+          });
+        }
+        
+        // 也处理 matchLabels
+        const matchLabels = labelSelector?.matchLabels as Record<string, string> | undefined;
+        if (matchLabels) {
+          Object.entries(matchLabels).forEach(([key, value]) => {
+            podAntiAffinityPreferred.push({
+              weight,
+              topologyKey,
+              labelKey: key,
+              operator: 'In',
+              labelValues: value,
+            });
+          });
+        }
+      });
+      
+      if (podAntiAffinityPreferred.length > 0) {
+        scheduling.podAntiAffinityPreferred = podAntiAffinityPreferred;
+      }
+    }
+  }
+  
+  return Object.keys(scheduling).length > 0 ? scheduling : undefined;
+};
+/** genAI_main_end */
 
 // 从表单数据构建调度配置
 const buildSchedulingFromForm = (formData: Record<string, unknown>): SchedulingConfig | undefined => {
@@ -604,14 +1018,10 @@ export const formDataToYAML = (
           replicas: formData.replicas ?? 1,
           selector: { matchLabels: { ...labels } },
           template: podTemplateSpec,
-          ...(formData.strategy && {
-            strategy: {
-              canary: {
-                ...(formData.strategy.rollingUpdate?.maxUnavailable && { maxUnavailable: formData.strategy.rollingUpdate.maxUnavailable }),
-                ...(formData.strategy.rollingUpdate?.maxSurge && { maxSurge: formData.strategy.rollingUpdate.maxSurge }),
-              },
-            },
-          }),
+          strategy: buildRolloutStrategy(formData.rolloutStrategy),
+          ...(formData.minReadySeconds !== undefined && { minReadySeconds: formData.minReadySeconds }),
+          ...(formData.revisionHistoryLimit !== undefined && { revisionHistoryLimit: formData.revisionHistoryLimit }),
+          ...(formData.progressDeadlineSeconds !== undefined && { progressDeadlineSeconds: formData.progressDeadlineSeconds }),
         },
       };
       break;
@@ -770,6 +1180,95 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
     // 解析镜像拉取凭证
     const imagePullSecrets = ((podSpec.imagePullSecrets as Record<string, unknown>[]) || []).map((s) => s.name as string);
     
+    /** genAI_main_start */
+    // 解析调度策略 (affinity)
+    const affinityData = podSpec.affinity as Record<string, unknown> | undefined;
+    const schedulingData = parseAffinityToScheduling(affinityData);
+    /** genAI_main_end */
+    
+    /** genAI_main_start */
+    // 解析 Rollout 策略
+    let rolloutStrategy: RolloutStrategyConfig | undefined;
+    if (obj.kind === 'Rollout' && spec.strategy) {
+      const strategy = spec.strategy as Record<string, unknown>;
+      if (strategy.canary) {
+        const canary = strategy.canary as Record<string, unknown>;
+        
+        // 解析步骤 - Argo Rollout 的步骤格式需要合并
+        // 原始格式: [{setWeight: 20}, {pause: {}}, {setWeight: 50}, {pause: {duration: '10m'}}]
+        // 表单格式: [{setWeight: 20, pause: {}}, {setWeight: 50, pause: {duration: '10m'}}]
+        const rawSteps = (canary.steps as Array<Record<string, unknown>>) || [];
+        const formSteps: CanaryStep[] = [];
+        
+        for (let i = 0; i < rawSteps.length; i++) {
+          const step = rawSteps[i];
+          
+          if (step.setWeight !== undefined) {
+            // 创建新步骤
+            const formStep: CanaryStep = {
+              setWeight: step.setWeight as number,
+            };
+            
+            // 检查下一个步骤是否是 pause
+            if (i + 1 < rawSteps.length && rawSteps[i + 1].pause !== undefined) {
+              formStep.pause = rawSteps[i + 1].pause as { duration?: string };
+              i++; // 跳过 pause 步骤
+            }
+            
+            formSteps.push(formStep);
+          } else if (step.pause !== undefined) {
+            // 如果 pause 没有被上一个 setWeight 合并，单独添加
+            formSteps.push({
+              pause: step.pause as { duration?: string },
+            });
+          } else if (step.setCanaryScale !== undefined) {
+            formSteps.push({
+              setCanaryScale: step.setCanaryScale as CanaryStep['setCanaryScale'],
+            });
+          } else if (step.analysis !== undefined) {
+            formSteps.push({
+              analysis: step.analysis as CanaryStep['analysis'],
+            });
+          }
+        }
+        
+        rolloutStrategy = {
+          type: 'Canary',
+          canary: {
+            steps: formSteps,
+            maxSurge: canary.maxSurge as string | number | undefined,
+            maxUnavailable: canary.maxUnavailable as string | number | undefined,
+            stableService: canary.stableService as string | undefined,
+            canaryService: canary.canaryService as string | undefined,
+            trafficRouting: canary.trafficRouting as CanaryStrategyConfig['trafficRouting'],
+            analysis: canary.analysis as CanaryStrategyConfig['analysis'],
+            canaryMetadata: canary.canaryMetadata as CanaryStrategyConfig['canaryMetadata'],
+            stableMetadata: canary.stableMetadata as CanaryStrategyConfig['stableMetadata'],
+          },
+        };
+      } else if (strategy.blueGreen) {
+        const blueGreen = strategy.blueGreen as Record<string, unknown>;
+        rolloutStrategy = {
+          type: 'BlueGreen',
+          blueGreen: {
+            activeService: blueGreen.activeService as string,
+            previewService: blueGreen.previewService as string | undefined,
+            autoPromotionEnabled: blueGreen.autoPromotionEnabled as boolean | undefined,
+            autoPromotionSeconds: blueGreen.autoPromotionSeconds as number | undefined,
+            scaleDownDelaySeconds: blueGreen.scaleDownDelaySeconds as number | undefined,
+            scaleDownDelayRevisionLimit: blueGreen.scaleDownDelayRevisionLimit as number | undefined,
+            previewReplicaCount: blueGreen.previewReplicaCount as number | undefined,
+            previewMetadata: blueGreen.previewMetadata as BlueGreenStrategyConfig['previewMetadata'],
+            activeMetadata: blueGreen.activeMetadata as BlueGreenStrategyConfig['activeMetadata'],
+            prePromotionAnalysis: blueGreen.prePromotionAnalysis as BlueGreenStrategyConfig['prePromotionAnalysis'],
+            postPromotionAnalysis: blueGreen.postPromotionAnalysis as BlueGreenStrategyConfig['postPromotionAnalysis'],
+          },
+        };
+      }
+    }
+    /** genAI_main_end */
+
+    /** genAI_main_start */
     const formData: WorkloadFormData = {
       name: metadata.name || '',
       namespace: metadata.namespace || 'default',
@@ -781,8 +1280,10 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
       initContainers: initContainers.length > 0 ? initContainers : undefined,
       volumes: volumes.length > 0 ? volumes : undefined,
       imagePullSecrets: imagePullSecrets.length > 0 ? imagePullSecrets : undefined,
+      // 调度策略 - 使用表单格式存储，会在 form 中设置到 scheduling 字段
+      scheduling: schedulingData as WorkloadFormData['scheduling'],
       tolerations: tolerations.length > 0 ? tolerations : undefined,
-      strategy: spec.strategy as WorkloadFormData['strategy'],
+      strategy: obj.kind !== 'Rollout' ? spec.strategy as WorkloadFormData['strategy'] : undefined,
       minReadySeconds: spec.minReadySeconds as number | undefined,
       revisionHistoryLimit: spec.revisionHistoryLimit as number | undefined,
       progressDeadlineSeconds: spec.progressDeadlineSeconds as number | undefined,
@@ -801,7 +1302,10 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
       parallelism: spec.parallelism as number | undefined,
       backoffLimit: spec.backoffLimit as number | undefined,
       activeDeadlineSeconds: spec.activeDeadlineSeconds as number | undefined,
+      // Rollout
+      rolloutStrategy,
     };
+    /** genAI_main_end */
     
     return formData;
   } catch (error) {

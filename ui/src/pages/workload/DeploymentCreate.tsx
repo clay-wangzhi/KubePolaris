@@ -4,7 +4,6 @@ import {
   Card,
   Button,
   Space,
-  message,
   Segmented,
   Spin,
   App,
@@ -96,14 +95,22 @@ const DeploymentCreate: React.FC = () => {
           const workload = response.data.workload;
           
           // 设置表单数据
+          // 转换 labels 和 annotations 为数组格式
+          const labelsArray = workload.labels 
+            ? Object.entries(workload.labels).map(([key, value]) => ({ key, value: String(value) }))
+            : [];
+          const annotationsArray = workload.annotations
+            ? Object.entries(workload.annotations).map(([key, value]) => ({ key, value: String(value) }))
+            : [];
+          
           setFormData({
             name: workload.name,
             namespace: workload.namespace,
             replicas: workload.replicas,
             image: workload.images?.[0] || '',
             containerName: 'main',
-            labels: workload.labels,
-            annotations: workload.annotations,
+            labels: labelsArray as Array<{ key: string; value: string }>,
+            annotations: annotationsArray as Array<{ key: string; value: string }>,
           });
           
           // 设置YAML数据
@@ -127,6 +134,41 @@ const DeploymentCreate: React.FC = () => {
     try {
       const values = form.getFieldsValue();
       
+      // 确保必需字段有值，如果为空则使用默认值
+      const formData: WorkloadFormData = {
+        name: values.name || '',
+        namespace: values.namespace || 'default',
+        replicas: values.replicas !== undefined ? values.replicas : (workloadType === 'DaemonSet' ? undefined : 1),
+        image: values.image || 'nginx:latest',
+        containerName: values.containerName || 'main',
+        containerPort: values.containerPort,
+        description: values.description,
+        imagePullPolicy: values.imagePullPolicy,
+        env: values.env,
+        resources: values.resources,
+        lifecycle: values.lifecycle,
+        livenessProbe: values.livenessProbe,
+        readinessProbe: values.readinessProbe,
+        startupProbe: values.startupProbe,
+        volumes: values.volumes,
+        securityContext: values.securityContext,
+        imagePullSecrets: values.imagePullSecrets,
+        strategy: values.strategy,
+        terminationGracePeriodSeconds: values.terminationGracePeriodSeconds,
+        nodeSelectorList: values.nodeSelectorList,
+        tolerations: values.tolerations,
+        dnsPolicy: values.dnsPolicy,
+        dnsConfig: values.dnsConfig,
+        // Job/CronJob specific
+        schedule: values.schedule,
+        suspend: values.suspend,
+        completions: values.completions,
+        parallelism: values.parallelism,
+        backoffLimit: values.backoffLimit,
+        // StatefulSet specific
+        serviceName: values.serviceName,
+      };
+      
       // 处理labels和annotations
       const labelsObj: Record<string, string> = {};
       if (values.labels && Array.isArray(values.labels)) {
@@ -135,6 +177,10 @@ const DeploymentCreate: React.FC = () => {
             labelsObj[item.key] = item.value;
           }
         });
+      }
+      // 如果没有标签，使用默认标签
+      if (Object.keys(labelsObj).length === 0) {
+        labelsObj.app = formData.name || `example-${workloadType.toLowerCase()}`;
       }
       
       const annotationsObj: Record<string, string> = {};
@@ -146,13 +192,27 @@ const DeploymentCreate: React.FC = () => {
         });
       }
       
-      const formData: WorkloadFormData = {
-        ...values,
+      // 创建传递给 formDataToYAML 的数据对象，labels 和 annotations 使用对象格式
+      const yamlData = {
+        ...formData,
         labels: labelsObj,
-        annotations: annotationsObj,
+        annotations: Object.keys(annotationsObj).length > 0 ? annotationsObj : undefined,
       };
       
-      return WorkloadService.formDataToYAML(workloadType, formData);
+      // 处理 nodeSelectorList 转换为 nodeSelector 对象
+      const nodeSelectorObj: Record<string, string> = {};
+      if (values.nodeSelectorList && Array.isArray(values.nodeSelectorList)) {
+        values.nodeSelectorList.forEach((item: { key: string; value: string }) => {
+          if (item.key && item.value) {
+            nodeSelectorObj[item.key] = item.value;
+          }
+        });
+      }
+      if (Object.keys(nodeSelectorObj).length > 0) {
+        formData.nodeSelector = nodeSelectorObj;
+      }
+      
+      return WorkloadService.formDataToYAML(workloadType, yamlData);
     } catch (error) {
       console.error('表单数据转换失败:', error);
       messageApi.error('表单数据转换失败');
@@ -178,36 +238,145 @@ const DeploymentCreate: React.FC = () => {
       }));
       
       // 转换env为数组格式
-      const env = obj.spec?.template?.spec?.containers?.[0]?.env?.map((e: any) => ({
+      const env = obj.spec?.template?.spec?.containers?.[0]?.env?.map((e: { name: string; value: string }) => ({
         name: e.name,
         value: e.value,
       })) || [];
       
-      const formValues = {
-        name: obj.metadata?.name || '',
-        namespace: obj.metadata?.namespace || 'default',
-        replicas: obj.spec?.replicas,
-        image: obj.spec?.template?.spec?.containers?.[0]?.image || '',
-        containerName: obj.spec?.template?.spec?.containers?.[0]?.name || 'main',
-        containerPort: obj.spec?.template?.spec?.containers?.[0]?.ports?.[0]?.containerPort,
-        env,
-        resources: obj.spec?.template?.spec?.containers?.[0]?.resources,
-        labels,
-        annotations,
+      // 转换 nodeSelector 为数组格式
+      const nodeSelectorList = obj.spec?.template?.spec?.nodeSelector 
+        ? Object.entries(obj.spec.template.spec.nodeSelector).map(([key, value]) => ({
+            key,
+            value: String(value),
+          }))
+        : undefined;
+      
+      // 只设置存在的字段，避免设置 undefined
+      const formValues: Record<string, unknown> = {};
+      
+      if (obj.metadata?.name) formValues.name = obj.metadata.name;
+      if (obj.metadata?.namespace) formValues.namespace = obj.metadata.namespace;
+      if (obj.spec?.replicas !== undefined) formValues.replicas = obj.spec.replicas;
+      
+      const container = obj.spec?.template?.spec?.containers?.[0];
+      if (container) {
+        formValues.image = container.image || 'nginx:latest';
+        formValues.containerName = container.name || 'main';
+        if (container.ports?.[0]?.containerPort) formValues.containerPort = container.ports[0].containerPort;
+        if (container.imagePullPolicy) formValues.imagePullPolicy = container.imagePullPolicy;
+        if (env.length > 0) formValues.env = env;
+        if (container.resources) formValues.resources = container.resources;
+        if (container.lifecycle) formValues.lifecycle = container.lifecycle;
+        if (container.livenessProbe) formValues.livenessProbe = container.livenessProbe;
+        if (container.readinessProbe) formValues.readinessProbe = container.readinessProbe;
+        if (container.startupProbe) formValues.startupProbe = container.startupProbe;
+        if (container.securityContext) formValues.securityContext = container.securityContext;
+      } else {
+        // 如果没有容器，设置默认值
+        formValues.image = 'nginx:latest';
+        formValues.containerName = 'main';
+      }
+      
+      // 确保 name 有值
+      if (!formValues.name) {
+        formValues.name = `example-${workloadType.toLowerCase()}`;
+      }
+      
+      formValues.labels = labels.length > 0 ? labels : [];
+      formValues.annotations = annotations.length > 0 ? annotations : [];
+      if (nodeSelectorList && nodeSelectorList.length > 0) formValues.nodeSelectorList = nodeSelectorList;
+      
+      // 处理 volumes
+      if (obj.spec?.template?.spec?.volumes) {
+        const volumes = obj.spec.template.spec.volumes.map((vol: Record<string, unknown>) => {
+          const volumeMount = container?.volumeMounts?.find((vm: Record<string, unknown>) => vm.name === vol.name);
+          let type = 'emptyDir';
+          let configMapName, secretName, pvcName, hostPath;
+          
+          if (vol.emptyDir) type = 'emptyDir';
+          else if (vol.hostPath) {
+            type = 'hostPath';
+            hostPath = vol.hostPath.path;
+          }
+          else if (vol.configMap) {
+            type = 'configMap';
+            configMapName = vol.configMap.name;
+          }
+          else if (vol.secret) {
+            type = 'secret';
+            secretName = vol.secret.secretName;
+          }
+          else if (vol.persistentVolumeClaim) {
+            type = 'persistentVolumeClaim';
+            pvcName = vol.persistentVolumeClaim.claimName;
+          }
+          
+          return {
+            name: vol.name,
+            type,
+            mountPath: volumeMount?.mountPath || '',
+            readOnly: volumeMount?.readOnly || false,
+            configMapName,
+            secretName,
+            pvcName,
+            hostPath,
+          };
+        });
+        if (volumes.length > 0) formValues.volumes = volumes;
+      }
+      
+      // 处理 imagePullSecrets
+      if (obj.spec?.template?.spec?.imagePullSecrets) {
+        formValues.imagePullSecrets = obj.spec.template.spec.imagePullSecrets.map((ips: { name: string }) => ips.name);
+      }
+      
+      // 处理策略
+      if (obj.spec?.strategy) {
+        formValues.strategy = obj.spec.strategy;
+      }
+      
+      // 处理 tolerations
+      if (obj.spec?.template?.spec?.tolerations) {
+        formValues.tolerations = obj.spec.template.spec.tolerations as Array<{
+          key: string;
+          operator: 'Equal' | 'Exists';
+          value?: string;
+          effect: 'NoSchedule' | 'PreferNoSchedule' | 'NoExecute';
+          tolerationSeconds?: number;
+        }>;
+      }
+      
+      // 处理 DNS 配置
+      if (obj.spec?.template?.spec?.dnsPolicy) {
+        formValues.dnsPolicy = obj.spec.template.spec.dnsPolicy;
+      }
+      if (obj.spec?.template?.spec?.dnsConfig) {
+        formValues.dnsConfig = obj.spec.template.spec.dnsConfig;
+      }
+      
+      // 处理终止宽限期
+      if (obj.spec?.template?.spec?.terminationGracePeriodSeconds !== undefined) {
+        formValues.terminationGracePeriodSeconds = obj.spec.template.spec.terminationGracePeriodSeconds;
+      }
+      
         // Job/CronJob specific
-        schedule: obj.spec?.schedule,
-        suspend: obj.spec?.suspend,
-        completions: obj.spec?.completions,
-        parallelism: obj.spec?.parallelism,
-        backoffLimit: obj.spec?.backoffLimit,
+      if (obj.spec?.schedule) formValues.schedule = obj.spec.schedule;
+      if (obj.spec?.suspend !== undefined) formValues.suspend = obj.spec.suspend;
+      if (obj.spec?.completions !== undefined) formValues.completions = obj.spec.completions;
+      if (obj.spec?.parallelism !== undefined) formValues.parallelism = obj.spec.parallelism;
+      if (obj.spec?.backoffLimit !== undefined) formValues.backoffLimit = obj.spec.backoffLimit;
+      
         // StatefulSet specific
-        serviceName: obj.spec?.serviceName,
-      };
+      if (obj.spec?.serviceName) formValues.serviceName = obj.spec.serviceName;
+      
+      // 设置默认值
+      if (!formValues.namespace) formValues.namespace = 'default';
+      if (!formValues.containerName) formValues.containerName = 'main';
       
       form.setFieldsValue(formValues);
       return true;
-    } catch (error) {
-      messageApi.error('YAML 格式错误: ' + (error instanceof Error ? error.message : '未知错误'));
+    } catch (err) {
+      messageApi.error('YAML 格式错误: ' + (err instanceof Error ? err.message : '未知错误'));
       return false;
     }
   };
