@@ -65,6 +65,15 @@ export interface YAMLApplyRequest {
 
 export class WorkloadService {
   /** genAI_main_start */
+  // 检查集群是否安装了 Argo Rollouts CRD
+  static async checkRolloutCRD(
+    clusterId: string
+  ): Promise<{ code: number; message: string; data: { enabled: boolean } }> {
+    return request.get(`/clusters/${clusterId}/rollouts/crd-check`);
+  }
+  /** genAI_main_end */
+
+  /** genAI_main_start */
   // 获取工作负载列表
   static async getWorkloads(
     clusterId: string,

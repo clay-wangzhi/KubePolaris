@@ -172,6 +172,9 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				rolloutHandler := handlers.NewRolloutHandler(db, cfg, clusterSvc, k8sMgr)
 				rollouts := cluster.Group("/rollouts")
 				{
+					/** genAI_main_start */
+					rollouts.GET("/crd-check", rolloutHandler.CheckRolloutCRD)
+					/** genAI_main_end */
 					rollouts.GET("", rolloutHandler.ListRollouts)
 					rollouts.GET("/namespaces", rolloutHandler.GetRolloutNamespaces)
 					rollouts.GET("/:namespace/:name", rolloutHandler.GetRollout)

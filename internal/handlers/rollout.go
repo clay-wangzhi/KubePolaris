@@ -68,6 +68,48 @@ type RolloutInfo struct {
 	Strategy          string            `json:"strategy"`
 }
 
+/** genAI_main_start */
+// CheckRolloutCRD 检查集群是否安装了 Argo Rollouts CRD
+func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
+	clusterId := c.Param("clusterID")
+
+	clusterID := parseClusterID(clusterId)
+	cluster, err := h.clusterService.GetCluster(clusterID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "集群不存在",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 确保 informer 缓存就绪
+	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "informer 未就绪: " + err.Error(),
+		})
+		return
+	}
+
+	// 检查 RolloutsLister 是否可用
+	lister := h.k8sMgr.RolloutsLister(cluster.ID)
+	enabled := lister != nil
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data": gin.H{
+			"enabled": enabled,
+		},
+	})
+}
+
+/** genAI_main_end */
+
 // ListRollouts 获取Rollout列表
 func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -104,9 +146,30 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	var rolloutList []RolloutInfo
 	sel := labels.Everything()
 
+	/** genAI_main_start */
+	// 检查 Argo Rollouts CRD 是否存在
+	lister := h.k8sMgr.RolloutsLister(cluster.ID)
+	if lister == nil {
+		// 集群未安装 Argo Rollouts CRD，返回空列表
+		c.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "success",
+			"data": gin.H{
+				"items":           []RolloutInfo{},
+				"total":           0,
+				"page":            page,
+				"pageSize":        pageSize,
+				"rolloutEnabled":  false,
+				"rolloutDisabled": true,
+			},
+		})
+		return
+	}
+	/** genAI_main_end */
+
 	// 从Informer缓存读取
 	if namespace != "" {
-		rs, err := h.k8sMgr.RolloutsLister(cluster.ID).Rollouts(namespace).List(sel)
+		rs, err := lister.Rollouts(namespace).List(sel)
 		if err != nil {
 			logger.Error("读取Rollout缓存失败", "error", err)
 		} else {
@@ -115,7 +178,7 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 			}
 		}
 	} else {
-		rs, err := h.k8sMgr.RolloutsLister(cluster.ID).List(sel)
+		rs, err := lister.List(sel)
 		if err != nil {
 			logger.Error("读取Rollout缓存失败", "error", err)
 		} else {
@@ -268,7 +331,19 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 
 	// 从Informer读取所有Rollouts并统计命名空间
 	sel := labels.Everything()
-	rs, err := h.k8sMgr.RolloutsLister(cluster.ID).List(sel)
+	/** genAI_main_start */
+	lister := h.k8sMgr.RolloutsLister(cluster.ID)
+	if lister == nil {
+		// 集群未安装 Argo Rollouts CRD，返回空列表
+		c.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "success",
+			"data":    []interface{}{},
+		})
+		return
+	}
+	rs, err := lister.List(sel)
+	/** genAI_main_end */
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
