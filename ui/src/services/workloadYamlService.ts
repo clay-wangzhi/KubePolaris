@@ -1188,17 +1188,43 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
     
     /** genAI_main_start */
     // 解析 Rollout 策略
+    // 注意：后端返回的 YAML 可能不包含 kind 和 apiVersion（只有 spec 部分）
+    // 需要通过 strategy.canary 或 strategy.blueGreen 来判断是否是 Rollout
     let rolloutStrategy: RolloutStrategyConfig | undefined;
-    if (obj.kind === 'Rollout' && spec.strategy) {
+    // 检查是否是 Rollout 类型：
+    // 1. 通过 kind 字段
+    // 2. 通过 apiVersion 包含 argoproj.io
+    // 3. 通过 strategy 包含 canary 或 blueGreen 字段（Rollout 特有）
+    const strategy = spec.strategy as Record<string, unknown> | undefined;
+    const isRollout = obj.kind === 'Rollout' || 
+                      (obj.apiVersion && String(obj.apiVersion).includes('argoproj.io')) ||
+                      (strategy && (strategy.canary || strategy.blueGreen));
+    
+    if (isRollout && spec.strategy) {
       const strategy = spec.strategy as Record<string, unknown>;
       if (strategy.canary) {
         const canary = strategy.canary as Record<string, unknown>;
         
         // 解析步骤 - Argo Rollout 的步骤格式需要合并
-        // 原始格式: [{setWeight: 20}, {pause: {}}, {setWeight: 50}, {pause: {duration: '10m'}}]
-        // 表单格式: [{setWeight: 20, pause: {}}, {setWeight: 50, pause: {duration: '10m'}}]
+        // 原始格式: [{setWeight: 1}, {pause: {duration: 30}}, {pause: {}}, {setWeight: 30}, ...]
+        // 表单格式: [{setWeight: 1, pause: {duration: '30'}}, {pause: {}}, {setWeight: 30, pause: {duration: '30'}}, ...]
         const rawSteps = (canary.steps as Array<Record<string, unknown>>) || [];
         const formSteps: CanaryStep[] = [];
+        
+        // 辅助函数：将 pause duration 转换为字符串格式
+        const normalizePauseDuration = (pause: Record<string, unknown> | undefined): { duration?: string } | undefined => {
+          if (!pause) return undefined;
+          const pauseObj = pause as { duration?: string | number };
+          if (pauseObj.duration !== undefined) {
+            // duration 可能是数字（秒）或字符串（如 "30s", "10m"）
+            const duration = pauseObj.duration;
+            if (typeof duration === 'number') {
+              return { duration: String(duration) };
+            }
+            return { duration: String(duration) };
+          }
+          return {}; // 空对象表示无限期暂停
+        };
         
         for (let i = 0; i < rawSteps.length; i++) {
           const step = rawSteps[i];
@@ -1209,17 +1235,25 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
               setWeight: step.setWeight as number,
             };
             
-            // 检查下一个步骤是否是 pause
-            if (i + 1 < rawSteps.length && rawSteps[i + 1].pause !== undefined) {
-              formStep.pause = rawSteps[i + 1].pause as { duration?: string };
-              i++; // 跳过 pause 步骤
+            // 检查下一个步骤是否是 pause（且不是独立的无限期暂停）
+            if (i + 1 < rawSteps.length) {
+              const nextStep = rawSteps[i + 1];
+              if (nextStep.pause !== undefined) {
+                const pauseData = nextStep.pause as Record<string, unknown>;
+                // 如果 pause 有 duration，则与当前 setWeight 合并
+                // 如果 pause 是空对象（无限期暂停），保持独立
+                if (pauseData && Object.keys(pauseData).length > 0) {
+                  formStep.pause = normalizePauseDuration(pauseData);
+                  i++; // 跳过已合并的 pause 步骤
+                }
+              }
             }
             
             formSteps.push(formStep);
           } else if (step.pause !== undefined) {
-            // 如果 pause 没有被上一个 setWeight 合并，单独添加
+            // 独立的 pause 步骤（如无限期暂停）
             formSteps.push({
-              pause: step.pause as { duration?: string },
+              pause: normalizePauseDuration(step.pause as Record<string, unknown>),
             });
           } else if (step.setCanaryScale !== undefined) {
             formSteps.push({

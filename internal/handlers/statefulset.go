@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
+	sigsyaml "sigs.k8s.io/yaml"
 )
 
 // StatefulSetHandler StatefulSet处理器
@@ -207,12 +208,38 @@ func (h *StatefulSetHandler) GetStatefulSet(c *gin.Context) {
 		logger.Error("获取StatefulSet关联Pods失败", "error", err)
 	}
 
+	/** genAI_main_start */
+	// 清理对象以生成更干净的 YAML
+	cleanStatefulSet := statefulSet.DeepCopy()
+	// 设置 TypeMeta（client-go 获取的对象默认不包含这些字段）
+	cleanStatefulSet.APIVersion = "apps/v1"
+	cleanStatefulSet.Kind = "StatefulSet"
+	// 清理不需要的字段
+	cleanStatefulSet.ManagedFields = nil
+	cleanStatefulSet.Status = appsv1.StatefulSetStatus{} // 清理 status 字段
+	// 清理 metadata 中的运行时字段
+	cleanStatefulSet.ResourceVersion = ""
+	cleanStatefulSet.UID = ""
+	cleanStatefulSet.Generation = 0
+	cleanStatefulSet.CreationTimestamp = metav1.Time{}
+	// 将 StatefulSet 对象转换为 YAML 字符串
+	yamlBytes, yamlErr := sigsyaml.Marshal(cleanStatefulSet)
+	var yamlString string
+	if yamlErr == nil {
+		yamlString = string(yamlBytes)
+	} else {
+		logger.Error("转换StatefulSet为YAML失败", "error", yamlErr)
+		yamlString = ""
+	}
+	/** genAI_main_end */
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"workload": h.convertToStatefulSetInfo(statefulSet),
 			"raw":      statefulSet,
+			"yaml":     yamlString,
 			"pods":     pods,
 		},
 	})

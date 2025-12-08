@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
+	sigsyaml "sigs.k8s.io/yaml"
 )
 
 // DaemonSetHandler DaemonSet处理器
@@ -206,12 +207,38 @@ func (h *DaemonSetHandler) GetDaemonSet(c *gin.Context) {
 		logger.Error("获取DaemonSet关联Pods失败", "error", err)
 	}
 
+	/** genAI_main_start */
+	// 清理对象以生成更干净的 YAML
+	cleanDaemonSet := daemonSet.DeepCopy()
+	// 设置 TypeMeta（client-go 获取的对象默认不包含这些字段）
+	cleanDaemonSet.APIVersion = "apps/v1"
+	cleanDaemonSet.Kind = "DaemonSet"
+	// 清理不需要的字段
+	cleanDaemonSet.ManagedFields = nil
+	cleanDaemonSet.Status = appsv1.DaemonSetStatus{} // 清理 status 字段
+	// 清理 metadata 中的运行时字段
+	cleanDaemonSet.ResourceVersion = ""
+	cleanDaemonSet.UID = ""
+	cleanDaemonSet.Generation = 0
+	cleanDaemonSet.CreationTimestamp = metav1.Time{}
+	// 将 DaemonSet 对象转换为 YAML 字符串
+	yamlBytes, yamlErr := sigsyaml.Marshal(cleanDaemonSet)
+	var yamlString string
+	if yamlErr == nil {
+		yamlString = string(yamlBytes)
+	} else {
+		logger.Error("转换DaemonSet为YAML失败", "error", yamlErr)
+		yamlString = ""
+	}
+	/** genAI_main_end */
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"workload": h.convertToDaemonSetInfo(daemonSet),
 			"raw":      daemonSet,
+			"yaml":     yamlString,
 			"pods":     pods,
 		},
 	})

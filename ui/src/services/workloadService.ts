@@ -44,15 +44,18 @@ export interface WorkloadListResponse {
   };
 }
 
+/** genAI_main_start */
 export interface WorkloadDetailResponse {
   code: number;
   message: string;
   data: {
     workload: WorkloadInfo;
     raw: any;
+    yaml?: string;  // 原始 YAML 字符串（保持原始格式）
     pods: any[];
   };
 }
+/** genAI_main_end */
 
 export interface ScaleWorkloadRequest {
   replicas: number;

@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
+	sigsyaml "sigs.k8s.io/yaml"
 )
 
 // DeploymentHandler Deployment处理器
@@ -219,12 +220,38 @@ func (h *DeploymentHandler) GetDeployment(c *gin.Context) {
 		logger.Error("获取Deployment关联Pods失败", "error", err)
 	}
 
+	/** genAI_main_start */
+	// 清理对象以生成更干净的 YAML
+	cleanDeployment := deployment.DeepCopy()
+	// 设置 TypeMeta（client-go 获取的对象默认不包含这些字段）
+	cleanDeployment.APIVersion = "apps/v1"
+	cleanDeployment.Kind = "Deployment"
+	// 清理不需要的字段
+	cleanDeployment.ManagedFields = nil
+	cleanDeployment.Status = appsv1.DeploymentStatus{} // 清理 status 字段
+	// 清理 metadata 中的运行时字段
+	cleanDeployment.ResourceVersion = ""
+	cleanDeployment.UID = ""
+	cleanDeployment.Generation = 0
+	cleanDeployment.CreationTimestamp = metav1.Time{}
+	// 将 Deployment 对象转换为 YAML 字符串
+	yamlBytes, yamlErr := sigsyaml.Marshal(cleanDeployment)
+	var yamlString string
+	if yamlErr == nil {
+		yamlString = string(yamlBytes)
+	} else {
+		logger.Error("转换Deployment为YAML失败", "error", yamlErr)
+		yamlString = ""
+	}
+	/** genAI_main_end */
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"workload": h.convertToDeploymentInfo(deployment),
 			"raw":      deployment,
+			"yaml":     yamlString,
 			"pods":     pods,
 		},
 	})

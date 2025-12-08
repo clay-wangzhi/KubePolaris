@@ -9,6 +9,8 @@ import {
   App,
   Alert,
   Tooltip,
+  Modal,
+  Typography,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -17,16 +19,19 @@ import {
   CodeOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  DiffOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { WorkloadService } from '../../services/workloadService';
 import { getNamespaces } from '../../services/namespaceService';
 import WorkloadFormV2 from '../../components/workload/WorkloadFormV2';
 import { WorkloadYamlService } from '../../services/workloadYamlService';
-import MonacoEditor from '@monaco-editor/react';
+import MonacoEditor, { DiffEditor } from '@monaco-editor/react';
 import * as YAML from 'yaml';
 import { Form } from 'antd';
 import type { WorkloadFormData } from '../../types/workload';
+
+const { Text } = Typography;
 
 type WorkloadType = 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Rollout' | 'Job' | 'CronJob';
 
@@ -55,6 +60,15 @@ const DeploymentCreateV2: React.FC = () => {
   
   // YAML 数据
   const [yamlContent, setYamlContent] = useState(getDefaultYaml());
+  
+  /** genAI_main_start */
+  // 原始 YAML（编辑模式用于 diff 对比）
+  const [originalYaml, setOriginalYaml] = useState<string>('');
+  
+  // Diff 弹窗状态
+  const [diffModalVisible, setDiffModalVisible] = useState(false);
+  const [pendingYaml, setPendingYaml] = useState<string>('');
+  /** genAI_main_end */
   
   // 命名空间列表
   const [namespaces, setNamespaces] = useState<string[]>(['default']);
@@ -128,6 +142,7 @@ const DeploymentCreateV2: React.FC = () => {
     loadImagePullSecrets();
   }, [clusterId, currentNamespace]);
 
+  /** genAI_main_start */
   // 如果是编辑模式，加载现有数据
   useEffect(() => {
     const loadWorkload = async () => {
@@ -143,10 +158,19 @@ const DeploymentCreateV2: React.FC = () => {
         );
         
         if (response.code === 200 && response.data) {
-          // 使用 raw 对象（原始 K8s 资源）而不是 workload（简化对象）
-          const rawResource = response.data.raw || response.data.workload;
-          // 直接使用 YAML 解析
-          const yaml = YAML.stringify(rawResource);
+          // 优先使用后端返回的原始 YAML 字符串（保持原始格式）
+          // 如果没有 yaml 字段，则回退到 raw 对象序列化
+          let yaml: string;
+          if (response.data.yaml && typeof response.data.yaml === 'string') {
+            yaml = response.data.yaml;
+          } else {
+            // 回退方案：使用 raw 对象序列化
+            const rawResource = response.data.raw || response.data.workload;
+            yaml = YAML.stringify(rawResource);
+          }
+          
+          // 保存原始 YAML 用于 diff 对比
+          setOriginalYaml(yaml);
           setYamlContent(yaml);
           
           // 解析为表单数据
@@ -170,6 +194,7 @@ const DeploymentCreateV2: React.FC = () => {
     
     loadWorkload();
   }, [isEdit, clusterId, editNamespace, editName, workloadType, messageApi, form]);
+  /** genAI_main_end */
 
   // 表单转YAML
   const formToYaml = useCallback((): string => {
@@ -328,6 +353,7 @@ const DeploymentCreateV2: React.FC = () => {
     }
   };
 
+  /** genAI_main_start */
   // 处理提交
   const handleSubmit = async () => {
     // 先进行预检
@@ -353,20 +379,33 @@ const DeploymentCreateV2: React.FC = () => {
       return;
     }
     
-    // 确认提交
-    modal.confirm({
-      title: isEdit ? '确认更新' : '确认创建',
-      content: (
-        <div>
-          <p>{isEdit ? '确定要更新该工作负载吗？' : '确定要创建该工作负载吗？'}</p>
-          <p style={{ color: '#666', fontSize: 12 }}>建议先点击"预检"按钮验证配置是否正确。</p>
-        </div>
-      ),
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => submitYaml(yaml),
-    });
+    // 编辑模式下显示 diff 对比弹窗
+    if (isEdit && originalYaml) {
+      setPendingYaml(yaml);
+      setDiffModalVisible(true);
+    } else {
+      // 创建模式直接确认
+      modal.confirm({
+        title: '确认创建',
+        content: (
+          <div>
+            <p>确定要创建该工作负载吗？</p>
+            <p style={{ color: '#666', fontSize: 12 }}>建议先点击"预检"按钮验证配置是否正确。</p>
+          </div>
+        ),
+        okText: '确认',
+        cancelText: '取消',
+        onOk: () => submitYaml(yaml),
+      });
+    }
   };
+
+  // 确认 diff 后提交
+  const handleConfirmDiff = () => {
+    setDiffModalVisible(false);
+    submitYaml(pendingYaml);
+  };
+  /** genAI_main_end */
 
   // 表单值变化时更新
   const handleFormValuesChange = (changedValues: Partial<WorkloadFormData>, allValues: WorkloadFormData) => {
@@ -476,6 +515,54 @@ const DeploymentCreateV2: React.FC = () => {
           />
         </Card>
       )}
+
+      {/** genAI_main_start */}
+      {/* Diff 对比弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <DiffOutlined />
+            <span>YAML 变更对比</span>
+          </Space>
+        }
+        open={diffModalVisible}
+        onCancel={() => setDiffModalVisible(false)}
+        onOk={handleConfirmDiff}
+        width="90%"
+        style={{ top: 20 }}
+        okText="确认更新"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Text type="secondary">
+              左侧为原始配置，右侧为修改后的配置。红色表示删除，绿色表示新增。
+            </Text>
+          </Space>
+        </div>
+        <div style={{ border: '1px solid #d9d9d9', borderRadius: 4 }}>
+          <DiffEditor
+            height="60vh"
+            language="yaml"
+            original={originalYaml}
+            modified={pendingYaml}
+            theme="vs-dark"
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineNumbers: 'on',
+              wordWrap: 'on',
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              renderSideBySide: true,
+              diffWordWrap: 'on',
+            }}
+          />
+        </div>
+      </Modal>
+      {/** genAI_main_end */}
     </div>
   );
 };
