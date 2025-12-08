@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
 import {
   Card,
@@ -45,11 +44,9 @@ const SecretEdit: React.FC = () => {
   const [labels, setLabels] = useState<Array<{ key: string; value: string }>>([]);
   const [annotations, setAnnotations] = useState<Array<{ key: string; value: string }>>([]);
   const [dataItems, setDataItems] = useState<Array<{ key: string; value: string; visible: boolean }>>([]);
-  /** genAI_main_start */
   const [editMode, setEditMode] = useState<'form' | 'yaml'>('form');
   const [yamlContent, setYamlContent] = useState('');
   // const [originalYamlContent, setOriginalYamlContent] = useState('');  // 保留用于未来的重置功能
-  /** genAI_main_end */
 
   // 加载Secret详情
   const loadSecret = React.useCallback(async () => {
@@ -85,7 +82,6 @@ const SecretEdit: React.FC = () => {
       }));
       setDataItems(dataArray);
 
-      /** genAI_main_start */
       // 生成 YAML 内容
       const yamlObj = {
         apiVersion: 'v1',
@@ -102,7 +98,6 @@ const SecretEdit: React.FC = () => {
       const yamlStr = YAML.stringify(yamlObj);
       setYamlContent(yamlStr);
       // setOriginalYamlContent(yamlStr);  // 保留用于未来的重置功能
-      /** genAI_main_end */
     } catch (error) {
       const err = error as { response?: { data?: { error?: string } } };
       message.error(err.response?.data?.error || '加载Secret详情失败');
@@ -184,7 +179,6 @@ const SecretEdit: React.FC = () => {
     setDataItems(newDataItems);
   };
 
-  /** genAI_main_start */
   // 表单模式转YAML模式
   const formToYaml = () => {
     const labelsObj: Record<string, string> = {};
@@ -268,13 +262,11 @@ const SecretEdit: React.FC = () => {
       }
     }
   };
-  /** genAI_main_end */
 
   // 提交表单
   const handleSubmit = async () => {
     if (!clusterId || !namespace || !name) return;
 
-    /** genAI_main_start */
     let labelsObj: Record<string, string> = {};
     let annotationsObj: Record<string, string> = {};
     let dataObj: Record<string, string> = {};
@@ -292,7 +284,6 @@ const SecretEdit: React.FC = () => {
       }
     } else {
       // 表单模式：验证和构建数据
-      /** genAI_main_end */
       // 验证标签和注解
       for (const label of labels) {
         if (label.key) {
@@ -326,9 +317,7 @@ const SecretEdit: React.FC = () => {
         }
         dataObj[item.key] = item.value;
       }
-      /** genAI_main_start */
     }
-    /** genAI_main_end */
 
     setSubmitting(true);
     try {
@@ -379,7 +368,6 @@ const SecretEdit: React.FC = () => {
               </Button>
               <h2 style={{ margin: 0 }}>编辑 Secret: {secret.name}</h2>
               <Tag color="orange">敏感数据</Tag>
-              {/** genAI_main_start */}
               <Segmented
                 value={editMode}
                 onChange={(value) => handleModeChange(value as 'form' | 'yaml')}
@@ -396,7 +384,6 @@ const SecretEdit: React.FC = () => {
                   },
                 ]}
               />
-              {/** genAI_main_end */}
             </Space>
             <Space>
               <Button onClick={() => navigate(`/clusters/${clusterId}/configs/secret/${namespace}/${name}`)}>
@@ -414,7 +401,6 @@ const SecretEdit: React.FC = () => {
           </Space>
         </Card>
 
-        {/** genAI_main_start */}
         {/* YAML 编辑模式 */}
         {editMode === 'yaml' ? (
           <Card title="YAML 编辑" extra={<Tag color="orange">包含敏感数据</Tag>}>
@@ -443,7 +429,6 @@ const SecretEdit: React.FC = () => {
         ) : (
           /* 表单编辑模式 */
           <>
-        {/** genAI_main_end */}
         {/* 基本信息 */}
         <Card title="基本信息">
           <Form form={form} layout="vertical">
@@ -665,15 +650,12 @@ const SecretEdit: React.FC = () => {
             )}
           </Space>
         </Card>
-        {/** genAI_main_start */}
           </>
         )}
-        {/** genAI_main_end */}
       </Space>
     </div>
   );
 };
 
 export default SecretEdit;
-/** genAI_main_end */
 

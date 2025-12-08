@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Card, Descriptions, Spin, message, Empty, Tag } from 'antd';
 import { WorkloadService } from '../../../services/workloadService';
@@ -196,5 +195,4 @@ const SchedulingTab: React.FC<SchedulingTabProps> = ({
 };
 
 export default SchedulingTab;
-/** genAI_main_end */
 

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import { request } from '../utils/api';
 
 export interface ConfigMapListItem {
@@ -56,7 +55,6 @@ export interface ListResponse<T> {
   pageSize: number;
 }
 
-/** genAI_main_start */
 // 命名空间对象接口
 interface NamespaceObject {
   name: string;
@@ -81,7 +79,6 @@ export const getNamespaces = async (clusterId: number): Promise<string[]> => {
     return ['default', 'kube-system', 'kube-public', 'kube-node-lease'];
   }
 };
-/** genAI_main_end */
 
 // ConfigMap API
 export const configMapService = {
@@ -267,5 +264,4 @@ export const secretService = {
     );
   },
 };
-/** genAI_main_end */
 

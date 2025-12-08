@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -28,9 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-/** genAI_main_end */
 
-/** genAI_main_start */
 // PodHandler Pod处理器
 type PodHandler struct {
 	db             *gorm.DB
@@ -57,7 +54,6 @@ func NewPodHandler(db *gorm.DB, cfg *config.Config, clusterService *services.Clu
 	}
 }
 
-/** genAI_main_end */
 
 // PodInfo Pod信息
 type PodInfo struct {
@@ -435,7 +431,6 @@ func (h *PodHandler) GetPodLogs(c *gin.Context) {
 	}
 	defer logs.Close()
 
-	/** genAI_main_start */
 	// 如果是follow模式，返回错误提示使用WebSocket
 	if follow {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -444,7 +439,6 @@ func (h *PodHandler) GetPodLogs(c *gin.Context) {
 		})
 		return
 	}
-	/** genAI_main_end */
 
 	// 读取日志内容
 	buf := make([]byte, 4096)
@@ -773,7 +767,6 @@ func (h *PodHandler) GetPodNodes(c *gin.Context) {
 	})
 }
 
-/** genAI_main_start */
 // StreamPodLogs WebSocket流式传输Pod日志
 func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -830,7 +823,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 		return
 	}
 
-	/** genAI_main_start */
 	// 创建上下文 - 使用WithCancel而不是WithTimeout，因为WebSocket需要长时间运行
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -840,7 +832,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 		Follow:   true, // 流式模式
 		Previous: previous,
 	}
-	/** genAI_main_end */
 
 	if container != "" {
 		logOptions.Container = container
@@ -858,7 +849,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 		}
 	}
 
-	/** genAI_main_start */
 	// 为日志流创建无超时的专用REST config
 	// 克隆原有config并移除超时限制
 	logStreamConfig := *k8sClient.GetRestConfig()
@@ -885,7 +875,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 		return
 	}
 	defer logStream.Close()
-	/** genAI_main_end */
 
 	// 创建读取器
 	reader := bufio.NewReader(logStream)
@@ -903,7 +892,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 		}
 	}()
 
-	/** genAI_main_start */
 	// 发送日志开始消息
 	err = conn.WriteJSON(map[string]interface{}{
 		"type":    "start",
@@ -916,7 +904,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 
 	// 流式读取并发送日志
 	for {
-		/** genAI_main_end */
 		select {
 		case <-ctx.Done():
 			// 连接被关闭
@@ -926,7 +913,6 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 			})
 			return
 		default:
-			/** genAI_main_start */
 			// 读取一行日志
 			line, err := reader.ReadString('\n')
 			if err != nil {
@@ -963,9 +949,7 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 				})
 				return
 			}
-			/** genAI_main_end */
 
-			/** genAI_main_start */
 			// 发送日志内容
 			err = conn.WriteJSON(map[string]interface{}{
 				"type": "log",
@@ -976,9 +960,7 @@ func (h *PodHandler) StreamPodLogs(c *gin.Context) {
 				logger.Info("发送日志失败，客户端可能已断开", "error", err)
 				return
 			}
-			/** genAI_main_end */
 		}
 	}
 }
 
-/** genAI_main_end */

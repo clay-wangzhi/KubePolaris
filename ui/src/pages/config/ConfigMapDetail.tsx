@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
 import {
   Card,
@@ -216,5 +215,4 @@ const ConfigMapDetail: React.FC = () => {
 };
 
 export default ConfigMapDetail;
-/** genAI_main_end */
 

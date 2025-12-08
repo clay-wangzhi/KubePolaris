@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -40,4 +39,3 @@ export default defineConfig({
     },
   },
 })
-/** genAI_main_end */

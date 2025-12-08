@@ -115,7 +115,6 @@ type ClusterMetricsData struct {
 	Network *NetworkMetrics `json:"network,omitempty"`
 	Storage *MetricSeries   `json:"storage,omitempty"`
 	Pods    *PodMetrics     `json:"pods,omitempty"`
-	/** genAI_main_start */
 	// Pod 级别的扩展监控指标
 	CPURequest        *MetricSeries   `json:"cpu_request,omitempty"`         // CPU 请求值（固定）
 	CPULimit          *MetricSeries   `json:"cpu_limit,omitempty"`           // CPU 限制值（固定）
@@ -151,7 +150,6 @@ type ClusterMetricsData struct {
 	CPUThrottlingTimeMulti *MultiSeriesMetric `json:"cpu_throttling_time_multi,omitempty"` // CPU 限流时间（多Pod）
 	DiskIOPSMulti          *MultiSeriesMetric `json:"disk_iops_multi,omitempty"`           // 磁盘 IOPS（多Pod）
 	DiskThroughputMulti    *MultiSeriesMetric `json:"disk_throughput_multi,omitempty"`     // 磁盘吞吐量（多Pod）
-	/** genAI_main_end */
 }
 
 // MetricSeries 指标时间序列
@@ -187,7 +185,6 @@ type ContainerSubnetIPs struct {
 	AvailableIPs int `json:"available_ips"`
 }
 
-/** genAI_main_start */
 // NetworkPPS 网络PPS指标
 type NetworkPPS struct {
 	In  *MetricSeries `json:"in"`  // 入站PPS
@@ -263,4 +260,3 @@ type NodeMetricItem struct {
 	Status          string  `json:"status"`            // 节点状态
 }
 
-/** genAI_main_end */

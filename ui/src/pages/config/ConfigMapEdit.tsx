@@ -1,6 +1,4 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
-/** genAI_main_start */
 import {
   Card,
   Form,
@@ -28,7 +26,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { configMapService, type ConfigMapDetail } from '../../services/configService';
 import MonacoEditor from '@monaco-editor/react';
 import * as YAML from 'yaml';
-/** genAI_main_end */
 
 const ConfigMapEdit: React.FC = () => {
   const navigate = useNavigate();
@@ -44,11 +41,9 @@ const ConfigMapEdit: React.FC = () => {
   const [labels, setLabels] = useState<Array<{ key: string; value: string }>>([]);
   const [annotations, setAnnotations] = useState<Array<{ key: string; value: string }>>([]);
   const [dataItems, setDataItems] = useState<Array<{ key: string; value: string }>>([]);
-  /** genAI_main_start */
   const [editMode, setEditMode] = useState<'form' | 'yaml'>('form');
   const [yamlContent, setYamlContent] = useState('');
   // const [originalYamlContent, setOriginalYamlContent] = useState('');  // 保留用于未来的重置功能
-  /** genAI_main_end */
 
   // 加载ConfigMap详情
   const loadConfigMap = React.useCallback(async () => {
@@ -83,7 +78,6 @@ const ConfigMapEdit: React.FC = () => {
       }));
       setDataItems(dataArray);
 
-      /** genAI_main_start */
       // 生成 YAML 内容
       const yamlObj = {
         apiVersion: 'v1',
@@ -99,7 +93,6 @@ const ConfigMapEdit: React.FC = () => {
       const yamlStr = YAML.stringify(yamlObj);
       setYamlContent(yamlStr);
       // setOriginalYamlContent(yamlStr);  // 保留用于未来的重置功能
-      /** genAI_main_end */
     } catch (error) {
       const err = error as { response?: { data?: { error?: string } } };
       message.error(err.response?.data?.error || '加载ConfigMap详情失败');
@@ -174,7 +167,6 @@ const ConfigMapEdit: React.FC = () => {
     setDataItems(newDataItems);
   };
 
-  /** genAI_main_start */
   // 表单模式转YAML模式
   const formToYaml = () => {
     const labelsObj: Record<string, string> = {};
@@ -256,13 +248,11 @@ const ConfigMapEdit: React.FC = () => {
       }
     }
   };
-  /** genAI_main_end */
 
   // 提交表单
   const handleSubmit = async () => {
     if (!clusterId || !namespace || !name) return;
 
-    /** genAI_main_start */
     let labelsObj: Record<string, string> = {};
     let annotationsObj: Record<string, string> = {};
     let dataObj: Record<string, string> = {};
@@ -280,7 +270,6 @@ const ConfigMapEdit: React.FC = () => {
       }
     } else {
       // 表单模式：验证和构建数据
-      /** genAI_main_end */
       // 验证标签和注解
       for (const label of labels) {
         if (label.key) {
@@ -314,9 +303,7 @@ const ConfigMapEdit: React.FC = () => {
         }
         dataObj[item.key] = item.value;
       }
-      /** genAI_main_start */
     }
-    /** genAI_main_end */
 
     setSubmitting(true);
     try {
@@ -366,7 +353,6 @@ const ConfigMapEdit: React.FC = () => {
                 返回
               </Button>
               <h2 style={{ margin: 0 }}>编辑 ConfigMap: {configMap.name}</h2>
-              {/** genAI_main_start */}
               <Segmented
                 value={editMode}
                 onChange={(value) => handleModeChange(value as 'form' | 'yaml')}
@@ -383,7 +369,6 @@ const ConfigMapEdit: React.FC = () => {
                   },
                 ]}
               />
-              {/** genAI_main_end */}
             </Space>
             <Space>
               <Button onClick={() => navigate(`/clusters/${clusterId}/configs/configmap/${namespace}/${name}`)}>
@@ -401,7 +386,6 @@ const ConfigMapEdit: React.FC = () => {
           </Space>
         </Card>
 
-        {/** genAI_main_start */}
         {/* YAML 编辑模式 */}
         {editMode === 'yaml' ? (
           <Card title="YAML 编辑">
@@ -430,7 +414,6 @@ const ConfigMapEdit: React.FC = () => {
         ) : (
           /* 表单编辑模式 */
           <>
-        {/** genAI_main_end */}
         {/* 基本信息 */}
         <Card title="基本信息">
           <Form form={form} layout="vertical">
@@ -621,15 +604,12 @@ const ConfigMapEdit: React.FC = () => {
             )}
           </Space>
         </Card>
-        {/** genAI_main_start */}
           </>
         )}
-        {/** genAI_main_end */}
       </Space>
     </div>
   );
 };
 
 export default ConfigMapEdit;
-/** genAI_main_end */
 

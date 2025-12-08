@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -266,7 +265,6 @@ const JobTab: React.FC<JobTabProps> = ({ clusterId, onCountChange }) => {
       fixed: 'left' as const,
       sorter: true,
       sortOrder: sortField === 'name' ? sortOrder : null,
-      /** genAI_main_start */
       render: (text: string, record: WorkloadInfo) => (
         <Button
           type="link"
@@ -282,7 +280,6 @@ const JobTab: React.FC<JobTabProps> = ({ clusterId, onCountChange }) => {
             {text}
         </Button>
       ),
-      /** genAI_main_end */
     },
     {
       title: '命名空间',
@@ -788,4 +785,3 @@ const JobTab: React.FC<JobTabProps> = ({ clusterId, onCountChange }) => {
 };
 
 export default JobTab;
-/** genAI_main_end */

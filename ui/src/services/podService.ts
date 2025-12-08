@@ -277,7 +277,6 @@ export class PodService {
     return request.get(`/clusters/${clusterId}/pods/nodes`);
   }
 
-  /** genAI_main_start */
   // 创建WebSocket连接获取实时日志流
   static createLogStream(
     clusterId: string,
@@ -312,5 +311,4 @@ export class PodService {
     
     return new WebSocket(url);
   }
-  /** genAI_main_end */
 }

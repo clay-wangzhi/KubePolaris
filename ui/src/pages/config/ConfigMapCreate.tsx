@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState } from 'react';
 import {
   Card,
@@ -41,11 +40,9 @@ const ConfigMapCreate: React.FC = () => {
   const [annotations, setAnnotations] = useState<Array<{ key: string; value: string }>>([]);
   const [dataItems, setDataItems] = useState<Array<{ key: string; value: string }>>([]);
   
-  /** genAI_main_start */
   // 命名空间列表
   const [namespaces, setNamespaces] = useState<string[]>(['default']);
   const [loadingNamespaces, setLoadingNamespaces] = useState(false);
-  /** genAI_main_end */
   
   // YAML 模式状态
   const [yamlContent, setYamlContent] = useState(`apiVersion: v1
@@ -57,7 +54,6 @@ metadata:
   annotations: {}
 data: {}`);
 
-  /** genAI_main_start */
   // 加载命名空间列表
   React.useEffect(() => {
     const loadNamespaces = async () => {
@@ -80,7 +76,6 @@ data: {}`);
     loadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clusterId]);
-  /** genAI_main_end */
 
   // 添加标签
   const handleAddLabel = () => {
@@ -418,7 +413,6 @@ data: {}`);
                       label="命名空间"
                       help="ConfigMap 所属的命名空间"
                     >
-                      {/** genAI_main_start */}
                       <Select
                         value={namespace}
                         onChange={setNamespace}
@@ -437,7 +431,6 @@ data: {}`);
                           </Select.Option>
                         ))}
                       </Select>
-                      {/** genAI_main_end */}
                     </Form.Item>
                   </Col>
                 </Row>
@@ -624,5 +617,4 @@ data: {}`);
 };
 
 export default ConfigMapCreate;
-/** genAI_main_end */
 

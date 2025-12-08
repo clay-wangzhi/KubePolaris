@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -405,5 +404,4 @@ const WorkloadFormModal: React.FC<WorkloadFormModalProps> = ({
 };
 
 export default WorkloadFormModal;
-/** genAI_main_end */
 

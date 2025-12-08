@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React from 'react';
 import {
   Form,
@@ -235,7 +234,6 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                   <Text type="secondary">资源配置</Text>
                 </Divider>
                 
-                {/** genAI_main_start */}
                 <Row gutter={16}>
                   <Col span={12}>
                     <Card size="small" title="请求资源 (Requests)">
@@ -280,7 +278,6 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                     </Card>
                   </Col>
                 </Row>
-                {/** genAI_main_end */}
                 
                 <Divider orientation="left" plain>
                   <Text type="secondary">端口配置</Text>
@@ -569,5 +566,4 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
 };
 
 export default ContainerConfigForm;
-/** genAI_main_end */
 

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import { request } from '../utils/api';
 
 export interface NamespaceData {
@@ -67,5 +66,4 @@ export const deleteNamespace = async (
 ): Promise<void> => {
   await request.delete<void>(`/clusters/${clusterId}/namespaces/${namespace}`);
 };
-/** genAI_main_end */
 

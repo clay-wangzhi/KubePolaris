@@ -1,10 +1,8 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, Row, Col, Statistic, Select, Button, Space, Spin, Alert, Switch, Skeleton } from 'antd';
 import { Line, Area } from '@ant-design/plots';
 import { ReloadOutlined } from '@ant-design/icons';
 import api from '../utils/api';
-/** genAI_main_end */
 
 const { Option } = Select;
 
@@ -30,7 +28,6 @@ interface PodMetrics {
   failed: number;
 }
 
-/* genAI_main_start */
 interface NetworkPPS {
   in: MetricSeries;
   out: MetricSeries;
@@ -128,9 +125,7 @@ interface ClusterMetricsData {
   disk_iops_multi?: MultiSeriesMetric;
   disk_throughput_multi?: MultiSeriesMetric;
 }
-/* genAI_main_end */
 
-/** genAI_main_start */
 interface MonitoringChartsProps {
   clusterId: string;
   clusterName?: string;
@@ -141,9 +136,7 @@ interface MonitoringChartsProps {
   type: 'cluster' | 'node' | 'pod' | 'workload';
   lazyLoad?: boolean; // 是否懒加载，默认 false
 }
-/** genAI_main_end */
 
-/** genAI_main_start */
 const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
   clusterId,
   clusterName,
@@ -154,20 +147,16 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
   type,
   lazyLoad = false,
 }) => {
-/** genAI_main_end */
   const [metrics, setMetrics] = useState<ClusterMetricsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('1h');
   const [step, setStep] = useState('15s');
-  /* genAI_main_start */
   const [autoRefresh, setAutoRefresh] = useState(false); // 默认关闭自动刷新
   const [hasLoaded, setHasLoaded] = useState(false); // 是否已加载过数据
   const metricsCacheRef = useRef<{ key: string; data: ClusterMetricsData; timestamp: number } | null>(null);
   const CACHE_DURATION = 30000; // 缓存30秒
-  /* genAI_main_end */
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  /** genAI_main_start */
   // 生成缓存键
   const cacheKey = useMemo(() => {
     return `${clusterId}-${type}-${timeRange}-${step}-${clusterName || ''}-${nodeName || ''}-${namespace || ''}-${podName || ''}-${workloadName || ''}`;
@@ -240,9 +229,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       setLoading(false);
     }
   }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, workloadName, type, cacheKey, getCachedData]);
-  /** genAI_main_end */
 
-  /* genAI_main_start */
   useEffect(() => {
     // 如果是懒加载模式且未加载过，延迟自动加载
     if (lazyLoad && !hasLoaded) {
@@ -285,7 +272,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       }
     };
   }, [clusterId, timeRange, step, clusterName, nodeName, namespace, podName, fetchMetrics, autoRefresh, lazyLoad, hasLoaded, getCachedData]);
-  /* genAI_main_end */
 
   const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleTimeString();
@@ -344,7 +330,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
     return <Line {...config} />;
   };
 
-  /** genAI_main_start */
   // 渲染多时间序列图表（多个Pod的曲线）
   const renderMultiSeriesChart = (data: MultiSeriesDataPoint[], unit: string = '') => {
     if (!data || data.length === 0) {
@@ -391,7 +376,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
 
     return <Line {...config} />;
   };
-  /** genAI_main_end */
 
   // Helper function to convert bytes to appropriate unit
   const convertBytesToUnit = (bytes: number): { value: number; unit: string } => {
@@ -494,7 +478,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
     return <Area {...config} />;
   };
 
-  /* genAI_main_start */
   // 懒加载处理 - 显示骨架屏，自动加载（通过 useEffect 触发）
   if (lazyLoad && !hasLoaded && !loading) {
     return (
@@ -515,7 +498,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       </div>
     );
   }
-  /* genAI_main_end */
 
   if (!metrics) {
     return (
@@ -555,7 +537,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               <Option value="15m">15分钟</Option>
               <Option value="1h">1小时</Option>
             </Select>
-            {/* genAI_main_start */}
             <Space>
               <span>自动刷新</span>
               <Switch
@@ -565,7 +546,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
                 unCheckedChildren="关"
               />
             </Space>
-            {/* genAI_main_end */}
             <Button
               icon={<ReloadOutlined />}
               onClick={fetchMetrics}
@@ -578,7 +558,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       >
         
         <Row gutter={[16, 16]}>
-          {/* genAI_main_start */}
           {/* 集群概览（仅在集群类型时显示） */}
           {type === 'cluster' && metrics.cluster_overview && (
             <>
@@ -836,9 +815,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-                    {/* genAI_main_start */}
           {/* Pod/工作负载 资源规格 */}
           {(type === 'pod' || type === 'workload') && (metrics.cpu_request || metrics.cpu_limit || metrics.memory_request || metrics.memory_limit) && (
             <Col span={24}>
@@ -888,7 +865,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
           )}
 
 
-          {/* genAI_main_start */}
           {/* CPU 使用率 */}
           {(type === 'pod' || type === 'workload') && metrics.cpu && (
             <Col span={12}>
@@ -924,9 +900,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 内存使用率 */}
           {(type === 'pod' || type === 'workload') && metrics.memory && (
             <Col span={12}>
@@ -960,9 +934,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 容器重启次数 */}
           {(type === 'pod' || type === 'workload') && metrics.container_restarts && (
             <Col span={12}>
@@ -981,9 +953,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* OOM Kill 次数 */}
           {(type === 'pod' || type === 'workload') && metrics.oom_kills && (
             <Col span={12}>
@@ -1002,9 +972,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 健康检查失败次数 */}
           {(type === 'pod' || type === 'workload') && metrics.probe_failures && (
             <Col span={12}>
@@ -1023,7 +991,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
           {/* 网络流量 */}
           {metrics.network && (
@@ -1031,24 +998,20 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               <Card size="small" title="网络流量">
                 <Row gutter={16}>
                   <Col span={12}>
-                    {/* genAI_main_start */}
                     <Statistic
                       title="入站流量"
                       value={formatValue(metrics.network.in.current, 'bytes')}
                       suffix="/s"
                       precision={2}
                     />
-                    {/* genAI_main_end */}
                   </Col>
                   <Col span={12}>
-                    {/* genAI_main_start */}
                     <Statistic
                       title="出站流量"
                       value={formatValue(metrics.network.out.current, 'bytes')}
                       suffix="/s"
                       precision={2}
                     />
-                    {/* genAI_main_end */}
                   </Col>
                 </Row>
                 {renderNetworkChart(metrics.network.in.series, metrics.network.out.series, 'bytes', '入站', '出站')}
@@ -1109,7 +1072,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
             </Col>
           )}
 
-          {/* genAI_main_start */}
           {/* 网络 PPS */}
           {(type === 'pod' || type === 'workload') && metrics.network_pps && (
             <Col span={24}>
@@ -1134,9 +1096,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 磁盘 IOPS */}
           {(type === 'pod' || type === 'workload') && metrics.disk_iops && (
             <Col span={24}>
@@ -1161,9 +1121,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 磁盘吞吐量 */}
           {(type === 'pod' || type === 'workload') && metrics.disk_throughput && (
             <Col span={24}>
@@ -1188,9 +1146,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 线程数 */}
           {(type === 'pod' || type === 'workload') && metrics.threads && (
             <Col span={12}>
@@ -1208,9 +1164,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* CPU 限流情况 */}
           {(type === 'pod' || type === 'workload') && (metrics.cpu_throttling || metrics.cpu_throttling_time) && (
             <Col span={24}>
@@ -1254,9 +1208,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
 
-          {/* genAI_main_start */}
           {/* 网卡丢包情况 */}
           {(type === 'pod' || type === 'workload') && metrics.network_drops && (
             <Col span={24}>
@@ -1287,7 +1239,6 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
               </Card>
             </Col>
           )}
-          {/* genAI_main_end */}
         </Row>
       </Card>
     </div>

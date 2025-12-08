@@ -333,7 +333,6 @@ func (h *MonitoringHandler) GetPodMetrics(c *gin.Context) {
 	})
 }
 
-/** genAI_main_start */
 // GetWorkloadMetrics 获取工作负载监控指标
 func (h *MonitoringHandler) GetWorkloadMetrics(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
@@ -403,7 +402,6 @@ func (h *MonitoringHandler) GetWorkloadMetrics(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */
 
 // GetMonitoringTemplates 获取监控配置模板
 func (h *MonitoringHandler) GetMonitoringTemplates(c *gin.Context) {

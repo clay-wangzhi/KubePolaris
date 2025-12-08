@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -30,7 +29,6 @@ import {
 import { WorkloadService } from '../../services/workloadService';
 import type { WorkloadInfo } from '../../services/workloadService';
 import MonitoringCharts from '../../components/MonitoringCharts';
-/** genAI_main_end */
 
 
 const { Title, Text } = Typography;
@@ -243,7 +241,6 @@ const WorkloadDetail: React.FC<WorkloadDetailProps> = () => {
         </div>
       </div>
 
-      {/* genAI_main_start */}
       {/* 详情内容 */}
       <Tabs defaultActiveKey="overview">
         <TabPane 
@@ -264,7 +261,6 @@ const WorkloadDetail: React.FC<WorkloadDetailProps> = () => {
             />
           )}
         </TabPane>
-        {/* genAI_main_end */}
 
         <TabPane tab="概览" key="overview">
           <Row gutter={[16, 16]}>

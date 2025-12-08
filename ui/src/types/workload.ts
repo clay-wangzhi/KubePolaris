@@ -1,4 +1,3 @@
-/** genAI_main_start */
 // 容器探针配置
 export interface ProbeConfig {
   // HTTP检查
@@ -46,7 +45,6 @@ export interface LifecycleConfig {
   };
 }
 
-/** genAI_main_start */
 // 容器资源配置（支持 cpu、memory、ephemeral-storage、nvidia.com/gpu）
 export interface ResourceConfig {
   limits?: {
@@ -61,7 +59,6 @@ export interface ResourceConfig {
     'ephemeral-storage'?: string;  // 临时存储请求
   };
 }
-/** genAI_main_end */
 
 // 数据卷挂载配置
 export interface VolumeMount {
@@ -248,7 +245,6 @@ export interface UpdateStrategyConfig {
   };
 }
 
-/** genAI_main_start */
 // Argo Rollout 金丝雀发布步骤
 export interface CanaryStep {
   // 设置流量权重
@@ -414,7 +410,6 @@ export interface RolloutStrategyConfig {
   // 蓝绿策略
   blueGreen?: BlueGreenStrategyConfig;
 }
-/** genAI_main_end */
 
 // 完整的工作负载表单数据
 export interface WorkloadFormData {
@@ -480,10 +475,8 @@ export interface WorkloadFormData {
   activeDeadlineSeconds?: number;
   ttlSecondsAfterFinished?: number;
   
-  /** genAI_main_start */
   // Argo Rollout 特有
   rolloutStrategy?: RolloutStrategyConfig;
-  /** genAI_main_end */
 }
 
 // 表单中调度策略的简化格式
@@ -532,5 +525,4 @@ export interface SchedulingFormData {
     labelValues: string;
   }>;
 }
-/** genAI_main_end */
 

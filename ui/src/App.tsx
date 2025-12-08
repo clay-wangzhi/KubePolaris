@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
@@ -17,14 +16,11 @@ import PodTerminal from './pages/pod/PodTerminal';
 import WorkloadList from './pages/workload/WorkloadList';
 import WorkloadDetail from './pages/workload/WorkloadDetail';
 import DeploymentCreate from './pages/workload/DeploymentCreate';
-/** genAI_main_start */
 import DeploymentDetail from './pages/workload/DeploymentDetail';
 import RolloutDetail from './pages/workload/RolloutDetail';
-/** genAI_main_end */
 import YAMLEditor from './pages/yaml/YAMLEditor';
 import GlobalSearch from './pages/search/GlobalSearch';
 import KubectlTerminalPage from './pages/terminal/kubectlTerminal';
-/** genAI_main_start */
 import { ConfigSecretManagement, ConfigMapDetail, SecretDetail } from './pages/config';
 import ConfigMapEdit from './pages/config/ConfigMapEdit';
 import SecretEdit from './pages/config/SecretEdit';
@@ -33,7 +29,6 @@ import SecretCreate from './pages/config/SecretCreate';
 import { NamespaceList, NamespaceDetail } from './pages/namespace';
 import NetworkList from './pages/network/NetworkList';
 import './App.css';
-/** genAI_main_end */
 
 const App: React.FC = () => {
   return (
@@ -60,40 +55,26 @@ const App: React.FC = () => {
               <Route path="clusters/:clusterId/pods/:namespace/:name" element={<PodDetail />} />
               <Route path="clusters/:clusterId/workloads" element={<WorkloadList />} />
               <Route path="clusters/:clusterId/workloads/create" element={<DeploymentCreate />} />
-              /** genAI_main_start */
               <Route path="clusters/:clusterId/workloads/deployment/:namespace/:name" element={<DeploymentDetail />} />
               <Route path="clusters/:clusterId/workloads/rollout/:namespace/:name" element={<RolloutDetail />} />
-              /** genAI_main_end */
               <Route path="clusters/:clusterId/workloads/:namespace/:name" element={<WorkloadDetail />} />
               <Route path="clusters/:clusterId/yaml/apply" element={<YAMLEditor />} />
               <Route path="workloads" element={<WorkloadList />} />
               <Route path="workloads/:type/:namespace/:name" element={<WorkloadDetail />} />
               <Route path="search" element={<GlobalSearch />} />
               {/* 命名空间路由 */}
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/namespaces" element={<NamespaceList />} />
               <Route path="clusters/:clusterId/namespaces/:namespace" element={<NamespaceDetail />} />
-              {/* genAI_main_end */}
               {/* 配置与密钥路由 */}
               <Route path="clusters/:clusterId/configs" element={<ConfigSecretManagement />} />
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/configs/configmap/create" element={<ConfigMapCreate />} />
-              {/* genAI_main_end */}
               <Route path="clusters/:clusterId/configs/configmap/:namespace/:name" element={<ConfigMapDetail />} />
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/configs/configmap/:namespace/:name/edit" element={<ConfigMapEdit />} />
-              {/* genAI_main_end */}
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/configs/secret/create" element={<SecretCreate />} />
-              {/* genAI_main_end */}
               <Route path="clusters/:clusterId/configs/secret/:namespace/:name" element={<SecretDetail />} />
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/configs/secret/:namespace/:name/edit" element={<SecretEdit />} />
-              {/* genAI_main_end */}
               {/* 网络管理路由（Service和Ingress） */}
-              {/* genAI_main_start */}
               <Route path="clusters/:clusterId/network" element={<NetworkList />} />
-              {/* genAI_main_end */}
             </Route>
           </Routes>
         </Router>
@@ -103,4 +84,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-/** genAI_main_end */

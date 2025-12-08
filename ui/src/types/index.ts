@@ -238,7 +238,6 @@ export interface K8sEvent {
   count?: number;
 }
 
-/** genAI_main_start */
 // Service相关类型定义
 export interface ServicePort {
   name: string;
@@ -332,4 +331,3 @@ export interface Endpoints {
   namespace: string;
   subsets: EndpointSubset[];
 }
-/** genAI_main_end */

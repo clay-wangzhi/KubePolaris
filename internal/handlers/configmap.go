@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -501,4 +500,3 @@ func formatAge(d time.Duration) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
-/** genAI_main_end */

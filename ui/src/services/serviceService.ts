@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import { request } from '../utils/api';
 import type { Service, Endpoints, ApiResponse, PaginatedResponse } from '../types';
 
@@ -76,7 +75,6 @@ export class ServiceService {
     return request.delete(`/clusters/${clusterId}/services/${namespace}/${name}`);
   }
 
-  /** genAI_main_start */
   // 创建Service
   static async createService(
     clusterId: string,
@@ -102,7 +100,6 @@ export class ServiceService {
   ): Promise<ApiResponse<Service>> {
     return request.put(`/clusters/${clusterId}/services/${namespace}/${name}`, data);
   }
-  /** genAI_main_end */
 
   // 获取Service类型颜色
   static getTypeColor(type: string): string {
@@ -227,7 +224,6 @@ export class ServiceService {
     }
   }
 
-  /** genAI_main_start */
   // 获取Service命名空间列表（带计数）
   static async getServiceNamespaces(clusterId: string): Promise<{ name: string; count: number }[]> {
     const response = await request.get<{ name: string; count: number }[]>(
@@ -235,7 +231,5 @@ export class ServiceService {
     );
     return response.data;
   }
-  /** genAI_main_end */
 }
-/** genAI_main_end */
 

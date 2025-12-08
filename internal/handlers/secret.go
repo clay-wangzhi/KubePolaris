@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -523,4 +522,3 @@ func (h *SecretHandler) UpdateSecret(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */

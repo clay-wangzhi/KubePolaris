@@ -44,7 +44,6 @@ export interface WorkloadListResponse {
   };
 }
 
-/** genAI_main_start */
 export interface WorkloadDetailResponse {
   code: number;
   message: string;
@@ -55,7 +54,6 @@ export interface WorkloadDetailResponse {
     pods: any[];
   };
 }
-/** genAI_main_end */
 
 export interface ScaleWorkloadRequest {
   replicas: number;
@@ -67,16 +65,13 @@ export interface YAMLApplyRequest {
 }
 
 export class WorkloadService {
-  /** genAI_main_start */
   // 检查集群是否安装了 Argo Rollouts CRD
   static async checkRolloutCRD(
     clusterId: string
   ): Promise<{ code: number; message: string; data: { enabled: boolean } }> {
     return request.get(`/clusters/${clusterId}/rollouts/crd-check`);
   }
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 获取工作负载列表
   static async getWorkloads(
     clusterId: string,
@@ -132,9 +127,7 @@ export class WorkloadService {
     
     return request.get(`${endpoint}?${params}`);
   }
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 获取工作负载命名空间列表
   static async getWorkloadNamespaces(
     clusterId: string,
@@ -175,9 +168,7 @@ export class WorkloadService {
     
     return request.get(`${endpoint}?${params}`);
   }
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 获取工作负载详情
   static async getWorkloadDetail(
     clusterId: string,
@@ -340,7 +331,6 @@ export class WorkloadService {
       dryRun,
     });
   }
-  /** genAI_main_end */
 
   // 获取工作负载类型列表
   static getWorkloadTypes(): Array<{ value: string; label: string; icon: string }> {
@@ -393,7 +383,6 @@ export class WorkloadService {
     return { status: statusText, color };
   }
 
-  /** genAI_main_start */
   // 表单数据转YAML
   static formDataToYAML(
     workloadType: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Rollout' | 'Job' | 'CronJob',
@@ -926,7 +915,6 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
     return yaml;
   }
   
-  /** genAI_main_start */
   // 获取Deployment关联的Pods
   static async getWorkloadPods(
     clusterId: string,
@@ -939,11 +927,9 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
       case 'Deployment':
         endpoint += `deployments/${namespace}/${workloadName}/pods`;
         break;
-      /** genAI_main_start */
       case 'Rollout':
         endpoint += `rollouts/${namespace}/${workloadName}/pods`;
         break;
-      /** genAI_main_end */
       default:
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/pods`;
     }
@@ -962,11 +948,9 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
       case 'Deployment':
         endpoint += `deployments/${namespace}/${workloadName}/services`;
         break;
-      /** genAI_main_start */
       case 'Rollout':
         endpoint += `rollouts/${namespace}/${workloadName}/services`;
         break;
-      /** genAI_main_end */
       default:
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/services`;
     }
@@ -985,11 +969,9 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
       case 'Deployment':
         endpoint += `deployments/${namespace}/${workloadName}/ingresses`;
         break;
-      /** genAI_main_start */
       case 'Rollout':
         endpoint += `rollouts/${namespace}/${workloadName}/ingresses`;
         break;
-      /** genAI_main_end */
       default:
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/ingresses`;
     }
@@ -1003,7 +985,6 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
     workloadType: string,
     workloadName: string
   ): Promise<any> {
-    /** genAI_main_start */
     let endpoint = `/clusters/${clusterId}/`;
     switch (workloadType) {
       case 'Deployment':
@@ -1016,7 +997,6 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/hpa`;
     }
     return request.get(endpoint);
-    /** genAI_main_end */
   }
 
   // 获取Deployment的ReplicaSets
@@ -1026,7 +1006,6 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
     workloadType: string,
     workloadName: string
   ): Promise<any> {
-    /** genAI_main_start */
     let endpoint = `/clusters/${clusterId}/`;
     switch (workloadType) {
       case 'Deployment':
@@ -1039,7 +1018,6 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/replicasets`;
     }
     return request.get(endpoint);
-    /** genAI_main_end */
   }
 
   // 获取Deployment的Events
@@ -1054,16 +1032,12 @@ ${buildPodSpecYAML().replace(/^      /gm, '          ')}${formData.volumes && fo
       case 'Deployment':
         endpoint += `deployments/${namespace}/${workloadName}/events`;
         break;
-      /** genAI_main_start */
       case 'Rollout':
         endpoint += `rollouts/${namespace}/${workloadName}/events`;
         break;
-      /** genAI_main_end */
       default:
         endpoint += `workloads/${workloadType}/${namespace}/${workloadName}/events`;
     }
     return request.get(endpoint);
   }
-  /** genAI_main_end */
-  /** genAI_main_end */
 }

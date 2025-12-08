@@ -107,7 +107,6 @@ const PodDetail: React.FC<PodDetailProps> = () => {
 
   const { status, color } = PodService.formatStatus(pod);
 
-  /** genAI_main_start */
   // 容器表格列
   const containerColumns = [
     {
@@ -167,7 +166,6 @@ const PodDetail: React.FC<PodDetailProps> = () => {
       },
     },
   ];
-  /** genAI_main_end */
 
   // 条件表格列
   const conditionColumns = [
@@ -262,7 +260,6 @@ const PodDetail: React.FC<PodDetailProps> = () => {
         </div>
       </div>
 
-      {/* genAI_main_start */}
       {/* 详情内容 */}
       <Tabs defaultActiveKey="overview">
         <TabPane 
@@ -283,7 +280,6 @@ const PodDetail: React.FC<PodDetailProps> = () => {
             />
           )}
         </TabPane>
-        {/* genAI_main_end */}
 
         <TabPane tab="概览" key="overview">
           <Row gutter={[16, 16]}>

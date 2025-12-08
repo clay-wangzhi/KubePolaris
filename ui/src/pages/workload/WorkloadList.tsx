@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -40,7 +39,6 @@ const WorkloadList: React.FC = () => {
     setSearchParams({ tab: key });
   };
 
-  /** genAI_main_start */
   // Tab项配置
   const tabItems = [
     {
@@ -104,7 +102,6 @@ const WorkloadList: React.FC = () => {
       ),
     },
   ];
-  /** genAI_main_end */
 
   return (
     <div style={{ padding: '24px' }}>
@@ -122,4 +119,3 @@ const WorkloadList: React.FC = () => {
 };
 
 export default WorkloadList;
-/** genAI_main_end */

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
 import {
   Table,
@@ -339,5 +338,4 @@ const ConfigMapList: React.FC = () => {
 };
 
 export default ConfigMapList;
-/** genAI_main_end */
 

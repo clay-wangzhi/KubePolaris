@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -447,7 +446,6 @@ func (h *IngressHandler) filterIngresses(ingresses []IngressInfo, ingressClass, 
 	return filtered
 }
 
-/** genAI_main_start */
 // CreateIngressRequest 创建Ingress请求
 type CreateIngressRequest struct {
 	Namespace string           `json:"namespace" binding:"required"`
@@ -786,9 +784,7 @@ func (h *IngressHandler) updateIngressFromForm(clientset kubernetes.Interface, n
 	return updatedIngress, nil
 }
 
-/** genAI_main_end */
 
-/** genAI_main_start */
 // GetIngressNamespaces 获取Ingress所在的命名空间列表
 func (h *IngressHandler) GetIngressNamespaces(c *gin.Context) {
 	clusterID := c.Param("clusterID")
@@ -863,6 +859,4 @@ func (h *IngressHandler) GetIngressNamespaces(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */
 
-/** genAI_main_end */

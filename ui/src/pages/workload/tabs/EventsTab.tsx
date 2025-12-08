@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, message, Spin, Input } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -231,5 +230,4 @@ const EventsTab: React.FC<EventsTabProps> = ({
 };
 
 export default EventsTab;
-/** genAI_main_end */
 

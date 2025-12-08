@@ -59,10 +59,8 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
   const [testing, setTesting] = useState(false);
   const [templates, setTemplates] = useState<MonitoringTemplates | null>(null);
   const [configType, setConfigType] = useState<string>('disabled');
-  /** genAI_main_start */
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null);
-  /** genAI_main_end */
 
   const loadTemplates = async () => {
     try {
@@ -99,7 +97,6 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
     }
   };
 
-  /** genAI_main_start */
   const handleSave = async () => {
     try {
       setLoading(true);
@@ -142,9 +139,7 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
       setLoading(false);
     }
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   const handleTest = async () => {
     try {
       setTesting(true);
@@ -193,7 +188,6 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
       setTesting(false);
     }
   };
-  /** genAI_main_end */
 
   const renderAuthConfig = () => {
     const authType = form.getFieldValue(['auth', 'type']);
@@ -327,7 +321,6 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
           </Button>
         </Space>
       }>
-        {/* genAI_main_start */}
         {/* 测试结果弹窗 */}
         <Modal
           open={testResult !== null}
@@ -373,7 +366,6 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
         >
           <p>{saveResult?.message}</p>
         </Modal>
-        {/* genAI_main_end */}
         
         <Form
           form={form}

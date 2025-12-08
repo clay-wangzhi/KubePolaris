@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -483,7 +482,6 @@ func (h *ServiceHandler) convertEndpointsInfo(endpoints *corev1.Endpoints) gin.H
 	}
 }
 
-/** genAI_main_start */
 // CreateServiceRequest 创建Service请求
 type CreateServiceRequest struct {
 	Namespace string           `json:"namespace" binding:"required"`
@@ -797,9 +795,7 @@ func (h *ServiceHandler) updateServiceFromForm(clientset kubernetes.Interface, n
 	return updatedService, nil
 }
 
-/** genAI_main_end */
 
-/** genAI_main_start */
 // GetServiceNamespaces 获取Service所在的命名空间列表
 func (h *ServiceHandler) GetServiceNamespaces(c *gin.Context) {
 	clusterID := c.Param("clusterID")
@@ -874,6 +870,4 @@ func (h *ServiceHandler) GetServiceNamespaces(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */
 
-/** genAI_main_end */

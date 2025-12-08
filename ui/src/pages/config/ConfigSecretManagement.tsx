@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState } from 'react';
 import { Card, Tabs } from 'antd';
 import ConfigMapList from './ConfigMapList';
@@ -35,5 +34,4 @@ const ConfigSecretManagement: React.FC = () => {
 };
 
 export default ConfigSecretManagement;
-/** genAI_main_end */
 

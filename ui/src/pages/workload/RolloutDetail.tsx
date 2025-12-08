@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -340,5 +339,4 @@ const RolloutDetail: React.FC = () => {
 };
 
 export default RolloutDetail;
-/** genAI_main_end */
 

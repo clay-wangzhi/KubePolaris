@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, message, Spin } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -179,5 +178,4 @@ const HistoryTab: React.FC<HistoryTabProps> = ({
 };
 
 export default HistoryTab;
-/** genAI_main_end */
 

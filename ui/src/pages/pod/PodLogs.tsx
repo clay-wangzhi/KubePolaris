@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -35,7 +34,6 @@ interface LogMessage {
   data?: string;
   message?: string;
 }
-/** genAI_main_end */
 
 interface PodLogsProps {}
 
@@ -47,7 +45,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
   }>();
   const navigate = useNavigate();
   
-  /** genAI_main_start */
   const [pod, setPod] = useState<PodInfo | null>(null);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,7 +59,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
   
   const logsRef = useRef<HTMLPreElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  /** genAI_main_end */
 
   // 获取Pod详情
   const fetchPodDetail = async () => {
@@ -129,7 +125,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
     }
   };
 
-  /** genAI_main_start */
   // 开始/停止跟踪日志
   const toggleFollow = () => {
     if (following) {
@@ -168,7 +163,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
           setLoading(false);
         };
         
-        /** genAI_main_start */
         ws.onmessage = (event) => {
           try {
             const msg: LogMessage = JSON.parse(event.data);
@@ -194,7 +188,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
                   }, 0);
                 }
                 break;
-        /** genAI_main_end */
                 
               case 'end':
                 message.info('日志流已结束');
@@ -239,7 +232,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
       }
     }
   };
-  /** genAI_main_end */
 
   // 清空日志
   const clearLogs = () => {
@@ -281,7 +273,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
     }
   }, [selectedContainer, previous, tailLines, sinceSeconds]);
 
-  /** genAI_main_start */
   // 组件卸载时清理WebSocket连接
   useEffect(() => {
     return () => {
@@ -291,7 +282,6 @@ const PodLogs: React.FC<PodLogsProps> = () => {
       }
     };
   }, []);
-  /** genAI_main_end */
 
   if (!pod) {
     return <div>加载中...</div>;

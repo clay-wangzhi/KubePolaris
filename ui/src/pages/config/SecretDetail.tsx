@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
 import {
   Card,
@@ -251,5 +250,4 @@ const SecretDetail: React.FC = () => {
 };
 
 export default SecretDetail;
-/** genAI_main_end */
 

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -459,4 +458,3 @@ func (h *JobHandler) applyYAML(ctx context.Context, k8sClient *services.K8sClien
 	return result, nil
 }
 
-/** genAI_main_end */

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -337,5 +336,4 @@ const DeploymentDetail: React.FC = () => {
 };
 
 export default DeploymentDetail;
-/** genAI_main_end */
 

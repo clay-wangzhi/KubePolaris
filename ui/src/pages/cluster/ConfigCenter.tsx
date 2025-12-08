@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Tabs } from 'antd';
@@ -42,5 +41,4 @@ const ConfigCenter: React.FC = () => {
 };
 
 export default ConfigCenter;
-/** genAI_main_end */
 

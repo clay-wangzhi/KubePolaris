@@ -313,7 +313,6 @@ const ClusterDetail: React.FC = () => {
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="容器子网">
-                {/* genAI_main_start */}
                 {clusterOverview?.containerSubnetIPs ? (
                   <span>
                     CIDR（可用/总IP数：{clusterOverview.containerSubnetIPs.available_ips}/{clusterOverview.containerSubnetIPs.total_ips}）
@@ -321,7 +320,6 @@ const ClusterDetail: React.FC = () => {
                 ) : (
                   <span>CIDR（IP信息不可用）</span>
                 )}
-                {/* genAI_main_end */}
               </Descriptions.Item>
             </Descriptions>
           </Card>

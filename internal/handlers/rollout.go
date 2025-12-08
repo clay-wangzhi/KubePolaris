@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -68,7 +67,6 @@ type RolloutInfo struct {
 	Strategy          string            `json:"strategy"`
 }
 
-/** genAI_main_start */
 // CheckRolloutCRD 检查集群是否安装了 Argo Rollouts CRD
 func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -108,8 +106,6 @@ func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */
-
 // ListRollouts 获取Rollout列表
 func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -146,7 +142,6 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	var rolloutList []RolloutInfo
 	sel := labels.Everything()
 
-	/** genAI_main_start */
 	// 检查 Argo Rollouts CRD 是否存在
 	lister := h.k8sMgr.RolloutsLister(cluster.ID)
 	if lister == nil {
@@ -165,7 +160,6 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 		})
 		return
 	}
-	/** genAI_main_end */
 
 	// 从Informer缓存读取
 	if namespace != "" {
@@ -331,7 +325,6 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 
 	// 从Informer读取所有Rollouts并统计命名空间
 	sel := labels.Everything()
-	/** genAI_main_start */
 	lister := h.k8sMgr.RolloutsLister(cluster.ID)
 	if lister == nil {
 		// 集群未安装 Argo Rollouts CRD，返回空列表
@@ -343,7 +336,6 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 		return
 	}
 	rs, err := lister.List(sel)
-	/** genAI_main_end */
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -753,7 +745,6 @@ func (h *RolloutHandler) applyYAML(ctx context.Context, k8sClient *services.K8sC
 	return result, nil
 }
 
-/** genAI_main_start */
 // GetRolloutPods 获取Rollout关联的Pods
 func (h *RolloutHandler) GetRolloutPods(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -1002,8 +993,9 @@ func (h *RolloutHandler) GetRolloutServices(c *gin.Context) {
 func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 	clusterId := c.Param("clusterID")
 	namespace := c.Param("namespace")
+	name := c.Param("name")
 
-	logger.Info("获取Rollout关联的Ingresses: %s/%s", clusterId, namespace)
+	logger.Info("获取Rollout关联的Ingresses: %s/%s/%s", clusterId, namespace, name)
 
 	clusterID := parseClusterID(clusterId)
 	cluster, err := h.clusterService.GetCluster(clusterID)
@@ -1033,8 +1025,82 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// 获取Ingresses
+	// 获取Rollout对象
+	rolloutClient, err := k8sClient.GetRolloutClient()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取Rollout客户端失败: " + err.Error(),
+		})
+		return
+	}
+
+	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "Rollout不存在: " + err.Error(),
+		})
+		return
+	}
+
+	// 收集Rollout关联的Service名称
+	relatedServices := make(map[string]bool)
+
+	// 从Canary策略获取关联的Service
+	if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.StableService != "" {
+			relatedServices[rollout.Spec.Strategy.Canary.StableService] = true
+		}
+		if rollout.Spec.Strategy.Canary.CanaryService != "" {
+			relatedServices[rollout.Spec.Strategy.Canary.CanaryService] = true
+		}
+		// 检查TrafficRouting中的Ingress配置
+		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
+				if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != "" {
+					// 记录Nginx Ingress名称，后续直接匹配
+					relatedServices["__nginx_ingress__:"+rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress] = true
+				}
+			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
+				if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != "" {
+					relatedServices["__alb_ingress__:"+rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress] = true
+				}
+			}
+		}
+	}
+
+	// 从BlueGreen策略获取关联的Service
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
+			relatedServices[rollout.Spec.Strategy.BlueGreen.ActiveService] = true
+		}
+		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+			relatedServices[rollout.Spec.Strategy.BlueGreen.PreviewService] = true
+		}
+	}
+
+	// 同时通过Selector匹配获取关联的Services
 	clientset := k8sClient.GetClientset()
+	serviceList, err := clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+	if err == nil {
+		rolloutLabels := rollout.Spec.Selector.MatchLabels
+		for _, svc := range serviceList.Items {
+			matches := true
+			for key, value := range svc.Spec.Selector {
+				if rolloutLabels[key] != value {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				relatedServices[svc.Name] = true
+			}
+		}
+	}
+
+	// 获取Ingresses
 	ingressList, err := clientset.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -1044,46 +1110,79 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 		return
 	}
 
-	// 转换Ingress信息
-	ingresses := make([]map[string]interface{}, 0, len(ingressList.Items))
+	// 筛选与Rollout关联的Ingresses
+	matchedIngresses := make([]map[string]interface{}, 0)
 	for _, ingress := range ingressList.Items {
-		rules := make([]map[string]interface{}, 0, len(ingress.Spec.Rules))
-		for _, rule := range ingress.Spec.Rules {
-			paths := make([]map[string]interface{}, 0)
-			if rule.HTTP != nil {
-				for _, path := range rule.HTTP.Paths {
-					paths = append(paths, map[string]interface{}{
-						"path":     path.Path,
-						"pathType": string(*path.PathType),
-						"backend": map[string]interface{}{
-							"serviceName": path.Backend.Service.Name,
-							"servicePort": path.Backend.Service.Port.Number,
-						},
-					})
-				}
-			}
-			rules = append(rules, map[string]interface{}{
-				"host":  rule.Host,
-				"paths": paths,
-			})
+		isRelated := false
+
+		// 检查是否是TrafficRouting直接配置的Ingress
+		if relatedServices["__nginx_ingress__:"+ingress.Name] || relatedServices["__alb_ingress__:"+ingress.Name] {
+			isRelated = true
 		}
 
-		ingressInfo := map[string]interface{}{
-			"name":             ingress.Name,
-			"namespace":        ingress.Namespace,
-			"ingressClassName": ingress.Spec.IngressClassName,
-			"rules":            rules,
-			"createdAt":        ingress.CreationTimestamp.Time,
+		// 检查Ingress的backend是否指向关联的Service
+		if !isRelated {
+			for _, rule := range ingress.Spec.Rules {
+				if rule.HTTP != nil {
+					for _, path := range rule.HTTP.Paths {
+						if path.Backend.Service != nil && relatedServices[path.Backend.Service.Name] {
+							isRelated = true
+							break
+						}
+					}
+				}
+				if isRelated {
+					break
+				}
+			}
 		}
-		ingresses = append(ingresses, ingressInfo)
+
+		// 检查默认backend
+		if !isRelated && ingress.Spec.DefaultBackend != nil && ingress.Spec.DefaultBackend.Service != nil {
+			if relatedServices[ingress.Spec.DefaultBackend.Service.Name] {
+				isRelated = true
+			}
+		}
+
+		if isRelated {
+			rules := make([]map[string]interface{}, 0, len(ingress.Spec.Rules))
+			for _, rule := range ingress.Spec.Rules {
+				paths := make([]map[string]interface{}, 0)
+				if rule.HTTP != nil {
+					for _, path := range rule.HTTP.Paths {
+						paths = append(paths, map[string]interface{}{
+							"path":     path.Path,
+							"pathType": string(*path.PathType),
+							"backend": map[string]interface{}{
+								"serviceName": path.Backend.Service.Name,
+								"servicePort": path.Backend.Service.Port.Number,
+							},
+						})
+					}
+				}
+				rules = append(rules, map[string]interface{}{
+					"host":  rule.Host,
+					"paths": paths,
+				})
+			}
+
+			ingressInfo := map[string]interface{}{
+				"name":             ingress.Name,
+				"namespace":        ingress.Namespace,
+				"ingressClassName": ingress.Spec.IngressClassName,
+				"rules":            rules,
+				"createdAt":        ingress.CreationTimestamp.Time,
+			}
+			matchedIngresses = append(matchedIngresses, ingressInfo)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"items": ingresses,
-			"total": len(ingresses),
+			"items": matchedIngresses,
+			"total": len(matchedIngresses),
 		},
 	})
 }
@@ -1287,7 +1386,3 @@ func (h *RolloutHandler) GetRolloutEvents(c *gin.Context) {
 		"data":    events,
 	})
 }
-
-/** genAI_main_end */
-
-/** genAI_main_end */

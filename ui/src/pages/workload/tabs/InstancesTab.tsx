@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, message, Spin } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -129,7 +128,6 @@ const InstancesTab: React.FC<InstancesTabProps> = ({
     }).replace(/\//g, '-');
   };
 
-  /** genAI_main_start */
   const columns: ColumnsType<PodInfo> = [
     {
       title: '实例名称',
@@ -154,7 +152,6 @@ const InstancesTab: React.FC<InstancesTabProps> = ({
         </Button>
       ),
     },
-    /** genAI_main_end */
     {
       title: '状态',
       dataIndex: 'phase',
@@ -284,5 +281,4 @@ const InstancesTab: React.FC<InstancesTabProps> = ({
 };
 
 export default InstancesTab;
-/** genAI_main_end */
 

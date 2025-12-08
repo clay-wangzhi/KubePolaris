@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React from 'react';
 import {
   Form,
@@ -55,7 +54,6 @@ const WorkloadForm: React.FC<WorkloadFormProps> = ({
   // 是否已初始化（用于区分首次渲染和编辑模式数据加载）
   const [initialized, setInitialized] = React.useState(false);
   
-  /** genAI_main_start */
   // 设置初始值
   React.useEffect(() => {
     if (initialData) {
@@ -100,7 +98,6 @@ const WorkloadForm: React.FC<WorkloadFormProps> = ({
       setInitialized(true);
     }
   }, [initialData, form, workloadType, initialized]);
-  /** genAI_main_end */
 
   return (
     <Form
@@ -1038,4 +1035,3 @@ const WorkloadForm: React.FC<WorkloadFormProps> = ({
 
 export default WorkloadForm;
 export type { WorkloadFormProps };
-/** genAI_main_end */

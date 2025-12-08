@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Modal, Tabs, Form, Input, Select, Button, Space, App, InputNumber } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
@@ -510,5 +509,4 @@ spec:
 };
 
 export default IngressCreateModal;
-/** genAI_main_end */
 

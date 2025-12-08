@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
@@ -66,7 +65,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
   const [currentEndpoints, setCurrentEndpoints] = useState<any>(null);
   const [endpointsLoading, setEndpointsLoading] = useState(false);
 
-  /** genAI_main_start */
   // YAML编辑Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editYaml, setEditYaml] = useState('');
@@ -81,7 +79,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
   // 命名空间列表
   const [namespaces, setNamespaces] = useState<{ name: string; count: number }[]>([]);
   const [loadingNamespaces, setLoadingNamespaces] = useState(false);
-  /** genAI_main_end */
 
   // 加载命名空间列表
   useEffect(() => {
@@ -205,7 +202,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
     }
   };
 
-  /** genAI_main_start */
   // 编辑Service
   const handleEdit = async (service: Service) => {
     setEditingService(service);
@@ -395,7 +391,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
     }
   };
 
-  /** genAI_main_end */
 
   // 表格列定义
   const columns: ColumnsType<Service> = [
@@ -501,7 +496,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
               onClick={() => handleViewYAML(record)}
             />
           </Tooltip>
-          {/** genAI_main_start */}
           <Tooltip title="编辑">
             <Button
               type="link"
@@ -510,7 +504,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
               onClick={() => handleEdit(record)}
             />
           </Tooltip>
-          {/** genAI_main_end */}
           <Tooltip title="查看Endpoints">
             <Button
               type="link"
@@ -601,7 +594,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
           />
         </Space>
         
-        {/** genAI_main_start */}
         <Space>
           <Button
             type="primary"
@@ -616,7 +608,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
             刷新
           </Button>
         </Space>
-        {/** genAI_main_end */}
       </Space>
 
       {/* Service列表表格 */}
@@ -705,7 +696,6 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
         )}
       </Modal>
 
-      {/** genAI_main_start */}
       {/* 创建Service Modal */}
       <ServiceCreateModal
         visible={createModalVisible}
@@ -884,11 +874,9 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
           </Tabs.TabPane>
         </Tabs>
       </Modal>
-      {/** genAI_main_end */}
     </div>
   );
 };
 
 export default ServiceTab;
-/** genAI_main_end */
 

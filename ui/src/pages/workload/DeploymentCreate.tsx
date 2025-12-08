@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
@@ -46,10 +45,8 @@ const DeploymentCreate: React.FC = () => {
   const editName = searchParams.get('name');
   const isEdit = !!(editNamespace && editName);
   
-  /** genAI_main_start */
   // 编辑模式默认使用 YAML 编辑器（避免表单格式化导致字段丢失）
   const [editMode, setEditMode] = useState<'form' | 'yaml'>(isEdit ? 'yaml' : 'form');
-  /** genAI_main_end */
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
@@ -64,14 +61,12 @@ const DeploymentCreate: React.FC = () => {
   // YAML 数据
   const [yamlContent, setYamlContent] = useState(getDefaultYaml());
   
-  /** genAI_main_start */
   // 原始 YAML（编辑模式用于 diff 对比）
   const [originalYaml, setOriginalYaml] = useState<string>('');
   
   // Diff 弹窗状态
   const [diffModalVisible, setDiffModalVisible] = useState(false);
   const [pendingYaml, setPendingYaml] = useState<string>('');
-  /** genAI_main_end */
   
   // 命名空间列表
   const [namespaces, setNamespaces] = useState<string[]>(['default']);
@@ -145,7 +140,6 @@ const DeploymentCreate: React.FC = () => {
     loadImagePullSecrets();
   }, [clusterId, currentNamespace]);
 
-  /** genAI_main_start */
   // 如果是编辑模式，加载现有数据
   useEffect(() => {
     const loadWorkload = async () => {
@@ -197,7 +191,6 @@ const DeploymentCreate: React.FC = () => {
     
     loadWorkload();
   }, [isEdit, clusterId, editNamespace, editName, workloadType, messageApi, form]);
-  /** genAI_main_end */
 
   // 表单转YAML
   const formToYaml = useCallback((): string => {
@@ -235,10 +228,8 @@ const DeploymentCreate: React.FC = () => {
         parallelism: values.parallelism,
         backoffLimit: values.backoffLimit,
         activeDeadlineSeconds: values.activeDeadlineSeconds,
-        /** genAI_main_start */
         // Argo Rollout 策略
         rolloutStrategy: values.rolloutStrategy,
-        /** genAI_main_end */
       };
       
       return WorkloadYamlService.formDataToYAML(workloadType, formData);
@@ -356,7 +347,6 @@ const DeploymentCreate: React.FC = () => {
     }
   };
 
-  /** genAI_main_start */
   // 处理提交
   const handleSubmit = async () => {
     // 先进行预检
@@ -408,7 +398,6 @@ const DeploymentCreate: React.FC = () => {
     setDiffModalVisible(false);
     submitYaml(pendingYaml);
   };
-  /** genAI_main_end */
 
   // 表单值变化时更新
   const handleFormValuesChange = (changedValues: Partial<WorkloadFormData>, allValues: WorkloadFormData) => {
@@ -438,7 +427,6 @@ const DeploymentCreate: React.FC = () => {
           <h2 style={{ margin: 0 }}>
             {isEdit ? '编辑' : '创建'} {workloadType}
           </h2>
-          {/** genAI_main_start */}
           {/* 编辑模式只支持 YAML 编辑，避免表单格式化导致复杂字段丢失 */}
           {isEdit ? (
             <Tooltip title="编辑模式仅支持 YAML 编辑，以保留原始配置格式">
@@ -457,7 +445,6 @@ const DeploymentCreate: React.FC = () => {
               ]}
             />
           )}
-          {/** genAI_main_end */}
         </Space>
         
         <Space>
@@ -531,7 +518,6 @@ const DeploymentCreate: React.FC = () => {
         </Card>
       )}
 
-      {/** genAI_main_start */}
       {/* Diff 对比弹窗 */}
       <Modal
         title={
@@ -577,10 +563,8 @@ const DeploymentCreate: React.FC = () => {
           />
         </div>
       </Modal>
-      {/** genAI_main_end */}
     </div>
   );
 };
 
 export default DeploymentCreate;
-/** genAI_main_end */

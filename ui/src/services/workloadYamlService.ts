@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import * as YAML from 'yaml';
 import type { 
   WorkloadFormData, 
@@ -107,7 +106,6 @@ const buildContainerSpec = (container: ContainerConfig): Record<string, unknown>
     });
   }
   
-  /** genAI_main_start */
   // 资源（支持 cpu、memory、ephemeral-storage、nvidia.com/gpu）
   if (container.resources) {
     const resources: Record<string, Record<string, string>> = {};
@@ -131,7 +129,6 @@ const buildContainerSpec = (container: ContainerConfig): Record<string, unknown>
     }
     if (Object.keys(resources).length > 0) spec.resources = resources;
   }
-  /** genAI_main_end */
   
   // 数据卷挂载
   if (container.volumeMounts && container.volumeMounts.length > 0) {
@@ -271,7 +268,6 @@ const buildSchedulingSpec = (scheduling: SchedulingConfig | undefined): Record<s
   return Object.keys(affinity).length > 0 ? affinity : undefined;
 };
 
-/** genAI_main_start */
 // 构建 Argo Rollout 金丝雀策略
 const buildCanaryStrategy = (canary: CanaryStrategyConfig | undefined): Record<string, unknown> => {
   if (!canary) {
@@ -328,7 +324,6 @@ const buildCanaryStrategy = (canary: CanaryStrategyConfig | undefined): Record<s
       canarySpec.steps = rawSteps;
     }
   }
-/** genAI_main_end */
 
   // 基本配置
   if (canary.maxSurge) canarySpec.maxSurge = canary.maxSurge;
@@ -439,7 +434,6 @@ const buildRolloutStrategy = (rolloutStrategy: RolloutStrategyConfig | undefined
   return buildCanaryStrategy(rolloutStrategy.canary);
 };
 
-/** genAI_main_start */
 // 将 K8s affinity 结构解析为表单格式的 scheduling 数据
 const parseAffinityToScheduling = (affinity: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
   if (!affinity) return undefined;
@@ -679,7 +673,6 @@ const parseAffinityToScheduling = (affinity: Record<string, unknown> | undefined
   
   return Object.keys(scheduling).length > 0 ? scheduling : undefined;
 };
-/** genAI_main_end */
 
 // 从表单数据构建调度配置
 const buildSchedulingFromForm = (formData: Record<string, unknown>): SchedulingConfig | undefined => {
@@ -1189,13 +1182,10 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
     // 解析镜像拉取凭证
     const imagePullSecrets = ((podSpec.imagePullSecrets as Record<string, unknown>[]) || []).map((s) => s.name as string);
     
-    /** genAI_main_start */
     // 解析调度策略 (affinity)
     const affinityData = podSpec.affinity as Record<string, unknown> | undefined;
     const schedulingData = parseAffinityToScheduling(affinityData);
-    /** genAI_main_end */
     
-    /** genAI_main_start */
     // 解析 Rollout 策略
     // 注意：后端返回的 YAML 可能不包含 kind 和 apiVersion（只有 spec 部分）
     // 需要通过 strategy.canary 或 strategy.blueGreen 来判断是否是 Rollout
@@ -1309,9 +1299,7 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
         };
       }
     }
-    /** genAI_main_end */
 
-    /** genAI_main_start */
     const formData: WorkloadFormData = {
       name: metadata.name || '',
       namespace: metadata.namespace || 'default',
@@ -1348,7 +1336,6 @@ export const yamlToFormData = (yamlContent: string): WorkloadFormData | null => 
       // Rollout
       rolloutStrategy,
     };
-    /** genAI_main_end */
     
     return formData;
   } catch (error) {
@@ -1364,5 +1351,4 @@ export const WorkloadYamlService = {
 };
 
 export default WorkloadYamlService;
-/** genAI_main_end */
 

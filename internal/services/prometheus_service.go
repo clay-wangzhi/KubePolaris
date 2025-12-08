@@ -88,7 +88,6 @@ func (s *PrometheusService) QueryPrometheus(ctx context.Context, config *models.
 	return &result, nil
 }
 
-/** genAI_main_start */
 // QueryClusterMetrics 查询集群监控指标（使用并发查询优化性能）
 func (s *PrometheusService) QueryClusterMetrics(ctx context.Context, config *models.MonitoringConfig, clusterName string, timeRange string, step string) (*models.ClusterMetricsData, error) {
 	// 解析时间范围
@@ -181,7 +180,6 @@ func (s *PrometheusService) QueryClusterMetrics(ctx context.Context, config *mod
 	return metrics, nil
 }
 
-/** genAI_main_end */
 
 // QueryNodeMetrics 查询节点监控指标
 func (s *PrometheusService) QueryNodeMetrics(ctx context.Context, config *models.MonitoringConfig, clusterName, nodeName string, timeRange string, step string) (*models.ClusterMetricsData, error) {
@@ -248,7 +246,6 @@ func (s *PrometheusService) QueryPodMetrics(ctx context.Context, config *models.
 		metrics.Network = networkMetrics
 	}
 
-	/** genAI_main_start */
 	// 查询 CPU Request（固定值）
 	if cpuRequest, err := s.queryMetricSeries(ctx, config, fmt.Sprintf("sum(kube_pod_container_resource_requests{resource=\"cpu\",%s}) by (pod)", podSelector), start, end, step); err == nil {
 		metrics.CPURequest = cpuRequest
@@ -328,12 +325,10 @@ func (s *PrometheusService) QueryPodMetrics(ctx context.Context, config *models.
 	if oomKills, err := s.queryMetricSeries(ctx, config, fmt.Sprintf("sum(container_oom_events_total{container!=\"\",container!=\"POD\",%s})", podSelector), start, end, step); err == nil {
 		metrics.OOMKills = oomKills
 	}
-	/** genAI_main_end */
 
 	return metrics, nil
 }
 
-/** genAI_main_start */
 // QueryWorkloadMetrics 查询工作负载监控指标（聚合多个Pod的数据）
 func (s *PrometheusService) QueryWorkloadMetrics(ctx context.Context, config *models.MonitoringConfig, clusterName, namespace, workloadName string, timeRange string, step string) (*models.ClusterMetricsData, error) {
 	// 解析时间范围
@@ -506,7 +501,6 @@ func (s *PrometheusService) QueryWorkloadMetrics(ctx context.Context, config *mo
 	return metrics, nil
 }
 
-/** genAI_main_end */
 
 // buildQueryURL 构建查询 URL
 func (s *PrometheusService) buildQueryURL(endpoint string, query *models.MetricsQuery) (*url.URL, error) {
@@ -653,7 +647,6 @@ func (s *PrometheusService) buildPodSelector(labels map[string]string, clusterNa
 	return strings.Join(selectors, ",")
 }
 
-/** genAI_main_start */
 // buildWorkloadSelector 构建工作负载标签选择器（使用正则表达式匹配pod名称）
 func (s *PrometheusService) buildWorkloadSelector(labels map[string]string, clusterName, namespace, workloadName string) string {
 	selectors := []string{}
@@ -685,7 +678,6 @@ func (s *PrometheusService) buildWorkloadSelector(labels map[string]string, clus
 	return strings.Join(selectors, ",")
 }
 
-/** genAI_main_end */
 
 // queryMetricSeries 查询指标时间序列
 func (s *PrometheusService) queryMetricSeries(ctx context.Context, config *models.MonitoringConfig, query string, start, end int64, step string) (*models.MetricSeries, error) {
@@ -744,7 +736,6 @@ func (s *PrometheusService) queryMetricSeries(ctx context.Context, config *model
 	}, nil
 }
 
-/** genAI_main_start */
 // queryMultiSeriesMetric 查询多时间序列指标（每个Pod一条独立曲线）
 func (s *PrometheusService) queryMultiSeriesMetric(ctx context.Context, config *models.MonitoringConfig, query string, start, end int64, step string) (*models.MultiSeriesMetric, error) {
 	fmt.Println("query multi-series", query)
@@ -834,7 +825,6 @@ func (s *PrometheusService) queryMultiSeriesMetric(ctx context.Context, config *
 	}, nil
 }
 
-/** genAI_main_end */
 
 // queryNetworkMetrics 查询网络指标（使用并发查询优化性能）
 func (s *PrometheusService) queryNetworkMetrics(ctx context.Context, config *models.MonitoringConfig, selector string, start, end int64, step string) (*models.NetworkMetrics, error) {
@@ -1122,7 +1112,6 @@ func (s *PrometheusService) TestConnection(ctx context.Context, config *models.M
 	return nil
 }
 
-/** genAI_main_start */
 // queryPodNetworkPPS 查询 Pod 网络PPS指标
 func (s *PrometheusService) queryPodNetworkPPS(ctx context.Context, config *models.MonitoringConfig, selector string, start, end int64, step string) (*models.NetworkPPS, error) {
 	// 查询入站PPS
@@ -1745,4 +1734,3 @@ func (s *PrometheusService) queryWorkloadDiskThroughput(ctx context.Context, con
 	}, nil
 }
 
-/** genAI_main_end */

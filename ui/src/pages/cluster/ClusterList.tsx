@@ -14,10 +14,8 @@ import {
   Col,
   Statistic,
   Badge,
-  /** genAI_main_start */
   Dropdown,
   App,
-  /** genAI_main_end */
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,9 +28,7 @@ import {
   ExclamationCircleOutlined,
   ClusterOutlined,
   CodeOutlined,
-  /** genAI_main_start */
   DeleteOutlined,
-  /** genAI_main_end */
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Cluster } from '../../types';
@@ -44,9 +40,7 @@ const { Option } = Select;
 
 const ClusterList: React.FC = () => {
   const navigate = useNavigate();
-  /** genAI_main_start */
   const { modal } = App.useApp();
-  /** genAI_main_end */
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -208,7 +202,6 @@ const ClusterList: React.FC = () => {
               onClick={() => openTerminal(record)}  // 调用已有的终端功能
             />
           </Tooltip>
-          {/* genAI_main_start */}
           <Dropdown
             menu={{
               items: [
@@ -227,7 +220,6 @@ const ClusterList: React.FC = () => {
           >
             <Button type="text" icon={<MoreOutlined />} title="更多" />
           </Dropdown>
-          {/* genAI_main_end */}
         </Space>
       ),
     },
@@ -254,7 +246,6 @@ const ClusterList: React.FC = () => {
     fetchClusters();
   };
 
-  /** genAI_main_start */
   // 删除集群
   const handleDelete = (cluster: Cluster) => {
     if (!cluster.id) {
@@ -282,7 +273,6 @@ const ClusterList: React.FC = () => {
       },
     });
   };
-  /** genAI_main_end */
 
   const filteredClusters = clusters.filter((cluster) => {
     const matchesSearch = cluster.name.toLowerCase().includes(searchText.toLowerCase()) ||

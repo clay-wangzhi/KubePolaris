@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -321,4 +320,3 @@ func convertResourceList(rl corev1.ResourceList) map[string]string {
 	return result
 }
 
-/** genAI_main_end */

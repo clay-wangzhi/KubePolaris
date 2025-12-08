@@ -387,7 +387,6 @@ func (m *ClusterInformerManager) RolloutsLister(clusterID uint) rolloutslisters.
 	return nil
 }
 
-/** genAI_main_start */
 // StopForCluster 停止指定集群的 informer（删除集群时调用）
 func (m *ClusterInformerManager) StopForCluster(clusterID uint) {
 	m.mu.Lock()
@@ -407,7 +406,6 @@ func (m *ClusterInformerManager) StopForCluster(clusterID uint) {
 	}
 }
 
-/** genAI_main_end */
 
 // Stop 关闭所有集群的 informer（应用退出时调用）
 func (m *ClusterInformerManager) Stop() {

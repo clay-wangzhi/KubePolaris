@@ -41,7 +41,6 @@ func (s *ClusterService) CreateCluster(cluster *models.Cluster) error {
 	cluster.UpdatedAt = time.Now()
 	cluster.LastHeartbeat = &cluster.CreatedAt
 
-	/** genAI_main_start */
 	// 确保 MonitoringConfig 是有效的 JSON，避免 MySQL JSON 字段报错
 	if cluster.MonitoringConfig == "" {
 		cluster.MonitoringConfig = "{}"
@@ -54,7 +53,6 @@ func (s *ClusterService) CreateCluster(cluster *models.Cluster) error {
 			cluster.MonitoringConfig = "{}"
 		}
 	}
-	/** genAI_main_end */
 
 	// 保存到数据库
 	if err := s.db.Create(cluster).Error; err != nil {

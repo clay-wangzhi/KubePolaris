@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import "strconv"
@@ -22,4 +21,3 @@ func parseClusterID(clusterIDStr string) uint {
 	return 0
 }
 
-/** genAI_main_end */

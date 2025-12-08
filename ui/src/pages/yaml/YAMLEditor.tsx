@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -26,14 +25,11 @@ import * as YAML from 'yaml';
 
 // 配置Monaco Editor使用本地资源
 loader.config({ monaco });
-/** genAI_main_end */
 
 const { Title, Text } = Typography;
 
 const YAMLEditor: React.FC = () => {
-  /** genAI_main_start */
   const { modal } = App.useApp();
-  /** genAI_main_end */
   const { clusterId } = useParams<{ clusterId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -50,11 +46,8 @@ const YAMLEditor: React.FC = () => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewResult, setPreviewResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** genAI_main_start */
   const [editorLoading, setEditorLoading] = useState(true);
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 检查是否有未保存的更改
   const hasUnsavedChanges = yaml !== originalYaml;
 
@@ -73,7 +66,6 @@ const YAMLEditor: React.FC = () => {
       console.warn('Editor validation markers:', markers);
     }
   };
-  /** genAI_main_end */
 
   // 加载现有工作负载的YAML
   const loadWorkloadYAML = useCallback(async () => {
@@ -149,7 +141,6 @@ const YAMLEditor: React.FC = () => {
     handleApply(true);
   };
 
-  /** genAI_main_start */
   // 保存并应用YAML
   const handleSave = () => {
     modal.confirm({
@@ -160,9 +151,7 @@ const YAMLEditor: React.FC = () => {
       onOk: () => handleApply(false),
     });
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 重置YAML
   const handleReset = () => {
     modal.confirm({
@@ -177,9 +166,7 @@ const YAMLEditor: React.FC = () => {
       },
     });
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 生成默认YAML模板
   const generateDefaultYAML = useCallback((type: string) => {
     const templates: Record<string, string> = {
@@ -337,7 +324,6 @@ spec: {}
       setError(null);
     }
   }, [clusterId, workloadRef, workloadType, loadWorkloadYAML, generateDefaultYAML]);
-  /** genAI_main_end */
 
   // 页面离开前提醒
   useEffect(() => {
@@ -357,7 +343,6 @@ spec: {}
       {/* 页面头部 */}
       <div style={{ marginBottom: 16 }}>
         <Space>
-          {/* genAI_main_start */}
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => {
@@ -376,7 +361,6 @@ spec: {}
           >
             返回
           </Button>
-          {/* genAI_main_end */}
           <Title level={3} style={{ margin: 0 }}>
             YAML 编辑器
           </Title>
@@ -410,7 +394,6 @@ spec: {}
               预览
             </Button>
             
-            {/* genAI_main_start */}
             <Button
               icon={<ReloadOutlined />}
               onClick={handleReset}
@@ -418,7 +401,6 @@ spec: {}
             >
               重置
             </Button>
-            {/* genAI_main_end */}
             
             <div style={{ marginLeft: 16 }}>
               <Space>
@@ -461,7 +443,6 @@ spec: {}
         />
       )}
 
-      {/* genAI_main_start */}
       {/* YAML编辑器 */}
       <Card style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
         <Spin spinning={loading || editorLoading} tip={loading ? "加载YAML中..." : "初始化编辑器..."}>
@@ -509,7 +490,6 @@ spec: {}
           </div>
         </Spin>
       </Card>
-      {/* genAI_main_end */}
 
       {/* 预览模态框 */}
       <Modal

@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React from 'react';
 import {
   Form,
@@ -330,5 +329,4 @@ const SchedulingConfigForm: React.FC = () => {
 };
 
 export default SchedulingConfigForm;
-/** genAI_main_end */
 

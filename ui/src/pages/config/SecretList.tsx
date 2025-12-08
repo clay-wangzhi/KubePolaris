@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useEffect, useState } from 'react';
 import {
   Table,
@@ -365,5 +364,4 @@ const SecretList: React.FC = () => {
 };
 
 export default SecretList;
-/** genAI_main_end */
 

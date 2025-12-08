@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Card, Descriptions, Spin, message, Empty, Tag } from 'antd';
 import { WorkloadService } from '../../../services/workloadService';
@@ -173,5 +172,4 @@ const ScalingTab: React.FC<ScalingTabProps> = ({
 };
 
 export default ScalingTab;
-/** genAI_main_end */
 

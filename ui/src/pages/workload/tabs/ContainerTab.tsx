@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { 
   Descriptions, 
@@ -14,7 +13,6 @@ import {
 } from 'antd';
 import { WorkloadService } from '../../../services/workloadService';
 
-/** genAI_main_start */
 // 探针类型定义
 interface ProbeConfig {
   httpGet?: {
@@ -132,9 +130,7 @@ interface ContainerInfo {
   terminationMessagePath?: string;
   terminationMessagePolicy?: string;
 }
-/** genAI_main_end */
 
-/** genAI_main_start */
 // 卷类型定义
 interface VolumeConfig {
   name: string;
@@ -229,7 +225,6 @@ interface DeploymentSpec {
     };
   };
 }
-/** genAI_main_end */
 
 interface ContainerTabProps {
   clusterId: string;
@@ -329,7 +324,6 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
     { key: 'volume', label: '数据存储' },
   ];
 
-  /** genAI_main_start */
   // 渲染基本信息
   const renderBasicInfo = () => {
     if (!currentContainer) return null;
@@ -473,9 +467,7 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
       </div>
     );
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 渲染生命周期
   const renderLifecycle = () => {
     if (!currentContainer) return null;
@@ -573,9 +565,7 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
       </div>
     );
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 渲染探针详情的通用组件
   const renderProbeDetail = (probe: ProbeConfig | undefined, title: string) => {
     if (!probe) {
@@ -674,9 +664,7 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
       </div>
     );
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 环境变量值来源类型
   type EnvValueFrom = {
     configMapKeyRef?: { name: string; key: string; optional?: boolean };
@@ -786,9 +774,7 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
       </div>
     );
   };
-  /** genAI_main_end */
 
-  /** genAI_main_start */
   // 渲染数据存储
   const renderVolumeMounts = () => {
     if (!currentContainer || !currentContainer.volumeMounts || currentContainer.volumeMounts.length === 0) {
@@ -929,7 +915,6 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
       </div>
     );
   };
-  /** genAI_main_end */
 
   // 渲染内容
   const renderContent = () => {
@@ -990,5 +975,4 @@ const ContainerTab: React.FC<ContainerTabProps> = ({
 };
 
 export default ContainerTab;
-/** genAI_main_end */
 

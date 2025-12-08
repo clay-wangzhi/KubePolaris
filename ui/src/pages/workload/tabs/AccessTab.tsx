@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, message, Spin, Tabs, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -332,5 +331,4 @@ const AccessTab: React.FC<AccessTabProps> = ({
 };
 
 export default AccessTab;
-/** genAI_main_end */
 

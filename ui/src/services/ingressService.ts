@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import { request } from '../utils/api';
 import type { Ingress, ApiResponse, PaginatedResponse } from '../types';
 
@@ -65,7 +64,6 @@ export class IngressService {
     return request.delete(`/clusters/${clusterId}/ingresses/${namespace}/${name}`);
   }
 
-  /** genAI_main_start */
   // 创建Ingress
   static async createIngress(
     clusterId: string,
@@ -91,7 +89,6 @@ export class IngressService {
   ): Promise<ApiResponse<Ingress>> {
     return request.put(`/clusters/${clusterId}/ingresses/${namespace}/${name}`, data);
   }
-  /** genAI_main_end */
 
   // 获取IngressClass颜色
   static getIngressClassColor(ingressClassName?: string): string {
@@ -228,7 +225,6 @@ export class IngressService {
     }
   }
 
-  /** genAI_main_start */
   // 获取Ingress命名空间列表（带计数）
   static async getIngressNamespaces(clusterId: string): Promise<{ name: string; count: number }[]> {
     const response = await request.get<{ name: string; count: number }[]>(
@@ -236,7 +232,5 @@ export class IngressService {
     );
     return response.data;
   }
-  /** genAI_main_end */
 }
-/** genAI_main_end */
 

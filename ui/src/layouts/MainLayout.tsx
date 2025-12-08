@@ -142,7 +142,6 @@ const MainLayout: React.FC = () => {
     return [];
   };
 
-  /** genAI_main_start */
   const getSelectedKeys = () => {
     const path = location.pathname;
     
@@ -170,7 +169,6 @@ const MainLayout: React.FC = () => {
     
     return ['overview'];
   };
-  /** genAI_main_end */
 
   // 主页面侧边栏菜单
   const mainMenuItems: MenuItem[] = [
@@ -229,7 +227,6 @@ const MainLayout: React.FC = () => {
             }
           },
         },
-        /** genAI_main_start */
         {
           key: 'k8s-network',
           icon: <ApiOutlined />,
@@ -241,7 +238,6 @@ const MainLayout: React.FC = () => {
             }
           },
         },
-        /** genAI_main_end */
         {
           key: 'k8s-storage',
           icon: <HddOutlined />,

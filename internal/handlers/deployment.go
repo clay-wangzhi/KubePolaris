@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -220,7 +219,6 @@ func (h *DeploymentHandler) GetDeployment(c *gin.Context) {
 		logger.Error("获取Deployment关联Pods失败", "error", err)
 	}
 
-	/** genAI_main_start */
 	// 清理 managed fields 以生成更干净的 YAML
 	cleanDeployment := deployment.DeepCopy()
 	cleanDeployment.ManagedFields = nil
@@ -233,7 +231,6 @@ func (h *DeploymentHandler) GetDeployment(c *gin.Context) {
 		logger.Error("转换Deployment为YAML失败", "error", yamlErr)
 		yamlString = ""
 	}
-	/** genAI_main_end */
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -703,7 +700,6 @@ func (h *DeploymentHandler) applyYAML(ctx context.Context, k8sClient *services.K
 	return result, nil
 }
 
-/** genAI_main_start */
 // GetDeploymentPods 获取Deployment关联的Pods
 func (h *DeploymentHandler) GetDeploymentPods(c *gin.Context) {
 	clusterId := c.Param("clusterID")
@@ -1311,6 +1307,4 @@ func (h *DeploymentHandler) GetDeploymentEvents(c *gin.Context) {
 	})
 }
 
-/** genAI_main_end */
 
-/** genAI_main_end */

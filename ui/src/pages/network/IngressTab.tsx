@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
@@ -60,7 +59,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
   const [currentYaml, setCurrentYaml] = useState('');
   const [yamlLoading, setYamlLoading] = useState(false);
 
-  /** genAI_main_start */
   // YAML编辑Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editYaml, setEditYaml] = useState('');
@@ -75,7 +73,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
   // 命名空间列表
   const [namespaces, setNamespaces] = useState<{ name: string; count: number }[]>([]);
   const [loadingNamespaces, setLoadingNamespaces] = useState(false);
-  /** genAI_main_end */
 
   // 加载命名空间列表
   useEffect(() => {
@@ -175,7 +172,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
     }
   };
 
-  /** genAI_main_start */
   // 编辑Ingress
   const handleEdit = async (ingress: Ingress) => {
     setEditingIngress(ingress);
@@ -385,7 +381,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
       setSaveLoading(false);
     }
   };
-  /** genAI_main_end */
 
   // 表格列定义
   const columns: ColumnsType<Ingress> = [
@@ -515,7 +510,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
               onClick={() => handleViewYAML(record)}
             />
           </Tooltip>
-          {/** genAI_main_start */}
           <Tooltip title="编辑">
             <Button
               type="link"
@@ -524,7 +518,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
               onClick={() => handleEdit(record)}
             />
           </Tooltip>
-          {/** genAI_main_end */}
           <Popconfirm
             title="确定要删除这个Ingress吗？"
             onConfirm={() => handleDelete(record)}
@@ -606,7 +599,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
           />
         </Space>
         
-        {/** genAI_main_start */}
         <Space>
           <Button
             type="primary"
@@ -621,7 +613,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
             刷新
           </Button>
         </Space>
-        {/** genAI_main_end */}
       </Space>
 
       {/* Ingress列表表格 */}
@@ -664,7 +655,6 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
         )}
       </Modal>
 
-      {/** genAI_main_start */}
       {/* 创建Ingress Modal */}
       <IngressCreateModal
         visible={createModalVisible}
@@ -831,11 +821,9 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
           </Tabs.TabPane>
         </Tabs>
       </Modal>
-      {/** genAI_main_end */}
     </div>
   );
 };
 
 export default IngressTab;
-/** genAI_main_end */
 

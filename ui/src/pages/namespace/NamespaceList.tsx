@@ -1,4 +1,3 @@
-/** genAI_main_start */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -292,5 +291,4 @@ const NamespaceList: React.FC = () => {
 };
 
 export default NamespaceList;
-/** genAI_main_end */
 

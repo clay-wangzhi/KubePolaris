@@ -1,4 +1,3 @@
-/** genAI_main_start */
 package handlers
 
 import (
@@ -208,7 +207,6 @@ func (h *StatefulSetHandler) GetStatefulSet(c *gin.Context) {
 		logger.Error("获取StatefulSet关联Pods失败", "error", err)
 	}
 
-	/** genAI_main_start */
 	// 清理 managed fields 以生成更干净的 YAML
 	cleanStatefulSet := statefulSet.DeepCopy()
 	cleanStatefulSet.ManagedFields = nil
@@ -221,7 +219,6 @@ func (h *StatefulSetHandler) GetStatefulSet(c *gin.Context) {
 		logger.Error("转换StatefulSet为YAML失败", "error", yamlErr)
 		yamlString = ""
 	}
-	/** genAI_main_end */
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -619,4 +616,3 @@ func (h *StatefulSetHandler) applyYAML(ctx context.Context, k8sClient *services.
 	return result, nil
 }
 
-/** genAI_main_end */

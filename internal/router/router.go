@@ -96,7 +96,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				cluster.GET("/metrics", clusterHandler.GetClusterMetrics)
 				cluster.GET("/events", clusterHandler.GetClusterEvents)
 				cluster.DELETE("", clusterHandler.DeleteCluster)
-				/** genAI_main_start */
 
 				// namespaces 子分组
 				namespaceHandler := handlers.NewNamespaceHandler(clusterSvc, k8sMgr)
@@ -107,7 +106,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					namespaces.POST("", namespaceHandler.CreateNamespace)
 					namespaces.DELETE("/:namespace", namespaceHandler.DeleteNamespace)
 				}
-				/** genAI_main_end */
 
 				// monitoring 子分组
 				monitoringHandler := handlers.NewMonitoringHandler(monitoringConfigSvc, prometheusSvc)
@@ -145,7 +143,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					pods.GET("/:namespace/:name/metrics", monitoringHandler.GetPodMetrics)
 				}
 
-				/** genAI_main_start */
 				// Deployment 子分组
 				deploymentHandler := handlers.NewDeploymentHandler(db, cfg, clusterSvc, k8sMgr)
 				deployments := cluster.Group("/deployments")
@@ -157,7 +154,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					deployments.POST("/yaml/apply", deploymentHandler.ApplyYAML)
 					deployments.POST("/:namespace/:name/scale", deploymentHandler.ScaleDeployment)
 					deployments.DELETE("/:namespace/:name", deploymentHandler.DeleteDeployment)
-					/** genAI_main_start */
 					// Deployment详情页相关接口
 					deployments.GET("/:namespace/:name/pods", deploymentHandler.GetDeploymentPods)
 					deployments.GET("/:namespace/:name/services", deploymentHandler.GetDeploymentServices)
@@ -165,21 +161,17 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					deployments.GET("/:namespace/:name/hpa", deploymentHandler.GetDeploymentHPA)
 					deployments.GET("/:namespace/:name/replicasets", deploymentHandler.GetDeploymentReplicaSets)
 					deployments.GET("/:namespace/:name/events", deploymentHandler.GetDeploymentEvents)
-					/** genAI_main_end */
 				}
 
 				// Rollout 子分组
 				rolloutHandler := handlers.NewRolloutHandler(db, cfg, clusterSvc, k8sMgr)
 				rollouts := cluster.Group("/rollouts")
 				{
-					/** genAI_main_start */
 					rollouts.GET("/crd-check", rolloutHandler.CheckRolloutCRD)
-					/** genAI_main_end */
 					rollouts.GET("", rolloutHandler.ListRollouts)
 					rollouts.GET("/namespaces", rolloutHandler.GetRolloutNamespaces)
 					rollouts.GET("/:namespace/:name", rolloutHandler.GetRollout)
 					rollouts.GET("/:namespace/:name/metrics", monitoringHandler.GetWorkloadMetrics)
-					/** genAI_main_start */
 					// Rollout详情相关路由
 					rollouts.GET("/:namespace/:name/pods", rolloutHandler.GetRolloutPods)
 					rollouts.GET("/:namespace/:name/services", rolloutHandler.GetRolloutServices)
@@ -187,7 +179,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					rollouts.GET("/:namespace/:name/hpa", rolloutHandler.GetRolloutHPA)
 					rollouts.GET("/:namespace/:name/replicasets", rolloutHandler.GetRolloutReplicaSets)
 					rollouts.GET("/:namespace/:name/events", rolloutHandler.GetRolloutEvents)
-					/** genAI_main_end */
 					rollouts.POST("/yaml/apply", rolloutHandler.ApplyYAML)
 					rollouts.POST("/:namespace/:name/scale", rolloutHandler.ScaleRollout)
 					rollouts.DELETE("/:namespace/:name", rolloutHandler.DeleteRollout)
@@ -241,9 +232,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					cronjobs.POST("/yaml/apply", cronJobHandler.ApplyYAML)
 					cronjobs.DELETE("/:namespace/:name", cronJobHandler.DeleteCronJob)
 				}
-				/** genAI_main_end */
 
-				/** genAI_main_start */
 				// configmaps 子分组
 				configMapHandler := handlers.NewConfigMapHandler(db, cfg, clusterSvc, k8sMgr)
 				configmaps := cluster.Group("/configmaps")
@@ -268,15 +257,12 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					secrets.DELETE("/:namespace/:name", secretHandler.DeleteSecret)
 				}
 
-				/** genAI_main_start */
 				// services 子分组
 				serviceHandler := handlers.NewServiceHandler(db, cfg, clusterSvc, k8sMgr)
 				services := cluster.Group("/services")
 				{
 					services.GET("", serviceHandler.ListServices)
-					/** genAI_main_start */
 					services.GET("/namespaces", serviceHandler.GetServiceNamespaces)
-					/** genAI_main_end */
 					services.POST("", serviceHandler.CreateService)
 					services.GET("/:namespace/:name", serviceHandler.GetService)
 					services.PUT("/:namespace/:name", serviceHandler.UpdateService)
@@ -284,25 +270,19 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					services.GET("/:namespace/:name/endpoints", serviceHandler.GetServiceEndpoints)
 					services.DELETE("/:namespace/:name", serviceHandler.DeleteService)
 				}
-				/** genAI_main_end */
 
-				/** genAI_main_start */
 				// ingresses 子分组
 				ingressHandler := handlers.NewIngressHandler(db, cfg, clusterSvc, k8sMgr)
 				ingresses := cluster.Group("/ingresses")
 				{
 					ingresses.GET("", ingressHandler.ListIngresses)
-					/** genAI_main_start */
 					ingresses.GET("/namespaces", ingressHandler.GetIngressNamespaces)
-					/** genAI_main_end */
 					ingresses.POST("", ingressHandler.CreateIngress)
 					ingresses.GET("/:namespace/:name", ingressHandler.GetIngress)
 					ingresses.PUT("/:namespace/:name", ingressHandler.UpdateIngress)
 					ingresses.GET("/:namespace/:name/yaml", ingressHandler.GetIngressYAML)
 					ingresses.DELETE("/:namespace/:name", ingressHandler.DeleteIngress)
 				}
-				/** genAI_main_end */
-				/** genAI_main_end */
 			}
 		}
 
@@ -328,7 +308,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		protected.GET("/monitoring/templates", monitoringHandler.GetMonitoringTemplates)
 	}
 
-	/** genAI_main_start */
 	// WebSocket：建议也加认证
 	ws := r.Group("/ws")
 	// ws.Use(middleware.AuthRequired(cfg.JWT.Secret))
@@ -350,7 +329,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		// Pod 日志流式传输
 		ws.GET("/clusters/:clusterID/pods/:namespace/:name/logs", podHandler.StreamPodLogs)
 	}
-	/** genAI_main_end */
 
 	// TODO:
 	// - 统一错误处理/响应格式中间件
