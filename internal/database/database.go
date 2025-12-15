@@ -121,7 +121,7 @@ func autoMigrate(db *gorm.DB) error {
 func createDefaultUser(db *gorm.DB) {
 	// 使用 bcrypt 生成密码哈希
 	salt := "kubepolaris_salt"
-	password := "KubePolaris@2025" + salt
+	password := "KubePolaris@2026" + salt
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.Error("生成密码哈希失败: %v", err)
@@ -147,18 +147,7 @@ func createDefaultUser(db *gorm.DB) {
 		if err := db.Create(&user).Error; err != nil {
 			logger.Error("创建默认用户失败: %v", err)
 		} else {
-			logger.Info("默认管理员用户创建成功: admin/admin123")
-		}
-	} else if result.Error == nil {
-		// 用户已存在，更新密码（确保密码哈希逻辑一致）
-		user.PasswordHash = string(hashedPassword)
-		user.Salt = salt
-		user.Status = "active"
-
-		if err := db.Save(&user).Error; err != nil {
-			logger.Error("更新默认用户密码失败: %v", err)
-		} else {
-			logger.Info("默认管理员用户密码已更新: admin/admin123")
+			logger.Info("默认管理员用户创建成功: admin/KubePolaris@2026")
 		}
 	} else {
 		logger.Error("查询默认用户失败: %v", result.Error)

@@ -31,6 +31,7 @@ import NetworkList from './pages/network/NetworkList';
 import StorageList from './pages/storage/StorageList';
 import Login from './pages/auth/Login';
 import SystemSettings from './pages/settings/SystemSettings';
+import UserProfile from './pages/profile/UserProfile';
 import { tokenManager } from './services/authService';
 import './App.css';
 
@@ -107,6 +108,8 @@ const App: React.FC = () => {
               <Route path="clusters/:clusterId/storage" element={<StorageList />} />
               {/* 系统设置路由 */}
               <Route path="settings" element={<SystemSettings />} />
+              {/* 个人资料路由 */}
+              <Route path="profile" element={<UserProfile />} />
             </Route>
           </Routes>
         </Router>

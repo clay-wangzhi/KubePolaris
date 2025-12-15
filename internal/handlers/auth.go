@@ -218,6 +218,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // GetProfile 获取用户信息
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "无效的用户认证信息",
+			"data":    nil,
+		})
+		return
+	}
 
 	var user models.User
 	if err := h.db.Preload("Roles").First(&user, userID).Error; err != nil {
@@ -273,6 +281,14 @@ type ChangePasswordRequest struct {
 // ChangePassword 修改密码（仅限本地用户）
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "无效的用户认证信息",
+			"data":    nil,
+		})
+		return
+	}
 
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

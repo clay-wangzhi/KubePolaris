@@ -405,8 +405,7 @@ const MainLayout: React.FC = () => {
     } else if (key === 'settings') {
       navigate('/settings');
     } else if (key === 'profile') {
-      // TODO: 导航到个人资料页面
-      message.info('个人资料功能开发中');
+      navigate('/profile');
     }
   };
 

@@ -49,8 +49,26 @@ func AuthRequired(secret string) gin.HandlerFunc {
 
 		// 提取用户信息
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("user_id", claims["user_id"])
+			// 处理user_id类型转换（JWT claims中的数字默认是float64）
+			if userIDFloat, ok := claims["user_id"].(float64); ok {
+				c.Set("user_id", uint(userIDFloat))
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"code":    401,
+					"message": "认证令牌中缺少用户ID",
+				})
+				c.Abort()
+				return
+			}
 			c.Set("username", claims["username"])
+			c.Set("auth_type", claims["auth_type"])
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "认证令牌格式无效",
+			})
+			c.Abort()
+			return
 		}
 
 		c.Next()

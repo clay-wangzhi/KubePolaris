@@ -224,7 +224,7 @@ const Login: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 12 }}>
             {activeTab === 'ldap' 
               ? '使用企业账号登录' 
-              : '默认管理员: admin / admin123'}
+              : '默认管理员: admin / KubePolaris@2026'}
           </Text>
         </div>
       </Card>

@@ -76,7 +76,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 	// 受保护的业务路由
 	protected := api.Group("")
-	// protected.Use(middleware.AuthRequired(cfg.JWT.Secret))
+	protected.Use(middleware.AuthRequired(cfg.JWT.Secret))
 	{
 		// clusters 根分组
 		clusters := protected.Group("/clusters")
@@ -353,7 +353,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 	// WebSocket：建议也加认证
 	ws := r.Group("/ws")
-	// ws.Use(middleware.AuthRequired(cfg.JWT.Secret))
+	ws.Use(middleware.AuthRequired(cfg.JWT.Secret))
 	{
 		kctl := handlers.NewKubectlTerminalHandler(clusterSvc)
 		ssh := handlers.NewSSHHandler()
