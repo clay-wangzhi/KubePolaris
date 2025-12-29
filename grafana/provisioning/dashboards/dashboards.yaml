@@ -4,10 +4,11 @@ providers:
   - name: 'KubePolaris Dashboards'
     orgId: 1
     folder: 'KubePolaris'
+    folderUid: 'kubepolaris-folder'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10
     allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards
-      foldersFromFilesStructure: true
+      foldersFromFilesStructure: false

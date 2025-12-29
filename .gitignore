@@ -193,3 +193,7 @@ charts/*.tgz
 # Local development
 docker-compose.override.yml
 .env.local
+
+# Grafana secrets (API Key 等敏感信息)
+grafana/secrets/
+!grafana/secrets/.gitkeep

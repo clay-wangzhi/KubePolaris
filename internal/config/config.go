@@ -2,6 +2,8 @@ package config
 
 import (
 	"log"
+	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -18,9 +20,10 @@ type Config struct {
 
 // GrafanaConfig Grafana 配置
 type GrafanaConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	URL     string `mapstructure:"url"`
-	APIKey  string `mapstructure:"api_key"`
+	Enabled    bool   `mapstructure:"enabled"`
+	URL        string `mapstructure:"url"`
+	APIKey     string `mapstructure:"api_key"`
+	APIKeyFile string `mapstructure:"api_key_file"` // 从文件读取 API Key（优先级高于 api_key）
 }
 
 // ServerConfig 服务器配置
@@ -82,7 +85,26 @@ func Load() *Config {
 		log.Fatalf("配置解析失败: %v", err)
 	}
 
+	// 如果配置了 API Key 文件路径，尝试从文件读取
+	if config.Grafana.APIKeyFile != "" {
+		if apiKey, err := readAPIKeyFromFile(config.Grafana.APIKeyFile); err == nil {
+			config.Grafana.APIKey = apiKey
+			log.Printf("Grafana API Key 已从文件加载: %s", config.Grafana.APIKeyFile)
+		} else {
+			log.Printf("从文件读取 Grafana API Key 失败: %v", err)
+		}
+	}
+
 	return &config
+}
+
+// readAPIKeyFromFile 从文件读取 API Key
+func readAPIKeyFromFile(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
 }
 
 // setDefaults 设置默认配置值
@@ -115,4 +137,5 @@ func setDefaults() {
 	viper.SetDefault("grafana.enabled", false)
 	viper.SetDefault("grafana.url", "http://localhost:3000")
 	viper.SetDefault("grafana.api_key", "")
+	viper.SetDefault("grafana.api_key_file", "") // 支持从文件读取 API Key
 }

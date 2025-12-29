@@ -3,15 +3,26 @@
 
 export const GRAFANA_CONFIG = {
   cluster: {
-    // ⚠️ 修改为你导入的集群 Dashboard UID
-    dashboardUid: 'StarsL_cn_K8S',
+    // 使用项目自带的集群概览 Dashboard
+    dashboardUid: 'kubepolaris-cluster-overview',
     panels: {
-      cpuUsage: 75,
-      memoryUsage: 4,
-      podStatus: 6,
-      networkTraffic: 8,
-      nodeOverview: 10,
-      apiserverRequests: 12,
+      // 集群资源总量
+      cpuTotal: 85,
+      cpuUsed: 87,
+      memoryTotal: 89,
+      memoryUsed: 90,
+      podCapacity: 91,
+      podRunning: 92,
+      // 集群状态
+      nodeReady: 63,
+      nodeNotReady: 65,
+      podHealthy: 69,
+      // 资源使用趋势
+      cpuUsageTrend: 2,
+      memoryUsageTrend: 4,
+      // 网络
+      networkReceive: 73,
+      networkTransmit: 75,
     },
   },
   node: {
