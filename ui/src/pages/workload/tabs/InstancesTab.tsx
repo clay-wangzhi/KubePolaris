@@ -231,7 +231,7 @@ const InstancesTab: React.FC<InstancesTabProps> = ({
             type="link"
             size="small"
             style={{ padding: 0 }}
-            onClick={() => navigate(`/clusters/${clusterId}/pods/${record.namespace}/${record.name}`)}
+            onClick={() => navigate(`/clusters/${clusterId}/pods/${record.namespace}/${record.name}?tab=monitoring`)}
           >
             监控
           </Button>
