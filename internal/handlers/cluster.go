@@ -22,19 +22,23 @@ import (
 
 // ClusterHandler 集群处理器
 type ClusterHandler struct {
-	db             *gorm.DB
-	cfg            *config.Config
-	clusterService *services.ClusterService
-	k8sMgr         *k8s.ClusterInformerManager
+	db                *gorm.DB
+	cfg               *config.Config
+	clusterService    *services.ClusterService
+	k8sMgr            *k8s.ClusterInformerManager
+	promService       *services.PrometheusService
+	monitoringCfgSvc  *services.MonitoringConfigService
 }
 
 // NewClusterHandler 创建集群处理器
-func NewClusterHandler(db *gorm.DB, cfg *config.Config, mgr *k8s.ClusterInformerManager) *ClusterHandler {
+func NewClusterHandler(db *gorm.DB, cfg *config.Config, mgr *k8s.ClusterInformerManager, promService *services.PrometheusService, monitoringCfgSvc *services.MonitoringConfigService) *ClusterHandler {
 	return &ClusterHandler{
-		db:             db,
-		cfg:            cfg,
-		clusterService: services.NewClusterService(db),
-		k8sMgr:         mgr,
+		db:               db,
+		cfg:              cfg,
+		clusterService:   services.NewClusterService(db),
+		k8sMgr:           mgr,
+		promService:      promService,
+		monitoringCfgSvc: monitoringCfgSvc,
 	}
 }
 
@@ -74,17 +78,10 @@ func (h *ClusterHandler) GetClusters(c *gin.Context) {
 		clusterData["nodeCount"] = nodeCount
 		clusterData["readyNodes"] = readyNodes
 
-		// 获取集群指标（CPU、内存使用率等）
-		// if metrics, err := h.clusterService.GetClusterMetrics(cluster.ID); err == nil && metrics != nil {
-		// 	clusterData["cpuUsage"] = metrics.CPUUsage
-		// 	clusterData["memoryUsage"] = metrics.MemoryUsage
-		// 	clusterData["storageUsage"] = metrics.StorageUsage
-		// } else {
-		// 	// 如果没有指标数据，设置默认值
-		// 	clusterData["cpuUsage"] = 0.0
-		// 	clusterData["memoryUsage"] = 0.0
-		// 	clusterData["storageUsage"] = 0.0
-		// }
+		// 获取集群 CPU、内存使用率
+		cpuUsage, memoryUsage := h.getClusterResourceUsage(c.Request.Context(), cluster)
+		clusterData["cpuUsage"] = cpuUsage
+		clusterData["memoryUsage"] = memoryUsage
 
 		clusterList = append(clusterList, clusterData)
 	}
@@ -745,6 +742,82 @@ func (h *ClusterHandler) getClusterNodeInfo(cluster *models.Cluster) (int, int) 
 		}
 	}
 	return nodeCount, readyNodes
+}
+
+// getClusterResourceUsage 获取集群 CPU 和内存使用率
+func (h *ClusterHandler) getClusterResourceUsage(ctx context.Context, cluster *models.Cluster) (float64, float64) {
+	if h.promService == nil || h.monitoringCfgSvc == nil {
+		return 0, 0
+	}
+
+	// 获取集群的监控配置
+	config, err := h.monitoringCfgSvc.GetMonitoringConfig(cluster.ID)
+	if err != nil || config.Type == "disabled" {
+		return 0, 0
+	}
+
+	// 设置时间范围（最近 5 分钟）
+	now := time.Now().Unix()
+	start := now - 300
+	step := "1m"
+
+	var cpuUsage, memoryUsage float64
+
+	// 查询 CPU 使用率
+	cpuQuery := &models.MetricsQuery{
+		Query: "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100",
+		Start: start,
+		End:   now,
+		Step:  step,
+	}
+	if resp, err := h.promService.QueryPrometheus(ctx, config, cpuQuery); err == nil {
+		if val := extractLatestValueFromResponse(resp); val >= 0 {
+			cpuUsage = val
+		}
+	}
+
+	// 查询内存使用率
+	memQuery := &models.MetricsQuery{
+		Query: "(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100",
+		Start: start,
+		End:   now,
+		Step:  step,
+	}
+	if resp, err := h.promService.QueryPrometheus(ctx, config, memQuery); err == nil {
+		if val := extractLatestValueFromResponse(resp); val >= 0 {
+			memoryUsage = val
+		}
+	}
+
+	return cpuUsage, memoryUsage
+}
+
+// extractLatestValueFromResponse 从 Prometheus range query 响应中提取最新值
+func extractLatestValueFromResponse(resp *models.MetricsResponse) float64 {
+	if resp == nil || len(resp.Data.Result) == 0 {
+		return -1
+	}
+	result := resp.Data.Result[0]
+	// 优先从 Values (range query) 中获取最后一个值
+	if len(result.Values) > 0 {
+		lastValue := result.Values[len(result.Values)-1]
+		if len(lastValue) >= 2 {
+			if strVal, ok := lastValue[1].(string); ok {
+				var f float64
+				fmt.Sscanf(strVal, "%f", &f)
+				return f
+			}
+		}
+	}
+	// 兼容 instant query 的 Value 格式
+	if len(result.Value) >= 2 {
+		if val, ok := result.Value[1].(string); ok {
+			var f float64
+			fmt.Sscanf(val, "%f", &f)
+			return f
+		}
+	}
+	return -1
 }
 
 // maxInt 返回较大的整数，避免出现负数（例如 worker = total - 1）

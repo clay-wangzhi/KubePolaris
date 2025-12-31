@@ -93,7 +93,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		// clusters 根分组
 		clusters := protected.Group("/clusters")
 		{
-			clusterHandler := handlers.NewClusterHandler(db, cfg, k8sMgr)
+			clusterHandler := handlers.NewClusterHandler(db, cfg, k8sMgr, prometheusSvc, monitoringConfigSvc)
 
 			// 静态路由优先
 			clusters.GET("/stats", clusterHandler.GetClusterStats)
