@@ -35,6 +35,7 @@ import {
   LogoutOutlined,
   HistoryOutlined,
   AuditOutlined,
+  BranchesOutlined,
 } from '@ant-design/icons';
 import type { MenuProps as AntMenuProps } from 'antd';
 import type {  Cluster, PermissionType } from '../types';
@@ -382,8 +383,8 @@ const MainLayout: React.FC = () => {
         },
         {
           key: 'cluster-plugins',
-          icon: <AppstoreOutlined />,
-          label: '插件中心',
+          icon: <BranchesOutlined />,
+          label: 'GitOps 应用',
           onClick: () => {
             const clusterMatch = location.pathname.match(/\/clusters\/([^/]+)/);
             if (clusterMatch) {

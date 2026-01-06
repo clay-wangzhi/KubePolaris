@@ -146,7 +146,7 @@ const App: React.FC = () => {
               {/* 日志中心路由 */}
               <Route path="clusters/:clusterId/logs" element={<LogCenter />} />
               <Route path="clusters/:clusterId/logs/events" element={<EventLogs />} />
-              {/* ArgoCD / GitOps 插件中心路由 - 需要运维权限 */}
+              {/* ArgoCD 应用管理路由 - 需要运维权限 */}
               <Route path="clusters/:clusterId/plugins" element={
                 <PermissionGuard requiredPermission="ops">
                   <ArgoCDApplicationsPage />

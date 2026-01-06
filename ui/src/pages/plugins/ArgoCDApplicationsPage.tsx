@@ -10,7 +10,6 @@ import {
   Modal,
   Form,
   Input,
-  Select,
   Switch,
   Popconfirm,
   Statistic,
@@ -23,7 +22,6 @@ import {
   Descriptions,
   Timeline,
   Tabs,
-  Alert,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -60,36 +58,51 @@ const ArgoCDApplicationsPage: React.FC = () => {
   const [selectedApp, setSelectedApp] = useState<ArgoCDApplication | null>(null);
   const [form] = Form.useForm();
   const [creating, setCreating] = useState(false);
-  const [configEnabled, setConfigEnabled] = useState(true);
+  const [configEnabled, setConfigEnabled] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  // 加载配置状态
+  const loadConfig = useCallback(async () => {
+    if (!clusterId) return;
+    try {
+      setConfigLoading(true);
+      const response = await argoCDService.getConfig(clusterId);
+      setConfigEnabled(response.data?.enabled || false);
+    } catch (error) {
+      console.error('加载配置失败:', error);
+      setConfigEnabled(false);
+    } finally {
+      setConfigLoading(false);
+    }
+  }, [clusterId]);
 
   // 加载应用列表
   const loadApplications = useCallback(async () => {
-    if (!clusterId) return;
+    if (!clusterId || !configEnabled) return;
     setLoading(true);
     try {
       const response = await argoCDService.listApplications(clusterId);
       if (response.code === 200) {
         setApplications(response.data.items || []);
-        setConfigEnabled(true);
-      } else {
-        if (response.message?.includes('未启用')) {
-          setConfigEnabled(false);
-        }
       }
     } catch (error: unknown) {
       console.error('加载应用列表失败:', error);
-      const errorMessage = error instanceof Error ? error.message : '';
-      if (errorMessage.includes('未启用')) {
-        setConfigEnabled(false);
-      }
     } finally {
       setLoading(false);
     }
-  }, [clusterId]);
+  }, [clusterId, configEnabled]);
 
+  // 先加载配置状态
   useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  // 配置启用后加载应用列表
+  useEffect(() => {
+    if (configEnabled) {
     loadApplications();
-  }, [loadApplications]);
+    }
+  }, [configEnabled, loadApplications]);
 
   // 创建应用
   const handleCreate = async () => {
@@ -324,27 +337,48 @@ const ArgoCDApplicationsPage: React.FC = () => {
     },
   ];
 
-  // 如果未启用配置，显示提示
+  // 加载配置状态中
+  if (configLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '60vh' 
+      }}>
+        <LoadingOutlined style={{ fontSize: 32 }} spin />
+      </div>
+    );
+  }
+
+  // 如果未启用配置，显示提示（类似告警中心的设计）
   if (!configEnabled) {
     return (
       <div style={{ padding: 24 }}>
-        <Alert
-          message="ArgoCD 集成未启用"
+        <Card>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
-            <div>
-              <p>请先配置 ArgoCD 连接信息，然后才能管理应用。</p>
+              <Space direction="vertical">
+                <span>ArgoCD 未配置</span>
+                <span style={{ color: '#999' }}>请先在配置中心配置 ArgoCD 连接信息</span>
+              </Space>
+            }
+          >
+            <Space>
               <Button 
                 type="primary" 
                 icon={<SettingOutlined />}
-                onClick={() => navigate(`/clusters/${clusterId}/argocd/config`)}
+                onClick={() => navigate(`/clusters/${clusterId}/config-center?tab=argocd`)}
               >
                 前往配置
               </Button>
-            </div>
-          }
-          type="warning"
-          showIcon
-        />
+              <Button onClick={() => navigate(-1)}>
+                返回
+              </Button>
+            </Space>
+          </Empty>
+        </Card>
       </div>
     );
   }
@@ -383,7 +417,7 @@ const ArgoCDApplicationsPage: React.FC = () => {
             <Button 
               type="link" 
               icon={<SettingOutlined />}
-              onClick={() => navigate(`/clusters/${clusterId}/argocd/config`)}
+              onClick={() => navigate(`/clusters/${clusterId}/config-center?tab=argocd`)}
             >
               配置管理
             </Button>

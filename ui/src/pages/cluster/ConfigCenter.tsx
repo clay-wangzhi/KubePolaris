@@ -1,9 +1,10 @@
 import React from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, Tabs } from 'antd';
-import { BarChartOutlined, AlertOutlined } from '@ant-design/icons';
+import { BarChartOutlined, AlertOutlined, BranchesOutlined } from '@ant-design/icons';
 import MonitoringConfigForm from '../../components/MonitoringConfigForm';
 import AlertManagerConfigForm from '../../components/AlertManagerConfigForm';
+import ArgoCDConfigForm from '../../components/ArgoCDConfigForm';
 import type { TabsProps } from 'antd';
 
 const ConfigCenter: React.FC = () => {
@@ -43,6 +44,23 @@ const ConfigCenter: React.FC = () => {
       ),
       children: (
         <AlertManagerConfigForm 
+          clusterId={clusterId || ''} 
+          onConfigChange={() => {
+            // 配置更新后的回调
+          }}
+        />
+      ),
+    },
+    {
+      key: 'argocd',
+      label: (
+        <span>
+          <BranchesOutlined />
+          ArgoCD 配置
+        </span>
+      ),
+      children: (
+        <ArgoCDConfigForm 
           clusterId={clusterId || ''} 
           onConfigChange={() => {
             // 配置更新后的回调
