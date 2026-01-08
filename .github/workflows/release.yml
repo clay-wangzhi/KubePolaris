@@ -85,7 +85,7 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: kubepolaris-${{ matrix.goos }}-${{ matrix.goarch }}
           path: kubepolaris-*.tar.gz
@@ -123,7 +123,7 @@ jobs:
           tar -czvf ../kubepolaris-frontend-${{ needs.validate.outputs.version }}.tar.gz dist
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
           path: kubepolaris-frontend-*.tar.gz
@@ -208,7 +208,7 @@ jobs:
           fi
 
       - name: Upload Helm Chart
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: helm-chart
           path: kubepolaris-*.tgz
