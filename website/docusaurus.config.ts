@@ -45,12 +45,8 @@ const config: Config = {
           showLastUpdateTime: true,
           showLastUpdateAuthor: true,
         },
-        blog: {
-          showReadingTime: true,
-          editUrl: 'https://github.com/clay-wangzhi/KubePolaris/tree/main/website/',
-          blogTitle: 'KubePolaris 博客',
-          blogDescription: '分享 Kubernetes 管理最佳实践与 KubePolaris 更新动态',
-        },
+        // TODO: 待博客内容准备好后启用
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -85,16 +81,18 @@ const config: Config = {
           position: 'left',
           label: '文档',
         },
-        {
-          to: '/blog',
-          label: '博客',
-          position: 'left',
-        },
-        {
-          to: '/showcase',
-          label: '案例展示',
-          position: 'left',
-        },
+        // TODO: 待博客内容准备好后启用
+        // {
+        //   to: '/blog',
+        //   label: '博客',
+        //   position: 'left',
+        // },
+        // TODO: 待案例展示页面创建后启用
+        // {
+        //   to: '/showcase',
+        //   label: '案例展示',
+        //   position: 'left',
+        // },
         // 版本下拉
         {
           type: 'docsVersionDropdown',
@@ -145,19 +143,11 @@ const config: Config = {
               label: 'Slack',
               href: 'https://kubepolaris.slack.com',
             },
-            {
-              label: '微信群',
-              to: '/community/wechat',
-            },
           ],
         },
         {
           title: '更多',
           items: [
-            {
-              label: '博客',
-              to: '/blog',
-            },
             {
               label: 'GitHub',
               href: 'https://github.com/clay-wangzhi/KubePolaris',

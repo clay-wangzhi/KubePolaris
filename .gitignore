@@ -165,6 +165,7 @@ backend/configs/config.local.yaml
 frontend/dist/
 frontend/build/
 frontend/.vite/
+website/build/
 
 # Database
 *.db
@@ -197,3 +198,8 @@ docker-compose.override.yml
 # Grafana secrets (API Key 等敏感信息)
 grafana/secrets/
 !grafana/secrets/.gitkeep
+
+# Docusaurus (website)
+website/.docusaurus/
+website/build/
+website/node_modules/
