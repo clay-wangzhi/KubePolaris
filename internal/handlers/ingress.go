@@ -259,8 +259,14 @@ func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 		return
 	}
 
+	// 设置 apiVersion 和 kind（API 返回的对象不包含这些字段）
+	cleanIng := ingress.DeepCopy()
+	cleanIng.APIVersion = "networking.k8s.io/v1"
+	cleanIng.Kind = "Ingress"
+	cleanIng.ManagedFields = nil // 移除 managedFields 简化 YAML
+
 	// 转换为YAML
-	yamlData, err := yaml.Marshal(ingress)
+	yamlData, err := yaml.Marshal(cleanIng)
 	if err != nil {
 		logger.Error("转换YAML失败", "error", err)
 		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("转换YAML失败: %v", err), "data": nil})

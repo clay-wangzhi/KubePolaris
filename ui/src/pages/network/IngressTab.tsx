@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   Button,
@@ -43,6 +44,7 @@ interface IngressTabProps {
 }
 
 const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => {
+  const navigate = useNavigate();
   const { message } = App.useApp();
   
   // 数据状态
@@ -417,86 +419,9 @@ const IngressTab: React.FC<IngressTabProps> = ({ clusterId, onCountChange }) => 
     message.success('列设置已保存');
   };
 
-  // 编辑Ingress
-  const handleEdit = async (ingress: Ingress) => {
-    setEditingIngress(ingress);
-    setYamlLoading(true);
-    try {
-      const response = await IngressService.getIngressYAML(
-        clusterId,
-        ingress.namespace,
-        ingress.name
-      );
-      
-      if (response.code === 200) {
-        const yamlStr = response.data.yaml;
-        setEditYaml(yamlStr);
-        
-        // 解析YAML到表单数据
-        try {
-          const yamlData = YAML.parse(yamlStr);
-          const formData: any = {
-            name: yamlData.metadata?.name || '',
-            namespace: yamlData.metadata?.namespace || 'default',
-            ingressClass: yamlData.spec?.ingressClassName || '',
-            labels: [],
-            annotations: [],
-            rules: [],
-            tls: [],
-          };
-
-          // 解析labels
-          if (yamlData.metadata?.labels) {
-            formData.labels = Object.entries(yamlData.metadata.labels).map(([key, value]) => ({
-              key,
-              value: String(value),
-            }));
-          }
-
-          // 解析annotations
-          if (yamlData.metadata?.annotations) {
-            formData.annotations = Object.entries(yamlData.metadata.annotations).map(([key, value]) => ({
-              key,
-              value: String(value),
-            }));
-          }
-
-          // 解析rules
-          if (yamlData.spec?.rules) {
-            formData.rules = yamlData.spec.rules.map((rule: any) => ({
-              host: rule.host || '',
-              paths: rule.http?.paths?.map((path: any) => ({
-                path: path.path || '/',
-                pathType: path.pathType || 'Prefix',
-                serviceName: path.backend?.service?.name || '',
-                servicePort: path.backend?.service?.port?.number || path.backend?.service?.port?.name || 80,
-              })) || [],
-            }));
-          }
-
-          // 解析TLS
-          if (yamlData.spec?.tls) {
-            formData.tls = yamlData.spec.tls.map((tls: any) => ({
-              secretName: tls.secretName || '',
-              hosts: tls.hosts || [],
-            }));
-          }
-
-          editForm.setFieldsValue(formData);
-        } catch (parseError) {
-          console.error('解析YAML失败:', parseError);
-        }
-        
-        setEditModalVisible(true);
-      } else {
-        message.error(response.message || '获取YAML失败');
-      }
-    } catch (error) {
-      console.error('获取YAML失败:', error);
-      message.error('获取YAML失败');
-    } finally {
-      setYamlLoading(false);
-    }
+  // 编辑Ingress - 跳转到独立的编辑页面
+  const handleEdit = (ingress: Ingress) => {
+    navigate(`/clusters/${clusterId}/network/ingress/${ingress.namespace}/${ingress.name}/edit`);
   };
 
   // 保存编辑

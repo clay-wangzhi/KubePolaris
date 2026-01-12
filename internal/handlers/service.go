@@ -254,8 +254,14 @@ func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 		return
 	}
 
+	// 设置 apiVersion 和 kind（API 返回的对象不包含这些字段）
+	cleanSvc := service.DeepCopy()
+	cleanSvc.APIVersion = "v1"
+	cleanSvc.Kind = "Service"
+	cleanSvc.ManagedFields = nil // 移除 managedFields 简化 YAML
+
 	// 转换为YAML
-	yamlData, err := yaml.Marshal(service)
+	yamlData, err := yaml.Marshal(cleanSvc)
 	if err != nil {
 		logger.Error("转换YAML失败", "error", err)
 		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("转换YAML失败: %v", err), "data": nil})

@@ -29,6 +29,8 @@ import ConfigMapCreate from './pages/config/ConfigMapCreate';
 import SecretCreate from './pages/config/SecretCreate';
 import { NamespaceList, NamespaceDetail } from './pages/namespace';
 import NetworkList from './pages/network/NetworkList';
+import ServiceEdit from './pages/network/ServiceEdit';
+import IngressEdit from './pages/network/IngressEdit';
 import StorageList from './pages/storage/StorageList';
 import Login from './pages/auth/Login';
 import SystemSettings from './pages/settings/SystemSettings';
@@ -140,6 +142,8 @@ const App: React.FC = () => {
               <Route path="clusters/:clusterId/configs/secret/:namespace/:name/edit" element={<SecretEdit />} />
               {/* 网络管理路由（Service和Ingress） */}
               <Route path="clusters/:clusterId/network" element={<NetworkList />} />
+              <Route path="clusters/:clusterId/network/service/:namespace/:name/edit" element={<ServiceEdit />} />
+              <Route path="clusters/:clusterId/network/ingress/:namespace/:name/edit" element={<IngressEdit />} />
               {/* 存储管理路由（PVC、PV、StorageClass） */}
               <Route path="clusters/:clusterId/storage" element={<StorageList />} />
               {/* 告警中心路由 */}

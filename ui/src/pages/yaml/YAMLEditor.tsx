@@ -17,8 +17,11 @@ import {
   SaveOutlined,
   EyeOutlined,
   ReloadOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  DiffOutlined,
 } from '@ant-design/icons';
-import { Editor, loader } from '@monaco-editor/react';
+import { Editor, DiffEditor, loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { WorkloadService } from '../../services/workloadService';
 import * as YAML from 'yaml';
@@ -47,6 +50,14 @@ const YAMLEditor: React.FC = () => {
   const [previewResult, setPreviewResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(true);
+  
+  // Diff 对比相关状态
+  const [diffModalVisible, setDiffModalVisible] = useState(false);
+  const [pendingYaml, setPendingYaml] = useState<string>('');
+  const [dryRunResult, setDryRunResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // 检查是否有未保存的更改
   const hasUnsavedChanges = yaml !== originalYaml;
@@ -112,44 +123,94 @@ const YAMLEditor: React.FC = () => {
     }
     
     setApplying(true);
+    setDryRunResult(null);
     try {
       const response = await WorkloadService.applyYAML(clusterId, yaml, isDryRun);
       
       if (response.code === 200) {
         if (isDryRun) {
           setPreviewResult(response.data);
-          setPreviewVisible(true);
+          setDryRunResult({
+            success: true,
+            message: '预检通过！YAML 配置有效，可以安全应用。',
+          });
           message.success('YAML验证成功');
         } else {
           message.success('YAML应用成功');
           // 更新原始YAML
           setOriginalYaml(yaml);
+          setDiffModalVisible(false);
         }
       } else {
-        message.error(response.message || `YAML${isDryRun ? '验证' : '应用'}失败`);
+        const errorMsg = response.message || `YAML${isDryRun ? '验证' : '应用'}失败`;
+        if (isDryRun) {
+          setDryRunResult({
+            success: false,
+            message: errorMsg,
+          });
+        }
+        message.error(errorMsg);
       }
     } catch (error) {
       console.error(`YAML${isDryRun ? '验证' : '应用'}失败:`, error);
-      message.error(`YAML${isDryRun ? '验证' : '应用'}失败`);
+      const errorMsg = `YAML${isDryRun ? '验证' : '应用'}失败`;
+      if (isDryRun) {
+        setDryRunResult({
+          success: false,
+          message: errorMsg,
+        });
+      }
+      message.error(errorMsg);
     } finally {
       setApplying(false);
     }
   };
 
-  // 预览YAML
+  // 预览YAML (Dry Run)
   const handlePreview = () => {
     handleApply(true);
   };
 
-  // 保存并应用YAML
-  const handleSave = () => {
-    modal.confirm({
-      title: '确认应用YAML',
-      content: '确定要应用这些YAML配置吗？这将更新集群中的资源。',
-      okText: '确定',
-      cancelText: '取消',
-      onOk: () => handleApply(false),
-    });
+  // 保存并应用YAML - 先预检，再展示 diff 对比
+  const handleSave = async () => {
+    if (!clusterId || !yaml.trim()) {
+      message.error('YAML内容不能为空');
+      return;
+    }
+
+    // 如果是编辑模式（有原始 YAML），先预检再展示 diff
+    if (workloadRef && originalYaml) {
+      setApplying(true);
+      try {
+        const response = await WorkloadService.applyYAML(clusterId, yaml, true);
+        if (response.code === 200) {
+          // 预检通过，展示 diff 对比
+          setPendingYaml(yaml);
+          setDiffModalVisible(true);
+        } else {
+          message.error('预检失败: ' + (response.message || '未知错误'));
+        }
+      } catch (error) {
+        console.error('预检失败:', error);
+        message.error('预检失败');
+      } finally {
+        setApplying(false);
+      }
+    } else {
+      // 创建模式，直接确认应用
+      modal.confirm({
+        title: '确认应用YAML',
+        content: '确定要应用这些YAML配置吗？这将在集群中创建资源。',
+        okText: '确定',
+        cancelText: '取消',
+        onOk: () => handleApply(false),
+      });
+    }
+  };
+
+  // 确认 Diff 后提交
+  const handleConfirmDiff = () => {
+    handleApply(false);
   };
 
   // 重置YAML
@@ -433,7 +494,21 @@ spec: {}
         />
       )}
       
-      {hasUnsavedChanges && !error && (
+      {/* 预检结果提示 */}
+      {dryRunResult && (
+        <Alert
+          message={dryRunResult.success ? '预检通过' : '预检失败'}
+          description={dryRunResult.message}
+          type={dryRunResult.success ? 'success' : 'error'}
+          showIcon
+          icon={dryRunResult.success ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+          closable
+          onClose={() => setDryRunResult(null)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      
+      {hasUnsavedChanges && !error && !dryRunResult && (
         <Alert
           message="您有未保存的更改"
           description="请记得保存您的更改，或点击重置按钮恢复原始内容。"
@@ -532,6 +607,67 @@ spec: {}
             </pre>
           </div>
         )}
+      </Modal>
+
+      {/* YAML Diff 对比 Modal */}
+      <Modal
+        title={
+          <Space>
+            <DiffOutlined />
+            <span>确认更改 - YAML Diff 对比</span>
+          </Space>
+        }
+        open={diffModalVisible}
+        onCancel={() => setDiffModalVisible(false)}
+        width={1200}
+        footer={[
+          <Button key="cancel" onClick={() => setDiffModalVisible(false)}>
+            取消
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={applying}
+            onClick={handleConfirmDiff}
+          >
+            确认更新
+          </Button>,
+        ]}
+      >
+        <Alert
+          message="请仔细检查以下更改"
+          description="左侧为原始配置，右侧为修改后的配置。确认无误后点击「确认更新」按钮应用更改。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+          <div style={{ flex: 1 }}>
+            <Text strong style={{ color: '#cf1322' }}>原始配置</Text>
+          </div>
+          <div style={{ flex: 1 }}>
+            <Text strong style={{ color: '#389e0d' }}>修改后配置</Text>
+          </div>
+        </div>
+        <div style={{ border: '1px solid #d9d9d9', borderRadius: '4px' }}>
+          <DiffEditor
+            height="500px"
+            language="yaml"
+            original={originalYaml}
+            modified={pendingYaml}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineNumbers: 'on',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              renderSideBySide: true,
+              enableSplitViewResizing: true,
+            }}
+            theme="vs-light"
+          />
+        </div>
       </Modal>
     </div>
   );

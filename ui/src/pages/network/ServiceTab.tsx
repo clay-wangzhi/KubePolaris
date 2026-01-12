@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   Button,
@@ -45,6 +46,7 @@ interface ServiceTabProps {
 }
 
 const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => {
+  const navigate = useNavigate();
   const { message } = App.useApp();
   
   // 数据状态
@@ -445,84 +447,9 @@ const ServiceTab: React.FC<ServiceTabProps> = ({ clusterId, onCountChange }) => 
     message.success('列设置已保存');
   };
 
-  // 编辑Service
-  const handleEdit = async (service: Service) => {
-    setEditingService(service);
-    setYamlLoading(true);
-    try {
-      const response = await ServiceService.getServiceYAML(
-        clusterId,
-        service.namespace,
-        service.name
-      );
-      
-      if (response.code === 200) {
-        const yamlStr = response.data.yaml;
-        setEditYaml(yamlStr);
-        
-        // 解析YAML到表单数据
-        try {
-          const yamlData = YAML.parse(yamlStr);
-          const formData: any = {
-            name: yamlData.metadata?.name || '',
-            namespace: yamlData.metadata?.namespace || 'default',
-            type: yamlData.spec?.type || 'ClusterIP',
-            sessionAffinity: yamlData.spec?.sessionAffinity || 'None',
-            labels: [],
-            annotations: [],
-            selectors: [],
-            ports: [],
-          };
-
-          // 解析labels
-          if (yamlData.metadata?.labels) {
-            formData.labels = Object.entries(yamlData.metadata.labels).map(([key, value]) => ({
-              key,
-              value: String(value),
-            }));
-          }
-
-          // 解析annotations
-          if (yamlData.metadata?.annotations) {
-            formData.annotations = Object.entries(yamlData.metadata.annotations).map(([key, value]) => ({
-              key,
-              value: String(value),
-            }));
-          }
-
-          // 解析selectors
-          if (yamlData.spec?.selector) {
-            formData.selectors = Object.entries(yamlData.spec.selector).map(([key, value]) => ({
-              key,
-              value: String(value),
-            }));
-          }
-
-          // 解析ports
-          if (yamlData.spec?.ports) {
-            formData.ports = yamlData.spec.ports.map((port: any) => ({
-              name: port.name || '',
-              protocol: port.protocol || 'TCP',
-              port: port.port,
-              targetPort: port.targetPort,
-            }));
-          }
-
-          editForm.setFieldsValue(formData);
-        } catch (parseError) {
-          console.error('解析YAML失败:', parseError);
-        }
-        
-        setEditModalVisible(true);
-      } else {
-        message.error(response.message || '获取YAML失败');
-      }
-    } catch (error) {
-      console.error('获取YAML失败:', error);
-      message.error('获取YAML失败');
-    } finally {
-      setYamlLoading(false);
-    }
+  // 编辑Service - 跳转到独立的编辑页面
+  const handleEdit = (service: Service) => {
+    navigate(`/clusters/${clusterId}/network/service/${service.namespace}/${service.name}/edit`);
   };
 
   // 保存编辑

@@ -295,6 +295,9 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					cronjobs.DELETE("/:namespace/:name", cronJobHandler.DeleteCronJob)
 				}
 
+				// 通用资源 YAML 处理器（用于 dry-run 和 apply）
+				resourceYAMLHandler := handlers.NewResourceYAMLHandler(db, cfg, clusterSvc, k8sMgr)
+
 				// configmaps 子分组
 				configMapHandler := handlers.NewConfigMapHandler(db, cfg, clusterSvc, k8sMgr)
 				configmaps := cluster.Group("/configmaps")
@@ -305,6 +308,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					configmaps.POST("", configMapHandler.CreateConfigMap)
 					configmaps.PUT("/:namespace/:name", configMapHandler.UpdateConfigMap)
 					configmaps.DELETE("/:namespace/:name", configMapHandler.DeleteConfigMap)
+					configmaps.POST("/yaml/apply", resourceYAMLHandler.ApplyConfigMapYAML)
 				}
 
 				// secrets 子分组
@@ -317,6 +321,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					secrets.POST("", secretHandler.CreateSecret)
 					secrets.PUT("/:namespace/:name", secretHandler.UpdateSecret)
 					secrets.DELETE("/:namespace/:name", secretHandler.DeleteSecret)
+					secrets.POST("/yaml/apply", resourceYAMLHandler.ApplySecretYAML)
 				}
 
 				// services 子分组
@@ -331,6 +336,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					svcGroup.GET("/:namespace/:name/yaml", serviceHandler.GetServiceYAML)
 					svcGroup.GET("/:namespace/:name/endpoints", serviceHandler.GetServiceEndpoints)
 					svcGroup.DELETE("/:namespace/:name", serviceHandler.DeleteService)
+					svcGroup.POST("/yaml/apply", resourceYAMLHandler.ApplyServiceYAML)
 				}
 
 				// ingresses 子分组
@@ -344,6 +350,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					ingresses.PUT("/:namespace/:name", ingressHandler.UpdateIngress)
 					ingresses.GET("/:namespace/:name/yaml", ingressHandler.GetIngressYAML)
 					ingresses.DELETE("/:namespace/:name", ingressHandler.DeleteIngress)
+					ingresses.POST("/yaml/apply", resourceYAMLHandler.ApplyIngressYAML)
 				}
 
 				// storage 子分组 - PVC, PV, StorageClass
@@ -357,6 +364,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					pvcs.GET("/:namespace/:name", storageHandler.GetPVC)
 					pvcs.GET("/:namespace/:name/yaml", storageHandler.GetPVCYAML)
 					pvcs.DELETE("/:namespace/:name", storageHandler.DeletePVC)
+					pvcs.POST("/yaml/apply", resourceYAMLHandler.ApplyPVCYAML)
 				}
 
 				// PVs 子分组
@@ -366,6 +374,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					pvs.GET("/:name", storageHandler.GetPV)
 					pvs.GET("/:name/yaml", storageHandler.GetPVYAML)
 					pvs.DELETE("/:name", storageHandler.DeletePV)
+					pvs.POST("/yaml/apply", resourceYAMLHandler.ApplyPVYAML)
 				}
 
 				// StorageClasses 子分组
@@ -375,6 +384,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					storageclasses.GET("/:name", storageHandler.GetStorageClass)
 					storageclasses.GET("/:name/yaml", storageHandler.GetStorageClassYAML)
 					storageclasses.DELETE("/:name", storageHandler.DeleteStorageClass)
+					storageclasses.POST("/yaml/apply", resourceYAMLHandler.ApplyStorageClassYAML)
 				}
 
 				// ArgoCD / GitOps 插件中心

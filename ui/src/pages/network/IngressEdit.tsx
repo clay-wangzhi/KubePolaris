@@ -18,14 +18,14 @@ import {
   DiffOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { configMapService, type ConfigMapDetail } from '../../services/configService';
+import { IngressService } from '../../services/ingressService';
 import { ResourceService } from '../../services/resourceService';
 import MonacoEditor, { DiffEditor } from '@monaco-editor/react';
 import * as YAML from 'yaml';
 
 const { Text, Title } = Typography;
 
-const ConfigMapEdit: React.FC = () => {
+const IngressEdit: React.FC = () => {
   const navigate = useNavigate();
   const { modal } = App.useApp();
   const { clusterId, namespace, name } = useParams<{
@@ -36,7 +36,7 @@ const ConfigMapEdit: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [configMap, setConfigMap] = useState<ConfigMapDetail | null>(null);
+  const [ingressName, setIngressName] = useState('');
   const [yamlContent, setYamlContent] = useState('');
   const [originalYaml, setOriginalYaml] = useState('');
 
@@ -51,45 +51,34 @@ const ConfigMapEdit: React.FC = () => {
   const [diffModalVisible, setDiffModalVisible] = useState(false);
   const [pendingYaml, setPendingYaml] = useState<string>('');
 
-  // 加载 ConfigMap 详情
-  const loadConfigMap = useCallback(async () => {
+  // 加载 Ingress 详情
+  const loadIngress = useCallback(async () => {
     if (!clusterId || !namespace || !name) return;
     setLoading(true);
     try {
-      const data = await configMapService.getConfigMap(
-        Number(clusterId),
-        namespace,
-        name
-      );
-      setConfigMap(data);
-
-      // 生成 YAML 内容
-      const yamlObj = {
-        apiVersion: 'v1',
-        kind: 'ConfigMap',
-        metadata: {
-          name: data.name,
-          namespace: data.namespace,
-          labels: data.labels || {},
-          annotations: data.annotations || {},
-        },
-        data: data.data || {},
-      };
-      const yamlStr = YAML.stringify(yamlObj);
-      setYamlContent(yamlStr);
-      setOriginalYaml(yamlStr);
+      const response = await IngressService.getIngressYAML(clusterId, namespace, name);
+      if (response.code === 200 && response.data) {
+        setIngressName(name);
+        // response.data 是 { yaml: "..." } 格式
+        const yamlStr = response.data.yaml || '';
+        setYamlContent(yamlStr);
+        setOriginalYaml(yamlStr);
+      } else {
+        message.error(response.message || '加载Ingress详情失败');
+        navigate(`/clusters/${clusterId}/network`);
+      }
     } catch (error) {
       const err = error as { response?: { data?: { error?: string } } };
-      message.error(err.response?.data?.error || '加载ConfigMap详情失败');
-      navigate(`/clusters/${clusterId}/configs`);
+      message.error(err.response?.data?.error || '加载Ingress详情失败');
+      navigate(`/clusters/${clusterId}/network`);
     } finally {
       setLoading(false);
     }
   }, [clusterId, namespace, name, navigate]);
 
   useEffect(() => {
-    loadConfigMap();
-  }, [loadConfigMap]);
+    loadIngress();
+  }, [loadIngress]);
 
   // 预检（Dry Run）
   const handleDryRun = async () => {
@@ -107,7 +96,7 @@ const ConfigMapEdit: React.FC = () => {
     setDryRunResult(null);
 
     try {
-      await ResourceService.applyYAML(clusterId, 'ConfigMap', yamlContent, true);
+      await ResourceService.applyYAML(clusterId, 'Ingress', yamlContent, true);
       setDryRunResult({
         success: true,
         message: '预检通过！YAML 配置有效，可以安全应用。',
@@ -129,10 +118,10 @@ const ConfigMapEdit: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await ResourceService.applyYAML(clusterId, 'ConfigMap', pendingYaml, false);
-      message.success('ConfigMap 更新成功');
+      await ResourceService.applyYAML(clusterId, 'Ingress', pendingYaml, false);
+      message.success('Ingress 更新成功');
       setDiffModalVisible(false);
-      navigate(`/clusters/${clusterId}/configs/configmap/${namespace}/${name}`);
+      navigate(`/clusters/${clusterId}/network`);
     } catch (error) {
       const err = error as { response?: { data?: { error?: string } } };
       message.error(err.response?.data?.error || '更新失败');
@@ -156,7 +145,7 @@ const ConfigMapEdit: React.FC = () => {
     // 执行预检
     setSubmitting(true);
     try {
-      await ResourceService.applyYAML(clusterId, 'ConfigMap', yamlContent, true);
+      await ResourceService.applyYAML(clusterId, 'Ingress', yamlContent, true);
       // 预检通过，展示 diff 对比
       setPendingYaml(yamlContent);
       setDiffModalVisible(true);
@@ -176,10 +165,10 @@ const ConfigMapEdit: React.FC = () => {
         content: '您有未保存的更改，确定要离开吗？',
         okText: '确定',
         cancelText: '取消',
-        onOk: () => navigate(`/clusters/${clusterId}/configs/configmap/${namespace}/${name}`),
+        onOk: () => navigate(`/clusters/${clusterId}/network`),
       });
     } else {
-      navigate(`/clusters/${clusterId}/configs/configmap/${namespace}/${name}`);
+      navigate(`/clusters/${clusterId}/network`);
     }
   };
 
@@ -189,10 +178,6 @@ const ConfigMapEdit: React.FC = () => {
         <Spin size="large" />
       </div>
     );
-  }
-
-  if (!configMap) {
-    return null;
   }
 
   const hasChanges = yamlContent !== originalYaml;
@@ -208,7 +193,7 @@ const ConfigMapEdit: React.FC = () => {
                 返回
               </Button>
               <Title level={4} style={{ margin: 0 }}>
-                编辑 ConfigMap: {configMap.name}
+                编辑 Ingress: {ingressName}
               </Title>
               {hasChanges && (
                 <Text type="warning">• 有未保存的更改</Text>
@@ -344,4 +329,5 @@ const ConfigMapEdit: React.FC = () => {
   );
 };
 
-export default ConfigMapEdit;
+export default IngressEdit;
+
