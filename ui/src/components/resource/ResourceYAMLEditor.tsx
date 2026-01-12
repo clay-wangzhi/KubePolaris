@@ -20,7 +20,8 @@ import {
 } from '@ant-design/icons';
 import MonacoEditor, { DiffEditor } from '@monaco-editor/react';
 import * as YAML from 'yaml';
-import { ResourceService, ResourceKind } from '../../services/resourceService';
+import { ResourceService } from '../../services/resourceService';
+import type { ResourceKind } from '../../services/resourceService';
 
 const { Text } = Typography;
 
