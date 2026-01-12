@@ -127,7 +127,7 @@ services:
       GF_LOG_LEVEL: warn
       GF_LOG_MODE: console
       # 配置子路径，通过 Nginx 代理访问
-      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana"
+      GF_SERVER_ROOT_URL: "/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SERVER_ENABLE_GZIP: "true"
       TZ: Asia/Shanghai
