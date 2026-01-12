@@ -236,7 +236,7 @@ show_complete_info() {
     echo -e "  📈 Grafana:      ${GREEN}http://localhost:3000${NC}"
     echo ""
     echo -e "${BLUE}默认账号:${NC}"
-    echo -e "  KubePolaris:  admin / admin123"
+    echo -e "  KubePolaris:  admin / KubePolaris@2026"
     echo -e "  Grafana:      查看 .env 文件中的 GRAFANA_ADMIN_PASSWORD"
     echo ""
     echo -e "${BLUE}常用命令:${NC}"
