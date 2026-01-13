@@ -21,7 +21,7 @@
     "@types/node": "^24.3.0",
     "@types/react-window": "^1.8.8",
     "@xterm/addon-clipboard": "^0.1.0",
-    "antd": "^5.27.0",
+    "antd": "^6.1.4",
     "axios": "^1.11.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
