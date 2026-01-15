@@ -9,7 +9,7 @@ const config: Config = {
 
   // 生产环境 URL，用于生成 sitemap 和规范 URL
   // 可更改为你的自定义域名
-  url: 'https://kubepolaris.io',
+  url: 'http://kubepolaris.clay-wangzhi.com',
   // GitHub Pages 部署路径，如果是自定义域名可以设为 '/'
   baseUrl: '/',
 

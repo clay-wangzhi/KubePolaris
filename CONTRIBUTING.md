@@ -246,7 +246,7 @@ Use the PR template and include:
 ## Getting Help
 
 - 💬 [GitHub Discussions](https://github.com/clay-wangzhi/KubePolaris/discussions)
-- 📖 [Documentation](https://kubepolaris.io/docs)
+- 📖 [Documentation](http://kubepolaris.clay-wangzhi.com/docs)
 - 🐛 [Issue Tracker](https://github.com/clay-wangzhi/KubePolaris/issues)
 
 ## Recognition

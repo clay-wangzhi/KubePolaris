@@ -78,7 +78,7 @@ Security updates will be released as patch versions (e.g., 1.0.1) and announced 
 
 - GitHub Security Advisories
 - Release notes
-- Our mailing list (subscribe at kubepolaris.io)
+- Our mailing list (subscribe at http://kubepolaris.clay-wangzhi.com/)
 
 ## Bug Bounty
 

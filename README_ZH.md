@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <a href="https://kubepolaris.io">官网</a> •
-  <a href="https://kubepolaris.io/docs/getting-started/quick-start">快速开始</a> •
-  <a href="https://kubepolaris.io/docs">文档</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/">官网</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/docs/getting-started/quick-start">快速开始</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/docs">文档</a> •
   <a href="https://github.com/clay-wangzhi/KubePolaris/discussions">社区讨论</a> •
   <a href="./ROADMAP.md">路线图</a>
 </p>
@@ -184,7 +184,7 @@ npm install && npm run dev
 # 访问 http://localhost:5173
 ```
 
-📚 详细安装指南请参考 [安装文档](https://kubepolaris.io/docs/getting-started/installation)
+📚 详细安装指南请参考 [安装文档](http://kubepolaris.clay-wangzhi.com/docs/getting-started/installation)
 
 ## 🏗️ 技术架构
 
@@ -309,12 +309,12 @@ git push origin feature/amazing-feature
 
 | 文档 | 链接 |
 |:---|:---|
-| 🏠 官方网站 | [kubepolaris.io](https://kubepolaris.io) |
-| 📖 用户文档 | [docs](https://kubepolaris.io/docs) |
-| 🚀 快速开始 | [quick-start](https://kubepolaris.io/docs/getting-started/quick-start) |
-| 📦 安装指南 | [installation](https://kubepolaris.io/docs/getting-started/installation) |
-| 🔧 配置说明 | [configuration](https://kubepolaris.io/docs/admin-guide/configuration) |
-| 🔌 API 文档 | [api-reference](https://kubepolaris.io/docs/api/overview) |
+| 🏠 官方网站 | [kubepolaris.clay-wangzhi.com](http://kubepolaris.clay-wangzhi.com/) |
+| 📖 用户文档 | [docs](http://kubepolaris.clay-wangzhi.com/docs) |
+| 🚀 快速开始 | [quick-start](http://kubepolaris.clay-wangzhi.com/docs/getting-started/quick-start) |
+| 📦 安装指南 | [installation](http://kubepolaris.clay-wangzhi.com/docs/getting-started/installation) |
+| 🔧 配置说明 | [configuration](http://kubepolaris.clay-wangzhi.com/docs/admin-guide/configuration) |
+| 🔌 API 文档 | [api-reference](http://kubepolaris.clay-wangzhi.com/docs/api/overview) |
 
 ## 💬 社区
 

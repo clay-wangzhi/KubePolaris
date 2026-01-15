@@ -79,5 +79,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upgrade Guide
 
-See [Upgrade Documentation](https://kubepolaris.io/docs/installation/upgrade) for detailed upgrade instructions.
+See [Upgrade Documentation](http://kubepolaris.clay-wangzhi.com/docs/installation/upgrade) for detailed upgrade instructions.
 

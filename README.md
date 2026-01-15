@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <a href="https://kubepolaris.io">Website</a> •
-  <a href="https://kubepolaris.io/docs/getting-started/quick-start">Quick Start</a> •
-  <a href="https://kubepolaris.io/docs">Documentation</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/">Website</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/docs/getting-started/quick-start">Quick Start</a> •
+  <a href="http://kubepolaris.clay-wangzhi.com/docs">Documentation</a> •
   <a href="https://github.com/clay-wangzhi/KubePolaris/discussions">Discussions</a> •
   <a href="./ROADMAP.md">Roadmap</a>
 </p>
@@ -184,7 +184,7 @@ npm install && npm run dev
 # Access http://localhost:5173
 ```
 
-📚 For detailed installation guide, see [Installation Documentation](https://kubepolaris.io/docs/getting-started/installation)
+📚 For detailed installation guide, see [Installation Documentation](http://kubepolaris.clay-wangzhi.com/docs/getting-started/installation)
 
 ## 🏗️ Architecture
 
@@ -309,12 +309,12 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 | Document | Link |
 |:---|:---|
-| 🏠 Official Website | [kubepolaris.io](https://kubepolaris.io) |
-| 📖 User Documentation | [docs](https://kubepolaris.io/docs) |
-| 🚀 Quick Start | [quick-start](https://kubepolaris.io/docs/getting-started/quick-start) |
-| 📦 Installation Guide | [installation](https://kubepolaris.io/docs/getting-started/installation) |
-| 🔧 Configuration | [configuration](https://kubepolaris.io/docs/admin-guide/configuration) |
-| 🔌 API Reference | [api-reference](https://kubepolaris.io/docs/api/overview) |
+| 🏠 Official Website | [kubepolaris.clay-wangzhi.com](http://kubepolaris.clay-wangzhi.com/) |
+| 📖 User Documentation | [docs](http://kubepolaris.clay-wangzhi.com/docs) |
+| 🚀 Quick Start | [quick-start](http://kubepolaris.clay-wangzhi.com/docs/getting-started/quick-start) |
+| 📦 Installation Guide | [installation](http://kubepolaris.clay-wangzhi.com/docs/getting-started/installation) |
+| 🔧 Configuration | [configuration](http://kubepolaris.clay-wangzhi.com/docs/admin-guide/configuration) |
+| 🔌 API Reference | [api-reference](http://kubepolaris.clay-wangzhi.com/docs/api/overview) |
 
 ## 💬 Community
 

@@ -244,7 +244,7 @@ feat(cluster): 添加支持多 kubeconfig 文件
 ## 获取帮助
 
 - 💬 [GitHub Discussions](https://github.com/clay-wangzhi/KubePolaris/discussions)
-- 📖 [文档](https://kubepolaris.io/docs)
+- 📖 [文档](http://kubepolaris.clay-wangzhi.com/docs)
 - 🐛 [Issue 追踪器](https://github.com/clay-wangzhi/KubePolaris/issues)
 
 ## 贡献者认可
