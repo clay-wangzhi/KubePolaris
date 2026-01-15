@@ -261,7 +261,7 @@ jobs:
           echo "\`\`\`" >> CHANGELOG_RELEASE.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.validate.outputs.version }}
           name: KubePolaris v${{ needs.validate.outputs.version }}
