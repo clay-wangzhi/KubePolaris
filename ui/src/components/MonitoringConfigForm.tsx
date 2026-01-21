@@ -190,8 +190,6 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
   };
 
   const renderAuthConfig = () => {
-    const authType = form.getFieldValue(['auth', 'type']);
-    
     return (
       <Card title="认证配置" size="small">
         <Form.Item
@@ -208,69 +206,90 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
           </Select>
         </Form.Item>
 
-        {authType === 'none' && (
-          <Alert
-            message="无需认证"
-            description="将直接访问监控端点，不进行任何身份验证。"
-            type="info"
-            showIcon
-            style={{ marginTop: 16 }}
-          />
-        )}
+        <Form.Item
+          noStyle
+          shouldUpdate={(prevValues, currentValues) =>
+            prevValues?.auth?.type !== currentValues?.auth?.type
+          }
+        >
+          {({ getFieldValue }) => {
+            const authType = getFieldValue(['auth', 'type']);
 
-        {authType === 'basic' && (
-          <>
-            <Form.Item
-              name={['auth', 'username']}
-              label="用户名"
-              rules={[{ required: true, message: '请输入用户名' }]}
-            >
-              <Input placeholder="请输入用户名" />
-            </Form.Item>
-            <Form.Item
-              name={['auth', 'password']}
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
-            >
-              <Input.Password placeholder="请输入密码" />
-            </Form.Item>
-          </>
-        )}
+            if (authType === 'none') {
+              return (
+                <Alert
+                  message="无需认证"
+                  description="将直接访问监控端点，不进行任何身份验证。"
+                  type="info"
+                  showIcon
+                  style={{ marginTop: 16 }}
+                />
+              );
+            }
 
-        {authType === 'bearer' && (
-          <Form.Item
-            name={['auth', 'token']}
-            label="Token"
-            rules={[{ required: true, message: '请输入Token' }]}
-          >
-            <Input.Password placeholder="请输入Bearer Token" />
-          </Form.Item>
-        )}
+            if (authType === 'basic') {
+              return (
+                <>
+                  <Form.Item
+                    name={['auth', 'username']}
+                    label="用户名"
+                    rules={[{ required: true, message: '请输入用户名' }]}
+                  >
+                    <Input placeholder="请输入用户名" />
+                  </Form.Item>
+                  <Form.Item
+                    name={['auth', 'password']}
+                    label="密码"
+                    rules={[{ required: true, message: '请输入密码' }]}
+                  >
+                    <Input.Password placeholder="请输入密码" />
+                  </Form.Item>
+                </>
+              );
+            }
 
-        {authType === 'mtls' && (
-          <>
-            <Form.Item
-              name={['auth', 'certFile']}
-              label="证书文件路径"
-              rules={[{ required: true, message: '请输入证书文件路径' }]}
-            >
-              <Input placeholder="请输入证书文件路径" />
-            </Form.Item>
-            <Form.Item
-              name={['auth', 'keyFile']}
-              label="密钥文件路径"
-              rules={[{ required: true, message: '请输入密钥文件路径' }]}
-            >
-              <Input placeholder="请输入密钥文件路径" />
-            </Form.Item>
-            <Form.Item
-              name={['auth', 'caFile']}
-              label="CA文件路径"
-            >
-              <Input placeholder="请输入CA文件路径（可选）" />
-            </Form.Item>
-          </>
-        )}
+            if (authType === 'bearer') {
+              return (
+                <Form.Item
+                  name={['auth', 'token']}
+                  label="Token"
+                  rules={[{ required: true, message: '请输入Token' }]}
+                >
+                  <Input.Password placeholder="请输入Bearer Token" />
+                </Form.Item>
+              );
+            }
+
+            if (authType === 'mtls') {
+              return (
+                <>
+                  <Form.Item
+                    name={['auth', 'certFile']}
+                    label="证书文件路径"
+                    rules={[{ required: true, message: '请输入证书文件路径' }]}
+                  >
+                    <Input placeholder="请输入证书文件路径" />
+                  </Form.Item>
+                  <Form.Item
+                    name={['auth', 'keyFile']}
+                    label="密钥文件路径"
+                    rules={[{ required: true, message: '请输入密钥文件路径' }]}
+                  >
+                    <Input placeholder="请输入密钥文件路径" />
+                  </Form.Item>
+                  <Form.Item
+                    name={['auth', 'caFile']}
+                    label="CA文件路径"
+                  >
+                    <Input placeholder="请输入CA文件路径（可选）" />
+                  </Form.Item>
+                </>
+              );
+            }
+
+            return null;
+          }}
+        </Form.Item>
       </Card>
     );
   };
