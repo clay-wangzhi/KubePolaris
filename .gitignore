@@ -24,6 +24,8 @@ go.work
 .vscode/
 .codebuddy/
 .idea/
+.cursor/
+.cursorignore
 *.swp
 *.swo
 *~
