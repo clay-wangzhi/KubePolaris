@@ -4,6 +4,8 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 
 	"github.com/gin-contrib/gzip"
@@ -596,6 +598,11 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		}
 	}
 
+	// Grafana 反向代理（前端嵌入后端后，无 Nginx 时由后端代理 Grafana 请求）
+	if cfg.Grafana.Enabled {
+		setupGrafanaProxy(r, cfg.Grafana.URL)
+	}
+
 	// 嵌入前端静态文件服务
 	setupStatic(r)
 
@@ -650,6 +657,42 @@ func setupStatic(r *gin.Engine) {
 		}
 		c.Data(200, "text/html; charset=utf-8", content)
 	})
+}
+
+// setupGrafanaProxy 配置 Grafana 反向代理
+// 将 /grafana/* 请求代理到 Grafana 服务，支持前端嵌入后端的场景（无需 Nginx）
+func setupGrafanaProxy(r *gin.Engine, grafanaURL string) {
+	target, err := url.Parse(grafanaURL)
+	if err != nil {
+		logger.Error("解析 Grafana URL 失败，代理未启用", "url", grafanaURL, "error", err)
+		return
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// 自定义 Director：保留原始请求路径（Grafana 配置了 sub_path=/grafana/）
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Host = target.Host
+	}
+
+	// 自定义错误处理
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		logger.Error("Grafana 代理请求失败", "path", r.URL.Path, "error", err)
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error": "grafana proxy error"}`))
+	}
+
+	// 注册 /grafana 路由组，支持所有 HTTP 方法
+	grafanaGroup := r.Group("/grafana")
+	grafanaGroup.Any("/*path", func(c *gin.Context) {
+		// 移除 X-Frame-Options 以允许 iframe 嵌入
+		c.Writer.Header().Del("X-Frame-Options")
+		proxy.ServeHTTP(c.Writer, c.Request)
+	})
+
+	logger.Info("Grafana 反向代理已启用", "target", grafanaURL, "path", "/grafana/*")
 }
 
 // mustSub 是 fs.Sub 的便捷封装
