@@ -2,11 +2,11 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
@@ -70,7 +70,7 @@ func Load() *Config {
 
 	// 先加载 .env 到系统环境变量
 	if err := godotenv.Load(); err != nil {
-		log.Printf("未找到 .env 文件，使用系统环境变量: %v", err)
+		logger.Info("未找到 .env 文件，使用系统环境变量: %v", err)
 	}
 
 	// 读取环境变量
@@ -108,27 +108,27 @@ func Load() *Config {
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		log.Fatalf("配置解析失败: %v", err)
+		logger.Fatal("配置解析失败: %v", err)
 	}
-	log.Printf("配置: %+v", config)
+	logger.Info("配置: %+v", config)
 
 	// 如果配置了 API Key 文件路径，尝试从文件读取（带重试和优雅降级）
 	if config.Grafana.APIKeyFile != "" {
 		if apiKey, err := readAPIKeyFromFile(config.Grafana.APIKeyFile); err == nil {
 			config.Grafana.APIKey = apiKey
-			log.Printf("✅ Grafana API Key 已从文件加载: %s", config.Grafana.APIKeyFile)
+			logger.Info("Grafana API Key 已从文件加载: %s", config.Grafana.APIKeyFile)
 		} else {
 			// 如果 Grafana 是启用的，记录警告但不中断启动
 			if config.Grafana.Enabled {
-				log.Printf("⚠️  从文件读取 Grafana API Key 失败: %v", err)
-				log.Printf("⚠️  Grafana 功能将被禁用，但系统将继续运行")
+				logger.Warn("从文件读取 Grafana API Key 失败: %v", err)
+				logger.Warn("Grafana 功能将被禁用，但系统将继续运行")
 				config.Grafana.Enabled = false // 自动禁用 Grafana 功能
 			} else {
-				log.Printf("ℹ️  Grafana 未启用，跳过 API Key 加载")
+				logger.Info("Grafana 未启用，跳过 API Key 加载")
 			}
 		}
 	} else if config.Grafana.Enabled && config.Grafana.APIKey == "" {
-		log.Printf("⚠️  Grafana 已启用但未配置 API Key，功能可能不可用")
+		logger.Warn("Grafana 已启用但未配置 API Key，功能可能不可用")
 	}
 
 	return &config
@@ -148,12 +148,12 @@ func readAPIKeyFromFile(filePath string) (string, error) {
 			}
 			// 文件存在但内容为空，继续重试
 			if i < maxRetries-1 {
-				log.Printf("⏳ Grafana API Key 文件存在但为空，等待内容写入... (尝试 %d/%d)", i+1, maxRetries)
+				logger.Info("Grafana API Key 文件存在但为空，等待内容写入... (尝试 %d/%d)", i+1, maxRetries)
 			}
 		} else {
 			// 文件不存在，继续重试
 			if i < maxRetries-1 {
-				log.Printf("⏳ 等待 Grafana API Key 文件生成... (尝试 %d/%d)", i+1, maxRetries)
+				logger.Info("等待 Grafana API Key 文件生成... (尝试 %d/%d)", i+1, maxRetries)
 			}
 		}
 

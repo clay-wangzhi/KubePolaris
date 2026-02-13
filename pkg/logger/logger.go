@@ -21,6 +21,11 @@ const (
 
 var currentLevel LogLevel = INFO
 
+func init() {
+	// 确保在 Init() 被调用之前，日志格式也是一致的
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+
 // Init 初始化日志系统
 func Init(level string) {
 	// 设置日志级别
@@ -37,11 +42,10 @@ func Init(level string) {
 		currentLevel = INFO
 	}
 
-	// 配置 klog
+	// 配置 klog（client-go 内部使用 klog），将其输出重定向到标准输出
+	// 注意：本项目自身的日志统一走 log.Output，不再调用 klog
 	klog.InitFlags(nil)
 	klog.SetOutput(os.Stdout)
-
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	Info("日志系统初始化完成，级别: %s", level)
 }
@@ -51,7 +55,6 @@ func Debug(format string, args ...interface{}) {
 	if currentLevel <= DEBUG {
 		message := fmt.Sprintf("[DEBUG] "+format, args...)
 		_ = log.Output(2, message)
-		klog.V(4).Info(message)
 	}
 }
 
@@ -68,7 +71,6 @@ func Warn(format string, args ...interface{}) {
 	if currentLevel <= WARN {
 		message := fmt.Sprintf("[WARN] "+format, args...)
 		_ = log.Output(2, message)
-		klog.Warning(message)
 	}
 }
 
@@ -77,13 +79,12 @@ func Error(format string, args ...interface{}) {
 	if currentLevel <= ERROR {
 		message := fmt.Sprintf("[ERROR] "+format, args...)
 		_ = log.Output(2, message)
-		klog.Error(message)
 	}
 }
 
-// Fatal 致命错误日志
+// Fatal 致命错误日志（输出后退出程序）
 func Fatal(format string, args ...interface{}) {
 	message := fmt.Sprintf("[FATAL] "+format, args...)
 	_ = log.Output(2, message)
-	klog.Fatal(message)
+	os.Exit(1)
 }

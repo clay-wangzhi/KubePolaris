@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,7 +31,7 @@ func main() {
 	// 初始化数据库连接
 	db, err := database.Init(cfg.Database)
 	if err != nil {
-		log.Fatalf("数据库初始化失败: %v", err)
+		logger.Fatal("数据库初始化失败: %v", err)
 	}
 
 	// 设置 Gin 模式
@@ -53,7 +52,7 @@ func main() {
 	go func() {
 		logger.Info("服务器启动在端口: %d", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("服务器启动失败: %v", err)
+			logger.Fatal("服务器启动失败: %v", err)
 		}
 	}()
 
@@ -67,7 +66,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("服务器强制关闭:", err)
+		logger.Fatal("服务器强制关闭: %v", err)
 	}
 
 	logger.Info("服务器已退出")

@@ -580,6 +580,7 @@ func (s *PrometheusService) parseTimeRange(timeRange string) (int64, int64, erro
 }
 
 // buildClusterSelector 构建集群标签选择器
+//
 //nolint:unused // 保留用于未来使用
 func (s *PrometheusService) buildClusterSelector(labels map[string]string, clusterName string) string {
 	selectors := []string{}
@@ -679,7 +680,7 @@ func (s *PrometheusService) buildWorkloadSelector(labels map[string]string, clus
 
 // queryMetricSeries 查询指标时间序列
 func (s *PrometheusService) queryMetricSeries(ctx context.Context, config *models.MonitoringConfig, query string, start, end int64, step string) (*models.MetricSeries, error) {
-	fmt.Println("query", query)
+	logger.Debug("query: %s", query)
 	metricsQuery := &models.MetricsQuery{
 		Query: query,
 		Start: start,
@@ -736,7 +737,7 @@ func (s *PrometheusService) queryMetricSeries(ctx context.Context, config *model
 
 // queryMultiSeriesMetric 查询多时间序列指标（每个Pod一条独立曲线）
 func (s *PrometheusService) queryMultiSeriesMetric(ctx context.Context, config *models.MonitoringConfig, query string, start, end int64, step string) (*models.MultiSeriesMetric, error) {
-	fmt.Println("query multi-series", query)
+	logger.Debug("query multi-series: %s", query)
 	metricsQuery := &models.MetricsQuery{
 		Query: query,
 		Start: start,
