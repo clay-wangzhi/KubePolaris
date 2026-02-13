@@ -12,18 +12,19 @@ import {
   Typography,
 } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
 const { Text } = Typography;
 const { Panel } = Collapse;
 
-// 节点亲和性表单项
+// Node Affinity form section
 const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
+  const { t } = useTranslation('components');
   return (
-    <Card title="节点亲和 (Node Affinity)" size="small" style={{ marginBottom: 16 }}>
-      {/* 必须满足 */}
+    <Card title={t('schedulingConfig.nodeAffinity')} size="small" style={{ marginBottom: 16 }}>
       <Collapse ghost defaultActiveKey={[]}>
-        <Panel header="必须满足 (RequiredDuringScheduling)" key="required">
+        <Panel header={t('schedulingConfig.required')} key="required">
           <Form.List name={[namePrefix, 'nodeAffinityRequired']}>
             {(fields, { add, remove }) => (
               <>
@@ -33,8 +34,8 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                       <Col span={6}>
                         <Form.Item
                           name={[field.name, 'key']}
-                          label="标签键"
-                          rules={[{ required: true, message: '请输入标签键' }]}
+                          label={t('schedulingConfig.labelKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.labelKeyRequired') }]}
                         >
                           <Input placeholder="kubernetes.io/hostname" />
                         </Form.Item>
@@ -42,21 +43,21 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                       <Col span={6}>
                         <Form.Item
                           name={[field.name, 'operator']}
-                          label="操作符"
-                          rules={[{ required: true, message: '请选择操作符' }]}
+                          label={t('schedulingConfig.operator')}
+                          rules={[{ required: true, message: t('schedulingConfig.operatorRequired') }]}
                         >
-                          <Select placeholder="选择操作符">
-                            <Option value="In">In (包含)</Option>
-                            <Option value="NotIn">NotIn (不包含)</Option>
-                            <Option value="Exists">Exists (存在)</Option>
-                            <Option value="DoesNotExist">DoesNotExist (不存在)</Option>
-                            <Option value="Gt">Gt (大于)</Option>
-                            <Option value="Lt">Lt (小于)</Option>
+                          <Select placeholder={t('schedulingConfig.operatorPlaceholder')}>
+                            <Option value="In">{t('schedulingConfig.opIn')}</Option>
+                            <Option value="NotIn">{t('schedulingConfig.opNotIn')}</Option>
+                            <Option value="Exists">{t('schedulingConfig.opExists')}</Option>
+                            <Option value="DoesNotExist">{t('schedulingConfig.opDoesNotExist')}</Option>
+                            <Option value="Gt">{t('schedulingConfig.opGt')}</Option>
+                            <Option value="Lt">{t('schedulingConfig.opLt')}</Option>
                           </Select>
                         </Form.Item>
                       </Col>
                       <Col span={10}>
-                        <Form.Item name={[field.name, 'values']} label="值 (逗号分隔)">
+                        <Form.Item name={[field.name, 'values']} label={t('schedulingConfig.values')}>
                           <Input placeholder="node1, node2" />
                         </Form.Item>
                       </Col>
@@ -69,14 +70,14 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                   </Card>
                 ))}
                 <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
-                  添加条件
+                  {t('schedulingConfig.addCondition')}
                 </Button>
               </>
             )}
           </Form.List>
         </Panel>
         
-        <Panel header="尽量满足 (PreferredDuringScheduling)" key="preferred">
+        <Panel header={t('schedulingConfig.preferred')} key="preferred">
           <Form.List name={[namePrefix, 'nodeAffinityPreferred']}>
             {(fields, { add, remove }) => (
               <>
@@ -86,8 +87,8 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                       <Col span={4}>
                         <Form.Item
                           name={[field.name, 'weight']}
-                          label="权重"
-                          rules={[{ required: true, message: '请输入权重' }]}
+                          label={t('schedulingConfig.weight')}
+                          rules={[{ required: true, message: t('schedulingConfig.weightRequired') }]}
                         >
                           <InputNumber min={1} max={100} style={{ width: '100%' }} />
                         </Form.Item>
@@ -95,8 +96,8 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                       <Col span={6}>
                         <Form.Item
                           name={[field.name, 'key']}
-                          label="标签键"
-                          rules={[{ required: true, message: '请输入标签键' }]}
+                          label={t('schedulingConfig.labelKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.labelKeyRequired') }]}
                         >
                           <Input placeholder="kubernetes.io/hostname" />
                         </Form.Item>
@@ -104,10 +105,10 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                       <Col span={5}>
                         <Form.Item
                           name={[field.name, 'operator']}
-                          label="操作符"
-                          rules={[{ required: true, message: '请选择操作符' }]}
+                          label={t('schedulingConfig.operator')}
+                          rules={[{ required: true, message: t('schedulingConfig.operatorRequired') }]}
                         >
-                          <Select placeholder="选择操作符">
+                          <Select placeholder={t('schedulingConfig.operatorPlaceholder')}>
                             <Option value="In">In</Option>
                             <Option value="NotIn">NotIn</Option>
                             <Option value="Exists">Exists</Option>
@@ -118,7 +119,7 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                         </Form.Item>
                       </Col>
                       <Col span={7}>
-                        <Form.Item name={[field.name, 'values']} label="值 (逗号分隔)">
+                        <Form.Item name={[field.name, 'values']} label={t('schedulingConfig.values')}>
                           <Input placeholder="node1, node2" />
                         </Form.Item>
                       </Col>
@@ -131,7 +132,7 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
                   </Card>
                 ))}
                 <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
-                  添加条件
+                  {t('schedulingConfig.addCondition')}
                 </Button>
               </>
             )}
@@ -142,19 +143,20 @@ const NodeAffinityForm: React.FC<{ namePrefix: string }> = ({ namePrefix }) => {
   );
 };
 
-// Pod亲和性表单项
+// Pod Affinity form section
 const PodAffinityForm: React.FC<{ 
   namePrefix: string;
   title: string;
   fieldPrefix: 'podAffinity' | 'podAntiAffinity';
 }> = ({ namePrefix, title, fieldPrefix }) => {
+  const { t } = useTranslation('components');
   const requiredField = `${fieldPrefix}Required`;
   const preferredField = `${fieldPrefix}Preferred`;
   
   return (
     <Card title={title} size="small" style={{ marginBottom: 16 }}>
       <Collapse ghost defaultActiveKey={[]}>
-        <Panel header="必须满足 (RequiredDuringScheduling)" key="required">
+        <Panel header={t('schedulingConfig.required')} key="required">
           <Form.List name={[namePrefix, requiredField]}>
             {(fields, { add, remove }) => (
               <>
@@ -164,21 +166,21 @@ const PodAffinityForm: React.FC<{
                       <Col span={6}>
                         <Form.Item
                           name={[field.name, 'topologyKey']}
-                          label="拓扑域"
-                          rules={[{ required: true, message: '请选择拓扑域' }]}
+                          label={t('schedulingConfig.topologyKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.topologyRequired') }]}
                         >
-                          <Select placeholder="选择拓扑域">
-                            <Option value="kubernetes.io/hostname">节点 (hostname)</Option>
-                            <Option value="topology.kubernetes.io/zone">可用区 (zone)</Option>
-                            <Option value="topology.kubernetes.io/region">区域 (region)</Option>
+                          <Select placeholder={t('schedulingConfig.topologyPlaceholder')}>
+                            <Option value="kubernetes.io/hostname">{t('schedulingConfig.topologyHostname')}</Option>
+                            <Option value="topology.kubernetes.io/zone">{t('schedulingConfig.topologyZone')}</Option>
+                            <Option value="topology.kubernetes.io/region">{t('schedulingConfig.topologyRegion')}</Option>
                           </Select>
                         </Form.Item>
                       </Col>
                       <Col span={5}>
                         <Form.Item
                           name={[field.name, 'labelKey']}
-                          label="标签键"
-                          rules={[{ required: true, message: '请输入标签键' }]}
+                          label={t('schedulingConfig.labelKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.labelKeyRequired') }]}
                         >
                           <Input placeholder="app" />
                         </Form.Item>
@@ -186,10 +188,10 @@ const PodAffinityForm: React.FC<{
                       <Col span={5}>
                         <Form.Item
                           name={[field.name, 'operator']}
-                          label="操作符"
-                          rules={[{ required: true, message: '请选择操作符' }]}
+                          label={t('schedulingConfig.operator')}
+                          rules={[{ required: true, message: t('schedulingConfig.operatorRequired') }]}
                         >
-                          <Select placeholder="操作符">
+                          <Select placeholder={t('schedulingConfig.operatorPlaceholder')}>
                             <Option value="In">In</Option>
                             <Option value="NotIn">NotIn</Option>
                             <Option value="Exists">Exists</Option>
@@ -198,7 +200,7 @@ const PodAffinityForm: React.FC<{
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name={[field.name, 'labelValues']} label="标签值 (逗号分隔)">
+                        <Form.Item name={[field.name, 'labelValues']} label={t('schedulingConfig.labelValues')}>
                           <Input placeholder="web, api" />
                         </Form.Item>
                       </Col>
@@ -211,14 +213,14 @@ const PodAffinityForm: React.FC<{
                   </Card>
                 ))}
                 <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
-                  添加条件
+                  {t('schedulingConfig.addCondition')}
                 </Button>
               </>
             )}
           </Form.List>
         </Panel>
         
-        <Panel header="尽量满足 (PreferredDuringScheduling)" key="preferred">
+        <Panel header={t('schedulingConfig.preferred')} key="preferred">
           <Form.List name={[namePrefix, preferredField]}>
             {(fields, { add, remove }) => (
               <>
@@ -228,8 +230,8 @@ const PodAffinityForm: React.FC<{
                       <Col span={3}>
                         <Form.Item
                           name={[field.name, 'weight']}
-                          label="权重"
-                          rules={[{ required: true, message: '权重' }]}
+                          label={t('schedulingConfig.weight')}
+                          rules={[{ required: true, message: t('schedulingConfig.weightRequired') }]}
                         >
                           <InputNumber min={1} max={100} style={{ width: '100%' }} />
                         </Form.Item>
@@ -237,21 +239,21 @@ const PodAffinityForm: React.FC<{
                       <Col span={5}>
                         <Form.Item
                           name={[field.name, 'topologyKey']}
-                          label="拓扑域"
-                          rules={[{ required: true, message: '请选择' }]}
+                          label={t('schedulingConfig.topologyKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.topologyRequired') }]}
                         >
-                          <Select placeholder="拓扑域">
-                            <Option value="kubernetes.io/hostname">节点</Option>
-                            <Option value="topology.kubernetes.io/zone">可用区</Option>
-                            <Option value="topology.kubernetes.io/region">区域</Option>
+                          <Select placeholder={t('schedulingConfig.topologyPlaceholder')}>
+                            <Option value="kubernetes.io/hostname">{t('schedulingConfig.topologyHostname')}</Option>
+                            <Option value="topology.kubernetes.io/zone">{t('schedulingConfig.topologyZone')}</Option>
+                            <Option value="topology.kubernetes.io/region">{t('schedulingConfig.topologyRegion')}</Option>
                           </Select>
                         </Form.Item>
                       </Col>
                       <Col span={5}>
                         <Form.Item
                           name={[field.name, 'labelKey']}
-                          label="标签键"
-                          rules={[{ required: true, message: '标签键' }]}
+                          label={t('schedulingConfig.labelKey')}
+                          rules={[{ required: true, message: t('schedulingConfig.labelKeyRequired') }]}
                         >
                           <Input placeholder="app" />
                         </Form.Item>
@@ -259,10 +261,10 @@ const PodAffinityForm: React.FC<{
                       <Col span={4}>
                         <Form.Item
                           name={[field.name, 'operator']}
-                          label="操作符"
-                          rules={[{ required: true, message: '操作符' }]}
+                          label={t('schedulingConfig.operator')}
+                          rules={[{ required: true, message: t('schedulingConfig.operatorRequired') }]}
                         >
-                          <Select placeholder="操作符">
+                          <Select placeholder={t('schedulingConfig.operatorPlaceholder')}>
                             <Option value="In">In</Option>
                             <Option value="NotIn">NotIn</Option>
                             <Option value="Exists">Exists</Option>
@@ -271,7 +273,7 @@ const PodAffinityForm: React.FC<{
                         </Form.Item>
                       </Col>
                       <Col span={5}>
-                        <Form.Item name={[field.name, 'labelValues']} label="标签值">
+                        <Form.Item name={[field.name, 'labelValues']} label={t('schedulingConfig.labelValues')}>
                           <Input placeholder="web, api" />
                         </Form.Item>
                       </Col>
@@ -284,7 +286,7 @@ const PodAffinityForm: React.FC<{
                   </Card>
                 ))}
                 <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block>
-                  添加条件
+                  {t('schedulingConfig.addCondition')}
                 </Button>
               </>
             )}
@@ -295,30 +297,31 @@ const PodAffinityForm: React.FC<{
   );
 };
 
-// 主调度策略表单组件
+// Main scheduling config form component
 const SchedulingConfigForm: React.FC = () => {
+  const { t } = useTranslation('components');
   return (
     <>
       <Collapse defaultActiveKey={[]} ghost>
-        <Panel header="节点亲和 (Node Affinity)" key="nodeAffinity">
+        <Panel header={t('schedulingConfig.nodeAffinity')} key="nodeAffinity">
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            根据节点标签选择Pod调度的目标节点
+            {t('schedulingConfig.nodeAffinityDesc')}
           </Text>
           <NodeAffinityForm namePrefix="scheduling" />
         </Panel>
         
-        <Panel header="负载亲和 (Pod Affinity)" key="podAffinity">
+        <Panel header={t('schedulingConfig.podAffinity')} key="podAffinity">
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            将Pod调度到与指定标签的Pod在同一拓扑域的节点上
+            {t('schedulingConfig.podAffinityDesc')}
           </Text>
           <PodAffinityForm 
             namePrefix="scheduling" 
-            title="Pod亲和性" 
+            title={t('schedulingConfig.podAffinityTitle')}
             fieldPrefix="podAffinity"
           />
           <PodAffinityForm 
             namePrefix="scheduling" 
-            title="Pod反亲和性" 
+            title={t('schedulingConfig.podAntiAffinityTitle')}
             fieldPrefix="podAntiAffinity"
           />
         </Panel>
@@ -328,4 +331,3 @@ const SchedulingConfigForm: React.FC = () => {
 };
 
 export default SchedulingConfigForm;
-

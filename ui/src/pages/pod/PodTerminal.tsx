@@ -65,7 +65,7 @@ const [pod, setPod] = useState<PodInfo | null>(null);
     terminal.current.writeln(`\x1b[36mPod:\x1b[0m ${namespace}/${name}`);
     terminal.current.writeln(`\x1b[36mCluster:\x1b[0m ${clusterId}`);
     terminal.current.writeln('');
-    terminal.current.writeln('\x1b[33m请选择容器并点击"连接终端"开始...\x1b[0m');
+    terminal.current.writeln(`\x1b[33m${t('terminal.welcomeSelectContainer')}\x1b[0m`);
     terminal.current.writeln('');
   }, [namespace, name, clusterId]);
 

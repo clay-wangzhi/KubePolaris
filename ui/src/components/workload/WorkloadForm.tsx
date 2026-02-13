@@ -193,7 +193,7 @@ const WorkloadForm: React.FC<WorkloadFormProps> = ({
                 label={t('workloadForm.cronExpression')}
                 rules={[{ required: true, message: t('workloadForm.cronRequired') }]}
               >
-                <Input placeholder="例如: 0 0 * * * (每天0点执行)" />
+                <Input placeholder="0 0 * * *" />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -1006,7 +1006,7 @@ const WorkloadForm: React.FC<WorkloadFormProps> = ({
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name={['dnsConfig', 'searches']} label="搜索域 (逗号分隔)">
+                <Form.Item name={['dnsConfig', 'searches']} label={t('workloadForm.dnsSearchDomains')}>
                   <Input placeholder="ns1.svc.cluster.local, svc.cluster.local" />
                 </Form.Item>
               </Col>

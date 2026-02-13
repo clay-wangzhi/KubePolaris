@@ -211,7 +211,7 @@ const WorkloadFormModal: React.FC<WorkloadFormModalProps> = ({
               label={t('workloadForm.cronExpression')}
               rules={[{ required: true, message: t('workloadForm.cronRequired') }]}
             >
-              <Input placeholder="例如: 0 0 * * *" />
+              <Input placeholder="0 0 * * *" />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -262,7 +262,7 @@ const WorkloadFormModal: React.FC<WorkloadFormModalProps> = ({
             label={t('containerConfig.image')}
             rules={[{ required: true, message: t('containerConfig.imageRequired') }]}
           >
-            <Input placeholder="例如: nginx:latest" />
+            <Input placeholder="nginx:latest" />
           </Form.Item>
         </Col>
       </Row>
@@ -274,7 +274,7 @@ const WorkloadFormModal: React.FC<WorkloadFormModalProps> = ({
               min={1}
               max={65535}
               style={{ width: '100%' }}
-              placeholder="例如: 8080"
+              placeholder="8080"
             />
           </Form.Item>
         </Col>
@@ -321,19 +321,19 @@ const WorkloadFormModal: React.FC<WorkloadFormModalProps> = ({
         <Col span={12}>
           <h4 style={{ marginBottom: 16 }}>{t('workloadForm.requestResources')}</h4>
           <Form.Item name={['resources', 'requests', 'cpu']} label="CPU">
-            <Input placeholder="例如: 100m" />
+            <Input placeholder="100m" />
           </Form.Item>
           <Form.Item name={['resources', 'requests', 'memory']} label={t('containerConfig.memory')}>
-            <Input placeholder="例如: 128Mi" />
+            <Input placeholder="128Mi" />
           </Form.Item>
         </Col>
         <Col span={12}>
           <h4 style={{ marginBottom: 16 }}>{t('workloadForm.limitResources')}</h4>
           <Form.Item name={['resources', 'limits', 'cpu']} label="CPU">
-            <Input placeholder="例如: 500m" />
+            <Input placeholder="500m" />
           </Form.Item>
           <Form.Item name={['resources', 'limits', 'memory']} label={t('containerConfig.memory')}>
-            <Input placeholder="例如: 512Mi" />
+            <Input placeholder="512Mi" />
           </Form.Item>
         </Col>
       </Row>

@@ -380,7 +380,7 @@ const [form] = Form.useForm();
                 rules={[{ required: true, message: t('plugins:config.argocdClusterNameRequired') }]}
                 extra={t('plugins:config.argocdClusterNameExtra')}
               >
-                <Input placeholder="in-cluster 或 https://kubernetes.default.svc" />
+                <Input placeholder="in-cluster / https://kubernetes.default.svc" />
               </Form.Item>
 
               <Form.Item

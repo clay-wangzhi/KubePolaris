@@ -505,7 +505,7 @@ const [applications, setApplications] = useState<ArgoCDApplication[]>([]);
             initialValue="HEAD"
             extra={t('plugins:argocd.targetRevisionExtra')}
           >
-            <Input placeholder="HEAD, main, v1.0.0, 或 commit SHA" />
+            <Input placeholder="HEAD, main, v1.0.0, commit SHA" />
           </Form.Item>
 
           <Form.Item

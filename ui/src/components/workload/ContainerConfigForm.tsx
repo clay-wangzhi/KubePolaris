@@ -324,7 +324,7 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                         </Row>
                       ))}
                       <Button type="dashed" onClick={() => addPort()} icon={<PlusOutlined />}>
-                        添加端口
+                        {t('containerConfig.addPort')}
                       </Button>
                     </>
                   )}
@@ -334,40 +334,40 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
           },
           {
             key: 'lifecycle',
-            label: '生命周期',
+            label: t('containerConfig.lifecycle'),
             children: (
               <>
-                <Card size="small" title="启动命令" style={{ marginBottom: 16 }}>
-                  <Form.Item name={[field.name, 'command']} label="Command (覆盖ENTRYPOINT)">
+                <Card size="small" title={t('containerConfig.startupCommand')} style={{ marginBottom: 16 }}>
+                  <Form.Item name={[field.name, 'command']} label={t('containerConfig.commandLabel')}>
                     <TextArea
-                      placeholder="每行一个参数，例如：&#10;/bin/sh&#10;-c"
+                      placeholder="/bin/sh&#10;-c"
                       rows={2}
                     />
                   </Form.Item>
-                  <Form.Item name={[field.name, 'args']} label="Args (覆盖CMD)">
+                  <Form.Item name={[field.name, 'args']} label={t('containerConfig.argsLabel')}>
                     <TextArea
-                      placeholder="每行一个参数"
+                      placeholder="arg1&#10;arg2"
                       rows={2}
                     />
                   </Form.Item>
-                  <Form.Item name={[field.name, 'workingDir']} label="工作目录">
+                  <Form.Item name={[field.name, 'workingDir']} label={t('containerConfig.workingDir')}>
                     <Input placeholder="/app" />
                   </Form.Item>
                 </Card>
                 
-                <Card size="small" title="启动后操作 (postStart)" style={{ marginBottom: 16 }}>
-                  <Form.Item name={[field.name, 'lifecycle', 'postStart', 'exec', 'command']} label="执行命令">
+                <Card size="small" title={t('containerConfig.postStart')} style={{ marginBottom: 16 }}>
+                  <Form.Item name={[field.name, 'lifecycle', 'postStart', 'exec', 'command']} label={t('containerConfig.execCommand')}>
                     <TextArea
-                      placeholder="每行一个参数，例如：&#10;/bin/sh&#10;-c&#10;echo Hello"
+                      placeholder="/bin/sh&#10;-c&#10;echo Hello"
                       rows={2}
                     />
                   </Form.Item>
                 </Card>
                 
-                <Card size="small" title="停止前操作 (preStop)">
-                  <Form.Item name={[field.name, 'lifecycle', 'preStop', 'exec', 'command']} label="执行命令">
+                <Card size="small" title={t('containerConfig.preStop')}>
+                  <Form.Item name={[field.name, 'lifecycle', 'preStop', 'exec', 'command']} label={t('containerConfig.execCommand')}>
                     <TextArea
-                      placeholder="每行一个参数，例如：&#10;/bin/sh&#10;-c&#10;sleep 10"
+                      placeholder="/bin/sh&#10;-c&#10;sleep 10"
                       rows={2}
                     />
                   </Form.Item>
@@ -377,30 +377,30 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
           },
           {
             key: 'healthCheck',
-            label: '健康检查',
+            label: t('containerConfig.healthCheck'),
             children: (
               <>
                 <ProbeConfigForm
                   namePrefix={[field.name, 'startupProbe']}
                   containerType={isInitContainer ? 'initContainers' : 'containers'}
-                  label="启动探针 (Startup Probe)"
+                  label={t('containerConfig.startupProbe')}
                 />
                 <ProbeConfigForm
                   namePrefix={[field.name, 'livenessProbe']}
                   containerType={isInitContainer ? 'initContainers' : 'containers'}
-                  label="存活探针 (Liveness Probe)"
+                  label={t('containerConfig.livenessProbe')}
                 />
                 <ProbeConfigForm
                   namePrefix={[field.name, 'readinessProbe']}
                   containerType={isInitContainer ? 'initContainers' : 'containers'}
-                  label="就绪探针 (Readiness Probe)"
+                  label={t('containerConfig.readinessProbe')}
                 />
               </>
             ),
           },
           {
             key: 'env',
-            label: '环境变量',
+            label: t('containerConfig.envVars'),
             children: (
               <Form.List name={[field.name, 'env']}>
                 {(envFields, { add: addEnv, remove: removeEnv }) => (
@@ -411,19 +411,19 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                           <Col span={6}>
                             <Form.Item
                               name={[envField.name, 'name']}
-                              label="变量名"
-                              rules={[{ required: true, message: '请输入变量名' }]}
+                              label={t('containerConfig.varName')}
+                              rules={[{ required: true, message: t('containerConfig.varNameRequired') }]}
                             >
                               <Input placeholder="MY_ENV_VAR" />
                             </Form.Item>
                           </Col>
                           <Col span={6}>
-                            <Form.Item name={[envField.name, 'valueType']} label="类型" initialValue="value">
+                            <Form.Item name={[envField.name, 'valueType']} label={t('containerConfig.varType')} initialValue="value">
                               <Select style={{ width: '100%' }}>
-                                <Select.Option value="value">直接输入</Select.Option>
-                                <Select.Option value="configMapKeyRef">ConfigMap引用</Select.Option>
-                                <Select.Option value="secretKeyRef">Secret引用</Select.Option>
-                                <Select.Option value="fieldRef">Pod字段引用</Select.Option>
+                                <Select.Option value="value">{t('containerConfig.directInput')}</Select.Option>
+                                <Select.Option value="configMapKeyRef">{t('containerConfig.configMapRef')}</Select.Option>
+                                <Select.Option value="secretKeyRef">{t('containerConfig.secretRef')}</Select.Option>
+                                <Select.Option value="fieldRef">{t('containerConfig.podFieldRef')}</Select.Option>
                               </Select>
                             </Form.Item>
                           </Col>
@@ -434,8 +434,8 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                                 
                                 if (valueType === 'value') {
                                   return (
-                                    <Form.Item name={[envField.name, 'value']} label="值">
-                                      <Input placeholder="变量值" />
+                                    <Form.Item name={[envField.name, 'value']} label={t('containerConfig.valueLabel')}>
+                                      <Input />
                                     </Form.Item>
                                   );
                                 }
@@ -443,12 +443,12 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                                   return (
                                     <Row gutter={8}>
                                       <Col span={12}>
-                                        <Form.Item name={[envField.name, 'valueFrom', 'configMapKeyRef', 'name']} label="ConfigMap">
-                                          <Input placeholder="名称" />
+                                        <Form.Item name={[envField.name, 'valueFrom', 'configMapKeyRef', 'name']} label={t('containerConfig.configMapLabel')}>
+                                          <Input placeholder={t('containerConfig.nameLabel')} />
                                         </Form.Item>
                                       </Col>
                                       <Col span={12}>
-                                        <Form.Item name={[envField.name, 'valueFrom', 'configMapKeyRef', 'key']} label="Key">
+                                        <Form.Item name={[envField.name, 'valueFrom', 'configMapKeyRef', 'key']} label={t('containerConfig.keyLabel')}>
                                           <Input placeholder="Key" />
                                         </Form.Item>
                                       </Col>
@@ -459,12 +459,12 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                                   return (
                                     <Row gutter={8}>
                                       <Col span={12}>
-                                        <Form.Item name={[envField.name, 'valueFrom', 'secretKeyRef', 'name']} label="Secret">
-                                          <Input placeholder="名称" />
+                                        <Form.Item name={[envField.name, 'valueFrom', 'secretKeyRef', 'name']} label={t('containerConfig.secretLabel')}>
+                                          <Input placeholder={t('containerConfig.nameLabel')} />
                                         </Form.Item>
                                       </Col>
                                       <Col span={12}>
-                                        <Form.Item name={[envField.name, 'valueFrom', 'secretKeyRef', 'key']} label="Key">
+                                        <Form.Item name={[envField.name, 'valueFrom', 'secretKeyRef', 'key']} label={t('containerConfig.keyLabel')}>
                                           <Input placeholder="Key" />
                                         </Form.Item>
                                       </Col>
@@ -473,12 +473,12 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                                 }
                                 if (valueType === 'fieldRef') {
                                   return (
-                                    <Form.Item name={[envField.name, 'valueFrom', 'fieldRef', 'fieldPath']} label="字段">
-                                      <Select placeholder="选择字段">
-                                        <Select.Option value="metadata.name">Pod名称</Select.Option>
-                                        <Select.Option value="metadata.namespace">命名空间</Select.Option>
-                                        <Select.Option value="spec.nodeName">节点名称</Select.Option>
-                                        <Select.Option value="status.podIP">Pod IP</Select.Option>
+                                    <Form.Item name={[envField.name, 'valueFrom', 'fieldRef', 'fieldPath']} label={t('containerConfig.fieldLabel')}>
+                                      <Select placeholder={t('containerConfig.selectField')}>
+                                        <Select.Option value="metadata.name">{t('containerConfig.podName')}</Select.Option>
+                                        <Select.Option value="metadata.namespace">{t('containerConfig.namespaceName')}</Select.Option>
+                                        <Select.Option value="spec.nodeName">{t('containerConfig.nodeName')}</Select.Option>
+                                        <Select.Option value="status.podIP">{t('containerConfig.podIP')}</Select.Option>
                                       </Select>
                                     </Form.Item>
                                   );
@@ -496,7 +496,7 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                       </Card>
                     ))}
                     <Button type="dashed" onClick={() => addEnv({ valueType: 'value' })} icon={<PlusOutlined />}>
-                      添加环境变量
+                      {t('containerConfig.addEnvVar')}
                     </Button>
                   </>
                 )}
@@ -505,7 +505,7 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
           },
           {
             key: 'volumeMounts',
-            label: '数据存储',
+            label: t('containerConfig.storage'),
             children: (
               <Form.List name={[field.name, 'volumeMounts']}>
                 {(mountFields, { add: addMount, remove: removeMount }) => (
@@ -516,27 +516,27 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                           <Col span={8}>
                             <Form.Item
                               name={[mountField.name, 'name']}
-                              label="数据卷名称"
-                              rules={[{ required: true, message: '请选择数据卷' }]}
+                              label={t('containerConfig.volumeName')}
+                              rules={[{ required: true, message: t('containerConfig.volumeRequired') }]}
                             >
-                              <Input placeholder="选择或输入数据卷名称" />
+                              <Input placeholder={t('containerConfig.volumePlaceholder')} />
                             </Form.Item>
                           </Col>
                           <Col span={8}>
                             <Form.Item
                               name={[mountField.name, 'mountPath']}
-                              label="挂载路径"
-                              rules={[{ required: true, message: '请输入挂载路径' }]}
+                              label={t('containerConfig.mountPath')}
+                              rules={[{ required: true, message: t('containerConfig.mountPathRequired') }]}
                             >
-                              <Input placeholder="例如: /data" />
+                              <Input placeholder="/data" />
                             </Form.Item>
                           </Col>
                           <Col span={6}>
                             <Form.Item
                               name={[mountField.name, 'subPath']}
-                              label="子路径 (可选)"
+                              label={t('containerConfig.subPath')}
                             >
-                              <Input placeholder="卷内子目录" />
+                              <Input />
                             </Form.Item>
                           </Col>
                           <Col span={2}>
@@ -548,14 +548,14 @@ const ContainerConfigForm: React.FC<ContainerConfigFormProps> = ({
                         <Row gutter={16}>
                           <Col span={8}>
                             <Form.Item name={[mountField.name, 'readOnly']} valuePropName="checked">
-                              <Switch checkedChildren="只读" unCheckedChildren="读写" />
+                              <Switch checkedChildren={t('containerConfig.readOnly')} unCheckedChildren={t('containerConfig.readWrite')} />
                             </Form.Item>
                           </Col>
                         </Row>
                       </Card>
                     ))}
                     <Button type="dashed" onClick={() => addMount()} icon={<PlusOutlined />}>
-                      添加挂载
+                      {t('containerConfig.addMount')}
                     </Button>
                   </>
                 )}

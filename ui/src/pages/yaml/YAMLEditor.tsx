@@ -144,7 +144,7 @@ const { clusterId } = useParams<{ clusterId: string }>();
           setDiffModalVisible(false);
         }
       } else {
-        const errorMsg = response.message || `YAML${isDryRun ? '验证' : '应用'}失败`;
+        const errorMsg = response.message || t('messages.yamlFailed', { action: isDryRun ? t('messages.validateFailed') : t('messages.applyFailed') });
         if (isDryRun) {
           setDryRunResult({
             success: false,
@@ -154,8 +154,8 @@ const { clusterId } = useParams<{ clusterId: string }>();
         message.error(errorMsg);
       }
     } catch (error) {
-      console.error(`YAML${isDryRun ? '验证' : '应用'}失败:`, error);
-      const errorMsg = `YAML${isDryRun ? '验证' : '应用'}失败`;
+      console.error(`YAML ${isDryRun ? 'validate' : 'apply'} failed:`, error);
+      const errorMsg = t('messages.yamlFailed', { action: isDryRun ? t('messages.validateFailed') : t('messages.applyFailed') });
       if (isDryRun) {
         setDryRunResult({
           success: false,

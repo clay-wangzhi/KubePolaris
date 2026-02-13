@@ -292,7 +292,7 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
     } catch (err) {
       setDryRunResult({
         success: false,
-        message: 'YAML 格式错误: ' + (err instanceof Error ? err.message : '未知错误'),
+        message: t('workload:create.yamlFormatError') + ': ' + (err instanceof Error ? err.message : t('common:unknown')),
       });
       return;
     }

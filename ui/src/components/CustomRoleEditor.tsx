@@ -214,7 +214,7 @@ ${rules.map(rule => `  - apiGroups: [${rule.apiGroups.map(g => `"${g}"`).join(',
                       { pattern: /^[a-z0-9][a-z0-9-]*[a-z0-9]$/, message: t('customRoleEditor.namePattern') },
                     ]}
                   >
-                    <Input placeholder="例如: custom-developer-role" />
+                    <Input placeholder="custom-developer-role" />
                   </Form.Item>
                 </Form>
 

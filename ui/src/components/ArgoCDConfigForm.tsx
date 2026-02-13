@@ -375,7 +375,7 @@ const ArgoCDConfigForm: React.FC<ArgoCDConfigFormProps> = ({
                 rules={[{ required: true, message: t('argoCDConfig.argoClusterNameRequired') }]}
                 extra={t('argoCDConfig.argoClusterNameExtra')}
               >
-                <Input placeholder="in-cluster 或 https://kubernetes.default.svc" />
+                <Input placeholder="in-cluster / https://kubernetes.default.svc" />
               </Form.Item>
 
               <Form.Item
