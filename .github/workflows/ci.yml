@@ -74,11 +74,12 @@ jobs:
 
       - name: Run tests with coverage
         env:
+          DB_DRIVER: mysql
           DB_HOST: localhost
           DB_PORT: 3306
-          DB_USER: root
+          DB_USERNAME: root
           DB_PASSWORD: testpassword
-          DB_NAME: kubepolaris_test
+          DB_DATABASE: kubepolaris_test
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
@@ -93,10 +94,16 @@ jobs:
   backend-build:
     name: Backend Build
     runs-on: ubuntu-latest
-    needs: backend-test
+    needs: [backend-test, frontend-build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: ui/dist
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -185,8 +192,7 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage || echo "No tests configured yet"
-        continue-on-error: true
+        run: npm run test:coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -195,7 +201,6 @@ jobs:
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
-        continue-on-error: true
 
   frontend-build:
     name: Frontend Build
@@ -255,7 +260,7 @@ jobs:
     name: Integration Test
     runs-on: ubuntu-latest
     needs: [backend-build, frontend-build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('internal/integration/**/*.go') != ''
     services:
       mysql:
         image: mysql:8.0
@@ -281,15 +286,15 @@ jobs:
 
       - name: Run integration tests
         env:
+          DB_DRIVER: mysql
           DB_HOST: localhost
           DB_PORT: 3306
-          DB_USER: root
+          DB_USERNAME: root
           DB_PASSWORD: testpassword
-          DB_NAME: kubepolaris_integration
+          DB_DATABASE: kubepolaris_integration
           INTEGRATION_TEST: true
         run: |
-          go test -v -tags=integration ./internal/integration/... || echo "No integration tests yet"
-        continue-on-error: true
+          go test -v -tags=integration ./internal/integration/...
 
   # ==================== 通知 ====================
   notify:

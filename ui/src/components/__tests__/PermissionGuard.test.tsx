@@ -1,32 +1,51 @@
-/**
- * PermissionGuard 组件测试
- */
-
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import PermissionGuard from '../PermissionGuard'
+import { usePermission } from '../../hooks/usePermission'
+import { tokenManager } from '../../services/authService'
 
-// Wrapper component for tests
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}))
+
+vi.mock('../../hooks/usePermission', () => ({
+  usePermission: vi.fn(),
+}))
+
+vi.mock('../../services/authService', async () => {
+  const actual = await vi.importActual('../../services/authService')
+  return {
+    ...actual,
+    tokenManager: {
+      getUser: vi.fn(),
+    },
+  }
+})
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
 )
 
-// Mock PermissionContext
-const mockUsePermission = vi.fn()
-
-vi.mock('../../contexts/PermissionContext', () => ({
-  usePermission: () => mockUsePermission(),
-}))
-
 describe('PermissionGuard', () => {
-  it('should render children when user has permission', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: () => true,
-      isAdmin: true,
-      currentClusterPermission: { permission_type: 'admin' },
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(tokenManager.getUser).mockReturnValue({ username: 'demo' } as never)
+    vi.mocked(usePermission).mockReturnValue({
+      currentClusterPermission: { permission_type: 'readonly' },
+      clusterPermissions: new Map(),
       loading: false,
-    })
+    } as ReturnType<typeof usePermission>)
+  })
+
+  it('should render children when user has permission', () => {
+    vi.mocked(usePermission).mockReturnValue({
+      currentClusterPermission: { permission_type: 'admin' },
+      clusterPermissions: new Map(),
+      loading: false,
+    } as ReturnType<typeof usePermission>)
 
     render(
       <TestWrapper>
@@ -37,17 +56,9 @@ describe('PermissionGuard', () => {
     )
 
     expect(screen.getByTestId('protected-content')).toBeInTheDocument()
-    expect(screen.getByText('Protected Content')).toBeInTheDocument()
   })
 
   it('should not render children when user lacks permission', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: () => false,
-      isAdmin: false,
-      currentClusterPermission: { permission_type: 'readonly' },
-      loading: false,
-    })
-
     render(
       <TestWrapper>
         <PermissionGuard requiredPermission="admin">
@@ -60,13 +71,6 @@ describe('PermissionGuard', () => {
   })
 
   it('should render fallback when provided and user lacks permission', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: () => false,
-      isAdmin: false,
-      currentClusterPermission: { permission_type: 'readonly' },
-      loading: false,
-    })
-
     render(
       <TestWrapper>
         <PermissionGuard
@@ -80,23 +84,14 @@ describe('PermissionGuard', () => {
 
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
     expect(screen.getByTestId('fallback')).toBeInTheDocument()
-    expect(screen.getByText('No Permission')).toBeInTheDocument()
   })
 
   it('should always render for admin users', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: (permission: string) => {
-        // 模拟管理员权限检查
-        return permission === 'admin'
-      },
-      isAdmin: true,
-      currentClusterPermission: { permission_type: 'admin' },
-      loading: false,
-    })
+    vi.mocked(tokenManager.getUser).mockReturnValue({ username: 'admin' } as never)
 
     render(
       <TestWrapper>
-        <PermissionGuard requiredPermission="admin">
+        <PermissionGuard platformAdminOnly>
           <div data-testid="admin-content">Admin Only Content</div>
         </PermissionGuard>
       </TestWrapper>
@@ -106,14 +101,11 @@ describe('PermissionGuard', () => {
   })
 
   it('should handle multiple permissions', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: (permission: string) => {
-        return ['readonly', 'dev'].includes(permission)
-      },
-      isAdmin: false,
+    vi.mocked(usePermission).mockReturnValue({
       currentClusterPermission: { permission_type: 'dev' },
+      clusterPermissions: new Map(),
       loading: false,
-    })
+    } as ReturnType<typeof usePermission>)
 
     render(
       <TestWrapper>
@@ -127,13 +119,6 @@ describe('PermissionGuard', () => {
   })
 
   it('should render nothing by default when no fallback and no permission', () => {
-    mockUsePermission.mockReturnValue({
-      hasPermission: () => false,
-      isAdmin: false,
-      currentClusterPermission: { permission_type: 'readonly' },
-      loading: false,
-    })
-
     render(
       <TestWrapper>
         <PermissionGuard requiredPermission="ops">
@@ -142,7 +127,6 @@ describe('PermissionGuard', () => {
       </TestWrapper>
     )
 
-    // Container may have wrapper elements, check inner content is empty
     expect(screen.queryByText('Secret Content')).not.toBeInTheDocument()
   })
 })

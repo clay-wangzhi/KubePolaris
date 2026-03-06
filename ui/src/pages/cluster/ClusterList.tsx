@@ -275,7 +275,6 @@ const ClusterList: React.FC = () => {
 
   // 统计数据
   const unhealthyClusters = clusters.filter(c => c.status === 'unhealthy').length;
-  const readyNodes = clusters.reduce((sum, c) => sum + c.readyNodes, 0);
 
   return (
     <div>

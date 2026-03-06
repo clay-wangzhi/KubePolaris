@@ -1,14 +1,22 @@
-/**
- * SearchDropdown 组件测试
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import SearchDropdown from '../SearchDropdown'
+import { searchService } from '../../services/searchService'
 
-// Wrapper component for tests
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}))
+
+vi.mock('../../services/searchService', () => ({
+  searchService: {
+    quickSearch: vi.fn(),
+  },
+}))
+
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
 )
@@ -16,6 +24,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 describe('SearchDropdown', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(searchService.quickSearch).mockResolvedValue([])
   })
 
   it('should render search input', () => {
@@ -25,11 +34,10 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
-    expect(searchInput).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('searchDropdown.placeholder')).toBeInTheDocument()
   })
 
-  it('should show dropdown on focus', async () => {
+  it('should focus the search input when clicked', async () => {
     const user = userEvent.setup()
 
     render(
@@ -38,14 +46,10 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
+    const searchInput = screen.getByPlaceholderText('searchDropdown.placeholder')
     await user.click(searchInput)
 
-    // 下拉菜单应该显示
-    await waitFor(() => {
-      // 检查是否有下拉内容
-      expect(searchInput).toHaveFocus()
-    })
+    expect(searchInput).toHaveFocus()
   })
 
   it('should update input value on type', async () => {
@@ -57,7 +61,7 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
+    const searchInput = screen.getByPlaceholderText('searchDropdown.placeholder')
     await user.type(searchInput, 'test-pod')
 
     expect(searchInput).toHaveValue('test-pod')
@@ -72,20 +76,18 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
+    const searchInput = screen.getByPlaceholderText('searchDropdown.placeholder')
     await user.type(searchInput, 'test')
-
     expect(searchInput).toHaveValue('test')
 
-    // 找到清除按钮并点击
-    const clearButton = screen.queryByRole('button', { name: /close/i })
+    const clearButton = screen.queryByRole('button', { name: /close-circle/i })
     if (clearButton) {
       await user.click(clearButton)
       expect(searchInput).toHaveValue('')
     }
   })
 
-  it('should handle keyboard navigation', async () => {
+  it('should keep input mounted after escape key press', async () => {
     const user = userEvent.setup()
 
     render(
@@ -94,20 +96,27 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
+    const searchInput = screen.getByPlaceholderText('searchDropdown.placeholder')
     await user.click(searchInput)
     await user.type(searchInput, 'test')
-
-    // 测试 Escape 键
     await user.keyboard('{Escape}')
 
-    // 输入框应该仍然存在
     expect(searchInput).toBeInTheDocument()
   })
 
-  it('should debounce search input', async () => {
-    const user = userEvent.setup()
-    vi.useFakeTimers()
+  it('should debounce search input before calling quick search', async () => {
+    vi.mocked(searchService.quickSearch).mockResolvedValue([
+      {
+        id: '1',
+        name: 'test-pod',
+        type: 'pod',
+        clusterId: '1',
+        clusterName: 'demo',
+        namespace: 'default',
+        status: 'Running',
+        description: 'node-1',
+      },
+    ])
 
     render(
       <TestWrapper>
@@ -115,15 +124,14 @@ describe('SearchDropdown', () => {
       </TestWrapper>
     )
 
-    const searchInput = screen.getByPlaceholderText(/搜索/i)
-    
-    // 快速输入
-    await user.type(searchInput, 'test')
+    const searchInput = screen.getByPlaceholderText('searchDropdown.placeholder')
+    fireEvent.change(searchInput, { target: { value: 'test' } })
 
-    // 验证输入已更新
-    expect(searchInput).toHaveValue('test')
+    expect(searchService.quickSearch).not.toHaveBeenCalled()
 
-    vi.useRealTimers()
+    await waitFor(() => {
+      expect(searchService.quickSearch).toHaveBeenCalledWith('test')
+    }, { timeout: 1000 })
   })
 })
 

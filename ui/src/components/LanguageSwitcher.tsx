@@ -6,7 +6,7 @@ import type { MenuProps } from 'antd';
 import { supportedLanguages } from '../i18n';
 
 const LanguageSwitcher: React.FC = () => {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
 
   const handleLanguageChange: MenuProps['onClick'] = ({ key }) => {
     i18n.changeLanguage(key);

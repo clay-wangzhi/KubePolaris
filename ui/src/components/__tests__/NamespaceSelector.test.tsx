@@ -1,34 +1,57 @@
-/**
- * NamespaceSelector 组件测试
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NamespaceSelector from '../NamespaceSelector'
-import { PermissionProvider } from '../../contexts/PermissionContext.tsx'
-import { namespaceService } from '../../services/namespaceService'
+import { namespaceService, type NamespaceData } from '../../services/namespaceService'
+import { usePermission } from '../../hooks/usePermission'
+import type { PermissionContextType } from '../../contexts/PermissionContext'
 
-// Mock namespaceService
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}))
+
 vi.mock('../../services/namespaceService', () => ({
   namespaceService: {
     getNamespaces: vi.fn(),
   },
 }))
 
-// Mock PermissionContext
-vi.mock('../../contexts/PermissionContext', () => ({
-  usePermission: () => ({
-    filterNamespaces: (namespaces: string[]) => namespaces,
-    hasAllNamespaceAccess: () => true,
-    getAllowedNamespaces: () => [],
-  }),
-  PermissionProvider: ({ children }: { children: React.ReactNode }) => children,
+vi.mock('../../hooks/usePermission', () => ({
+  usePermission: vi.fn(),
 }))
+
+const createPermissionMock = (): PermissionContextType => ({
+  clusterPermissions: new Map(),
+  currentClusterPermission: null,
+  loading: false,
+  hasClusterAccess: () => true,
+  hasNamespaceAccess: () => true,
+  canPerformAction: () => true,
+  isAdmin: () => true,
+  isReadonly: () => false,
+  canWrite: () => true,
+  getPermissionType: () => 'admin',
+  refreshPermissions: vi.fn().mockResolvedValue(undefined),
+  setCurrentClusterId: vi.fn(),
+  getAllowedNamespaces: () => [],
+  hasAllNamespaceAccess: () => true,
+  filterNamespaces: (namespaces: string[]) => namespaces,
+})
+
+const createNamespace = (name: string): NamespaceData => ({
+  name,
+  status: 'Active',
+  labels: {},
+  annotations: {},
+  creationTimestamp: '2024-01-01T00:00:00Z',
+})
 
 describe('NamespaceSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(usePermission).mockReturnValue(createPermissionMock())
   })
 
   it('should render with placeholder', () => {
@@ -38,34 +61,23 @@ describe('NamespaceSelector', () => {
       message: 'success',
     })
 
-    render(
-      <PermissionProvider>
-        <NamespaceSelector clusterId="1" placeholder="选择命名空间" />
-      </PermissionProvider>
-    )
+    render(<NamespaceSelector clusterId="1" placeholder="选择命名空间" />)
 
-    // 检查 Select 组件是否渲染
     expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
 
   it('should load namespaces on mount', async () => {
-    const mockNamespaces = [
-      { name: 'default', status: 'Active', labels: {}, annotations: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
-      { name: 'kube-system', status: 'Active', labels: {}, annotations: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
-      { name: 'production', status: 'Active', labels: {}, annotations: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
-    ]
-
     vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
       code: 200,
-      data: mockNamespaces,
+      data: [
+        createNamespace('default'),
+        createNamespace('kube-system'),
+        createNamespace('production'),
+      ],
       message: 'success',
     })
 
-    render(
-      <PermissionProvider>
-        <NamespaceSelector clusterId="1" />
-      </PermissionProvider>
-    )
+    render(<NamespaceSelector clusterId="1" />)
 
     await waitFor(() => {
       expect(namespaceService.getNamespaces).toHaveBeenCalledWith('1')
@@ -79,14 +91,9 @@ describe('NamespaceSelector', () => {
       message: 'success',
     })
 
-    render(
-      <PermissionProvider>
-        <NamespaceSelector clusterId="1" disabled={true} />
-      </PermissionProvider>
-    )
+    render(<NamespaceSelector clusterId="1" disabled />)
 
-    const select = screen.getByRole('combobox')
-    expect(select).toHaveClass('ant-select-disabled')
+    expect(screen.getByRole('combobox').closest('.ant-select')).toHaveClass('ant-select-disabled')
   })
 
   it('should call onChange when selection changes', async () => {
@@ -96,64 +103,38 @@ describe('NamespaceSelector', () => {
     vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
       code: 200,
       data: [
-        { name: 'default', status: 'Active', labels: {}, annotations: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
-        { name: 'production', status: 'Active', labels: {}, annotations: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
+        createNamespace('default'),
+        createNamespace('production'),
       ],
       message: 'success',
     })
 
-    render(
-      <PermissionProvider>
-        <NamespaceSelector
-          clusterId="1"
-          onChange={handleChange}
-          allowAll={true}
-        />
-      </PermissionProvider>
-    )
+    render(<NamespaceSelector clusterId="1" onChange={handleChange} allowAll />)
 
-    // 等待命名空间加载
     await waitFor(() => {
-      expect(namespaceService.getNamespaces).toHaveBeenCalled()
+      expect(namespaceService.getNamespaces).toHaveBeenCalledWith('1')
     })
 
-    // 点击选择器
-    const select = screen.getByRole('combobox')
-    await user.click(select)
+    await user.click(screen.getByRole('combobox'))
+    await user.click(await screen.findByTitle('default'))
 
-    // 选择一个选项（如果下拉列表渲染）
-    const option = screen.queryByText('default')
-    if (option) {
-      await user.click(option)
-      expect(handleChange).toHaveBeenCalled()
-    }
+    expect(handleChange).toHaveBeenCalledWith('default', expect.anything())
   })
 
   it('should handle API error gracefully', async () => {
-    vi.mocked(namespaceService.getNamespaces).mockRejectedValue(
-      new Error('Network error')
-    )
+    vi.mocked(namespaceService.getNamespaces).mockRejectedValue(new Error('Network error'))
 
-    // 应该不抛出错误
     expect(() => {
-      render(
-        <PermissionProvider>
-          <NamespaceSelector clusterId="1" />
-        </PermissionProvider>
-      )
+      render(<NamespaceSelector clusterId="1" />)
     }).not.toThrow()
 
     await waitFor(() => {
-      expect(namespaceService.getNamespaces).toHaveBeenCalled()
+      expect(namespaceService.getNamespaces).toHaveBeenCalledWith('1')
     })
   })
 
   it('should not fetch namespaces when clusterId is empty', () => {
-    render(
-      <PermissionProvider>
-        <NamespaceSelector clusterId="" />
-      </PermissionProvider>
-    )
+    render(<NamespaceSelector clusterId="" />)
 
     expect(namespaceService.getNamespaces).not.toHaveBeenCalled()
   })

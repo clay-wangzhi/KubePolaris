@@ -23,13 +23,11 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useTranslation } from 'react-i18next';
 import userService from '../../services/userService';
 import type { User, CreateUserRequest, UpdateUserRequest } from '../../types';
 
 const UserManagement: React.FC = () => {
   const { message, modal } = App.useApp();
-  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [resetForm] = Form.useForm();
 
