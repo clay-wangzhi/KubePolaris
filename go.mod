@@ -6,7 +6,7 @@ toolchain go1.24.6
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/argoproj/argo-rollouts v1.7.1
+	github.com/argoproj/argo-rollouts v1.8.4
 	github.com/gin-contrib/gzip v1.2.5
 	github.com/gin-gonic/gin v1.11.0
 	github.com/glebarez/sqlite v1.11.0
