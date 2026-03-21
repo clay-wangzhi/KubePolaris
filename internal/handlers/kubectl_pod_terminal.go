@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -97,6 +99,25 @@ func (h *KubectlPodTerminalHandler) HandleKubectlPodTerminal(c *gin.Context) {
 
 	logger.Info("用户kubectl终端权限", "userID", userID, "permissionType", permissionType, "namespaces", namespaces, "serviceAccount", serviceAccount)
 
+	targetNS := strings.TrimSpace(c.DefaultQuery("namespace", "default"))
+	if targetNS == "" {
+		targetNS = "default"
+	}
+	if errs := validation.IsDNS1123Subdomain(targetNS); len(errs) > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的命名空间: " + strings.Join(errs, "; ")})
+		return
+	}
+	var clusterPerm *models.ClusterPermission
+	if perm, exists := c.Get("cluster_permission"); exists {
+		if cp, ok := perm.(*models.ClusterPermission); ok {
+			clusterPerm = cp
+		}
+	}
+	if clusterPerm != nil && !services.HasNamespaceAccess(clusterPerm, targetNS) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该命名空间"})
+		return
+	}
+
 	// 获取集群信息
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
@@ -112,59 +133,122 @@ func (h *KubectlPodTerminalHandler) HandleKubectlPodTerminal(c *gin.Context) {
 	}
 	client := k8sClient.GetClientset()
 
-	// 创建或获取 kubectl Pod，使用对应权限的 ServiceAccount
-	// Pod 名称包含权限类型，确保不同权限使用不同的 Pod
 	podName := fmt.Sprintf("%s%d-%s", kubectlPodPrefix, userID, permissionType)
-	if err := h.ensureKubectlPod(client, podName, userID, serviceAccount, permissionType); err != nil {
+	sessionKey := fmt.Sprintf("%s-%s", clusterIDStr, podName)
+
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		logger.Error("kubectl终端升级WebSocket失败", "error", err)
+		return
+	}
+
+	var sessionCountAdded bool
+	defer func() {
+		if sessionCountAdded {
+			h.sessionsMutex.Lock()
+			h.activeSessions[sessionKey]--
+			if h.activeSessions[sessionKey] <= 0 {
+				delete(h.activeSessions, sessionKey)
+			}
+			h.sessionsMutex.Unlock()
+		}
+		_ = conn.Close()
+	}()
+
+	h.sendKubectlPrep(conn, "正在准备 kubectl 终端 Pod，请稍候…")
+
+	beforeCreate := func() {
+		h.sendKubectlPrep(conn, "正在集群中创建 kubectl 终端 Pod（首次连接可能需要拉取镜像，耗时取决于网络）…")
+	}
+	if err := h.ensureKubectlPod(client, podName, userID, serviceAccount, permissionType, beforeCreate); err != nil {
 		logger.Error("创建kubectl Pod失败", "error", err, "podName", podName)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建kubectl Pod失败: %v", err)})
+		h.sendTerminalJSON(conn, "error", fmt.Sprintf("创建 kubectl Pod 失败: %v", err))
 		return
 	}
 
-	// 等待 Pod Running
-	if err := h.waitForPodRunning(client, podName); err != nil {
-		logger.Error("等待Pod运行超时", "error", err, "podName", podName)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Pod启动超时"})
+	if err := h.waitForPodRunningWithProgress(client, podName, conn); err != nil {
+		logger.Error("等待Pod运行失败", "error", err, "podName", podName)
+		h.sendTerminalJSON(conn, "error", fmt.Sprintf("等待 Pod 就绪失败: %v", err))
 		return
 	}
 
-	// 更新活动时间
 	h.updateLastActivity(client, podName)
 
-	// 记录活跃会话
-	sessionKey := fmt.Sprintf("%s-%s", clusterIDStr, podName)
 	h.sessionsMutex.Lock()
 	h.activeSessions[sessionKey]++
 	h.sessionsMutex.Unlock()
-
-	defer func() {
-		h.sessionsMutex.Lock()
-		h.activeSessions[sessionKey]--
-		if h.activeSessions[sessionKey] <= 0 {
-			delete(h.activeSessions, sessionKey)
-		}
-		h.sessionsMutex.Unlock()
-	}()
+	sessionCountAdded = true
 
 	logger.Info("kubectl Pod终端连接", "cluster", cluster.Name, "pod", podName, "user", userID)
 
-	// 修改请求参数，复用 PodTerminalHandler
-	c.Params = []gin.Param{
-		{Key: "clusterID", Value: clusterIDStr},
-		{Key: "namespace", Value: kubectlPodNamespace},
-		{Key: "name", Value: podName},
-	}
-	c.Request.URL.RawQuery = "container=kubectl"
-
-	// 设置终端类型为 kubectl（用于审计记录）
-	c.Set("terminal_type", "kubectl")
-
-	// 复用 Pod Terminal 处理逻辑
-	h.podTerminal.HandlePodTerminal(c)
+	h.podTerminal.RunPodTerminalWithConn(
+		conn,
+		cluster,
+		clusterIDStr,
+		kubectlPodNamespace,
+		podName,
+		"kubectl",
+		userID,
+		services.TerminalTypeKubectl,
+		clusterPerm,
+		targetNS,
+	)
 }
 
-// ensureKubectlPod 确保 kubectl Pod 存在
-func (h *KubectlPodTerminalHandler) ensureKubectlPod(client *kubernetes.Clientset, podName string, userID uint, serviceAccount string, permissionType string) error {
+func (h *KubectlPodTerminalHandler) sendKubectlPrep(conn *websocket.Conn, text string) {
+	_ = conn.WriteJSON(PodTerminalMessage{Type: "kubectl_prep", Data: text})
+}
+
+func (h *KubectlPodTerminalHandler) sendTerminalJSON(conn *websocket.Conn, msgType, data string) {
+	_ = conn.WriteJSON(PodTerminalMessage{Type: msgType, Data: data})
+}
+
+func describeKubectlPodProgress(pod *corev1.Pod) string {
+	var parts []string
+	if pod.Status.Phase != "" {
+		parts = append(parts, fmt.Sprintf("Pod 阶段：%s", pod.Status.Phase))
+	}
+	for _, ics := range pod.Status.InitContainerStatuses {
+		if ics.State.Waiting != nil {
+			w := ics.State.Waiting
+			s := fmt.Sprintf("初始化容器 %s：%s", ics.Name, w.Reason)
+			if w.Message != "" {
+				s += " — " + strings.TrimSpace(w.Message)
+			}
+			parts = append(parts, s)
+		}
+	}
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil {
+			w := cs.State.Waiting
+			s := fmt.Sprintf("容器 %s：%s", cs.Name, w.Reason)
+			if w.Message != "" {
+				s += " — " + strings.TrimSpace(w.Message)
+			}
+			parts = append(parts, s)
+		} else if cs.State.Running != nil {
+			parts = append(parts, fmt.Sprintf("容器 %s：已启动", cs.Name))
+		}
+	}
+	if pod.Status.Reason != "" {
+		parts = append(parts, fmt.Sprintf("状态说明：%s", pod.Status.Reason))
+	}
+	for _, cond := range pod.Status.Conditions {
+		if cond.Status == corev1.ConditionFalse && cond.Message != "" {
+			parts = append(parts, fmt.Sprintf("%s：%s", cond.Type, cond.Message))
+		}
+	}
+	if len(parts) == 0 {
+		if pod.Status.Phase != "" {
+			return fmt.Sprintf("Pod 阶段：%s（详情尚未上报）", pod.Status.Phase)
+		}
+		return "等待 Pod 状态上报…"
+	}
+	return strings.Join(parts, " | ")
+}
+
+// ensureKubectlPod 确保 kubectl Pod 存在；即将在集群中新建 Pod 时会调用 beforeCreate（用于向前端推送提示）
+func (h *KubectlPodTerminalHandler) ensureKubectlPod(client *kubernetes.Clientset, podName string, userID uint, serviceAccount string, permissionType string, beforeCreate func()) error {
 	ctx := context.Background()
 
 	// 检查 Pod 是否已存在
@@ -231,15 +315,19 @@ func (h *KubectlPodTerminalHandler) ensureKubectlPod(client *kubernetes.Clientse
 		},
 	}
 
+	if beforeCreate != nil {
+		beforeCreate()
+	}
 	_, err = client.CoreV1().Pods(kubectlPodNamespace).Create(ctx, pod, metav1.CreateOptions{})
 	return err
 }
 
-// waitForPodRunning 等待 Pod 运行
-func (h *KubectlPodTerminalHandler) waitForPodRunning(client *kubernetes.Clientset, podName string) error {
+// waitForPodRunningWithProgress 等待 Pod 进入 Running，并通过 WebSocket 推送与上次不同的进度摘要（含镜像拉取、容器 Waiting 原因等）
+func (h *KubectlPodTerminalHandler) waitForPodRunningWithProgress(client *kubernetes.Clientset, podName string, conn *websocket.Conn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
+	lastSent := ""
 	for {
 		pod, err := client.CoreV1().Pods(kubectlPodNamespace).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
@@ -254,11 +342,16 @@ func (h *KubectlPodTerminalHandler) waitForPodRunning(client *kubernetes.Clients
 			return fmt.Errorf("pod启动失败: %s", pod.Status.Message)
 		}
 
+		desc := describeKubectlPodProgress(pod)
+		if desc != "" && desc != lastSent {
+			lastSent = desc
+			h.sendKubectlPrep(conn, desc)
+		}
+
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("等待Pod运行超时")
 		case <-time.After(1 * time.Second):
-			continue
 		}
 	}
 }

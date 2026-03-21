@@ -12,6 +12,7 @@ import {
   ClearOutlined,
   FullscreenOutlined,
 } from '@ant-design/icons';
+import { buildWebSocketUrl } from '../utils/wsUrl';
 
 interface KubectlTerminalProps {
   clusterId: string;
@@ -164,9 +165,10 @@ const KubectlTerminal: React.FC<KubectlTerminalProps> = ({
     }
     
     setConnecting(true);
+    terminal.current?.clear();
+    terminal.current?.write(`\x1b[33m${t('kubectlTerminal.preparing')}\x1b[0m`);
     
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.hostname}:8080/ws/clusters/${clusterId}/kubectl`;
+    const wsUrl = buildWebSocketUrl(`/ws/clusters/${clusterId}/kubectl`);
     const params = new URLSearchParams({
       token: token,
     });
@@ -177,17 +179,35 @@ const KubectlTerminal: React.FC<KubectlTerminalProps> = ({
       websocket.current = new WebSocket(`${wsUrl}?${params}`);
 
       websocket.current.onopen = () => {
-        setConnected(true);
-        connectedRef.current = true;
-        setConnecting(false);
-        terminal.current?.clear();
-        message.success(t('kubectlTerminal.connectSuccess'));
+        // 等待服务端 type=connected（Pod/shell 就绪）
       };
 
       websocket.current.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data);
-          handleWebSocketMessage(message);
+          const msg = JSON.parse(event.data) as WebSocketMessage;
+          if (msg.type === 'connected') {
+            setConnected(true);
+            connectedRef.current = true;
+            setConnecting(false);
+            terminal.current?.clear();
+            message.success(t('kubectlTerminal.connectSuccess'));
+            if (fitAddon.current && terminal.current) {
+              const dimensions = fitAddon.current.proposeDimensions();
+              if (dimensions && websocket.current?.readyState === WebSocket.OPEN) {
+                websocket.current.send(JSON.stringify({
+                  type: 'resize',
+                  cols: dimensions.cols,
+                  rows: dimensions.rows,
+                }));
+              }
+            }
+            return;
+          }
+          if (msg.type === 'kubectl_prep' && terminal.current) {
+            terminal.current.write(`\r\x1b[2K\x1b[33m${msg.data}\x1b[0m`);
+            return;
+          }
+          handleWebSocketMessage(msg);
         } catch {
           terminal.current?.write(event.data);
         }
@@ -302,6 +322,9 @@ const KubectlTerminal: React.FC<KubectlTerminalProps> = ({
     if (!terminal.current) return;
 
     switch (message.type) {
+      case 'data':
+        terminal.current.write(message.data);
+        break;
       case 'output': {
         const outputText = message.data;
         if (outputText.includes('\n')) {
@@ -319,6 +342,7 @@ const KubectlTerminal: React.FC<KubectlTerminalProps> = ({
         break;
       }
       case 'error':
+        setConnecting(false);
         terminal.current.writeln(`\r\n\x1b[31m${message.data}\x1b[0m`);
         break;
       case 'command_result':

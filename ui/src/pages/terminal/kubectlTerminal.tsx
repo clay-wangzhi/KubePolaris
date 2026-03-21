@@ -23,6 +23,7 @@ import { WebLinksAddon } from 'xterm-addon-web-links';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { namespaceService } from '../../services/namespaceService';
+import { buildWebSocketUrl } from '../../utils/wsUrl';
 import { useTranslation } from 'react-i18next';
 
 const { Title, Text } = Typography;
@@ -254,14 +255,19 @@ const { id: clusterId } = useParams<{ id: string }>();
         // 旧模式兼容
         terminal.current.write(msg.data);
         break;
+      case 'kubectl_prep':
+        // 由 onmessage 统一单行刷新，此处兜底
+        terminal.current.write(`\r\x1b[2K\x1b[33m${msg.data}\x1b[0m`);
+        break;
       case 'connected':
-        // Pod 连接成功
+        // Pod 连接成功（主流程在 onmessage 里处理 UI 状态）
         console.log('Pod terminal connected:', msg.data);
         break;
       case 'disconnected':
         terminal.current.writeln(`\r\n\x1b[33m${msg.data}\x1b[0m`);
         break;
       case 'error':
+        setConnecting(false);
         terminal.current.writeln(`\r\n\x1b[31m${msg.data}\x1b[0m`);
         break;
       case 'command_result':
@@ -293,52 +299,57 @@ const { id: clusterId } = useParams<{ id: string }>();
     
     if (terminal.current) {
       terminal.current.clear();
-      terminal.current.writeln('\x1b[33m' + t('kubectl.connecting') + '\x1b[0m');
+      // 不换行，便于后续 kubectl_prep 用 \r 刷新同一行进度
+      terminal.current.write('\x1b[33m' + t('kubectl.connecting') + '\x1b[0m');
     }
     
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // 使用新的 kubectl Pod 终端（支持 tab 补全）
-    const wsUrl = `${protocol}//${window.location.hostname}:8080/ws/clusters/${clusterId}/kubectl?token=${encodeURIComponent(token)}`;
+    const wsUrl = buildWebSocketUrl(
+      `/ws/clusters/${clusterId}/kubectl?token=${encodeURIComponent(token)}&namespace=${encodeURIComponent(selectedNamespace)}`
+    );
     
     try {
       const ws = new WebSocket(wsUrl);
       websocket.current = ws;
       
       ws.onopen = () => {
-        setConnected(true);
-        setConnecting(false);
-        connectedRef.current = true;
-        message.success(t('messages.connectSuccess'));
-        
-        if (terminal.current) {
-          terminal.current.clear();
-          // Pod Terminal 模式：服务端会自动显示 shell 提示符
-        }
-        
-        // 发送初始终端尺寸
-        if (fitAddon.current && terminal.current) {
-          const dimensions = fitAddon.current.proposeDimensions();
-          if (dimensions) {
-            ws.send(JSON.stringify({
-              type: 'resize',
-              cols: dimensions.cols,
-              rows: dimensions.rows
-            }));
-          }
-        }
+        // WebSocket 已建立；kubectl Pod 可能仍在创建/拉取镜像，等服务端 type=connected 再视为可交互
       };
       
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(event.data) as WebSocketMessage;
+          if (msg.type === 'connected') {
+            setConnected(true);
+            setConnecting(false);
+            connectedRef.current = true;
+            message.success(t('messages.connectSuccess'));
+            if (terminal.current) {
+              terminal.current.clear();
+            }
+            if (fitAddon.current && terminal.current) {
+              const dimensions = fitAddon.current.proposeDimensions();
+              if (dimensions) {
+                ws.send(JSON.stringify({
+                  type: 'resize',
+                  cols: dimensions.cols,
+                  rows: dimensions.rows
+                }));
+              }
+            }
+            return;
+          }
+          if (msg.type === 'kubectl_prep' && terminal.current) {
+            terminal.current.write(`\r\x1b[2K\x1b[33m${msg.data}\x1b[0m`);
+            return;
+          }
           handleWebSocketMessage(msg);
         } catch {
           terminal.current?.write(event.data);
         }
       };
       
-      ws.onerror = (error) => {
-        console.error('WebSocket错误:', error);
+      ws.onerror = (_error) => {
+        console.error('WebSocket错误:', _error);
         message.error(t('messages.connectError'));
         setConnected(false);
         setConnecting(false);
@@ -469,7 +480,6 @@ const { id: clusterId } = useParams<{ id: string }>();
               value={selectedNamespace}
               onChange={handleNamespaceChange}
               style={{ width: '100%' }}
-              disabled={connected}
             >
               {namespaces.map(ns => (
                 <Option key={ns} value={ns}>
@@ -519,6 +529,14 @@ const { id: clusterId } = useParams<{ id: string }>();
       </div>
 
       {/* 连接状态提示 */}
+      {connecting && !connected && (
+        <Alert
+          message={t('kubectl.prepHint')}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16, flexShrink: 0 }}
+        />
+      )}
       {connected && (
         <Alert
           message={t('kubectl.connectedTo', { clusterId, namespace: selectedNamespace })}

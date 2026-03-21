@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/models"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -110,15 +112,42 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 		return
 	}
 
-	// 创建审计会话
+	terminalType := services.TerminalTypePod
+	if t, exists := c.Get("terminal_type"); exists && t == "kubectl" {
+		terminalType = services.TerminalTypeKubectl
+	}
+
+	// 升级到WebSocket连接
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	var clusterPerm *models.ClusterPermission
+	if p, ok := c.Get("cluster_permission"); ok {
+		if cp, ok := p.(*models.ClusterPermission); ok {
+			clusterPerm = cp
+		}
+	}
+
+	h.RunPodTerminalWithConn(conn, cluster, clusterID, namespace, podName, container, userID, terminalType, clusterPerm, "")
+}
+
+// RunPodTerminalWithConn 在已建立的 WebSocket 上运行 Pod 终端（kubectl Pod 终端等场景先推送进度再复用此逻辑）
+func (h *PodTerminalHandler) RunPodTerminalWithConn(
+	conn *websocket.Conn,
+	cluster *models.Cluster,
+	clusterIDStr, namespace, podName, container string,
+	userID uint,
+	terminalType services.TerminalType,
+	clusterPerm *models.ClusterPermission,
+	kubectlPreferredNamespace string,
+) {
 	var auditSessionID uint
 	if h.auditService != nil {
-		// 检查是否是 kubectl 模式（由 kubectl_pod_terminal 设置）
-		terminalType := services.TerminalTypePod
-		if t, exists := c.Get("terminal_type"); exists && t == "kubectl" {
-			terminalType = services.TerminalTypeKubectl
-		}
-
 		auditSession, err := h.auditService.CreateSession(&services.CreateSessionRequest{
 			UserID:     userID,
 			ClusterID:  cluster.ID,
@@ -134,27 +163,13 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 		}
 	}
 
-	// 升级到WebSocket连接
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		// 关闭审计会话
-		if h.auditService != nil && auditSessionID > 0 {
-			_ = h.auditService.CloseSession(auditSessionID, "error")
-		}
-		return
-	}
-	defer func() {
-		_ = conn.Close()
-	}()
-
-	// 创建会话
-	sessionID := fmt.Sprintf("%s-%s-%s-%d", clusterID, namespace, podName, time.Now().Unix())
+	sessionID := fmt.Sprintf("%s-%s-%s-%d", clusterIDStr, namespace, podName, time.Now().Unix())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &PodTerminalSession{
 		ID:             sessionID,
 		AuditSessionID: auditSessionID,
-		ClusterID:      clusterID,
+		ClusterID:      clusterIDStr,
 		Namespace:      namespace,
 		PodName:        podName,
 		Container:      container,
@@ -163,25 +178,21 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 		Cancel:         cancel,
 	}
 
-	// 注册会话
 	h.sessionsMutex.Lock()
 	h.sessions[sessionID] = session
 	h.sessionsMutex.Unlock()
 
-	// 清理会话
 	defer func() {
 		h.sessionsMutex.Lock()
 		delete(h.sessions, sessionID)
 		h.sessionsMutex.Unlock()
 		cancel()
 		h.closeSession(session)
-		// 关闭审计会话
 		if h.auditService != nil && auditSessionID > 0 {
 			_ = h.auditService.CloseSession(auditSessionID, "closed")
 		}
 	}()
 
-	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		h.sendMessage(conn, "error", fmt.Sprintf("获取K8s客户端失败: %v", err))
@@ -190,27 +201,28 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 	client := k8sClient.GetClientset()
 	k8sConfig := k8sClient.GetRestConfig()
 
-	// 查找可用的shell
 	shell, err := h.findAvailableShell(client, k8sConfig, session)
 	if err != nil {
 		h.sendMessage(conn, "error", fmt.Sprintf("未找到可用的shell: %v", err))
 		return
 	}
 
-	// 启动Pod终端连接
 	if err := h.startPodTerminal(client, k8sConfig, session, shell); err != nil {
 		h.sendMessage(conn, "error", fmt.Sprintf("启动Pod终端失败: %v", err))
 		return
 	}
 
-	// 发送连接成功消息
 	containerInfo := ""
 	if container != "" {
 		containerInfo = fmt.Sprintf(" (container: %s)", container)
 	}
 	h.sendMessage(conn, "connected", fmt.Sprintf("Connected to pod %s/%s%s using %s", namespace, podName, containerInfo, shell))
 
-	// 处理WebSocket消息
+	if terminalType == services.TerminalTypeKubectl && kubectlPreferredNamespace != "" {
+		time.Sleep(200 * time.Millisecond)
+		h.applyKubectlNamespace(session, kubectlPreferredNamespace)
+	}
+
 	for {
 		mt, data, err := conn.ReadMessage()
 		if err != nil {
@@ -220,7 +232,6 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 			continue
 		}
 
-		// 优先尝试按JSON解析
 		var msg PodTerminalMessage
 		if err := json.Unmarshal(data, &msg); err == nil && msg.Type != "" {
 			switch msg.Type {
@@ -228,13 +239,32 @@ func (h *PodTerminalHandler) HandlePodTerminal(c *gin.Context) {
 				h.handleInput(session, msg.Data)
 			case "resize":
 				h.handleResize(session, msg.Cols, msg.Rows)
+			case "change_namespace":
+				if terminalType != services.TerminalTypeKubectl {
+					continue
+				}
+				ns := strings.TrimSpace(msg.Data)
+				if errs := validation.IsDNS1123Subdomain(ns); len(errs) > 0 {
+					h.sendMessage(conn, "error", "无效的命名空间名称")
+					continue
+				}
+				if clusterPerm != nil && !services.HasNamespaceAccess(clusterPerm, ns) {
+					h.sendMessage(conn, "error", "无权访问该命名空间")
+					continue
+				}
+				h.applyKubectlNamespace(session, ns)
 			}
 			continue
 		}
 
-		// 兼容纯文本：直接作为输入
 		h.handleInput(session, string(data))
 	}
+}
+
+// applyKubectlNamespace 将当前 kubeconfig 上下文的默认命名空间切换为指定值（适用于 kubectl 工具 Pod 内的交互 shell）
+func (h *PodTerminalHandler) applyKubectlNamespace(session *PodTerminalSession, ns string) {
+	line := fmt.Sprintf("kubectl config set-context --current --namespace=%s\r", ns)
+	h.handleInput(session, line)
 }
 
 // findAvailableShell 查找可用的shell

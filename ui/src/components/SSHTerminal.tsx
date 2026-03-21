@@ -10,6 +10,7 @@ import {
   LinkOutlined
 } from '@ant-design/icons';
 import { systemSettingService } from '../services/authService';
+import { buildWebSocketUrl } from '../utils/wsUrl';
 import 'xterm/css/xterm.css';
 
 interface SSHTerminalProps {
@@ -127,8 +128,7 @@ const SSHTerminal: React.FC<SSHTerminalProps> = ({ nodeIP, clusterId }) => {
     terminal.current.writeln(`\x1b[1;33m${t('sshTerminal.connecting')}\x1b[0m`);
 
     try {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.hostname}:8080/ws/ssh/terminal?token=${encodeURIComponent(token)}`;
+      const wsUrl = buildWebSocketUrl(`/ws/ssh/terminal?token=${encodeURIComponent(token)}`);
       
       websocket.current = new WebSocket(wsUrl);
 

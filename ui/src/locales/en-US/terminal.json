@@ -10,7 +10,8 @@
     "connectedTo": "Connected to cluster {{clusterId}} - Namespace: {{namespace}}",
     "clusterNotFound": "Cluster ID not found",
     "welcomeMessage": "Select a namespace and click \"Connect\" to start...",
-    "connecting": "Connecting to terminal..."
+    "connecting": "Connecting to terminal...",
+    "prepHint": "If this takes a while, the cluster is usually creating the terminal Pod or pulling the image; live status from Kubernetes appears below."
   },
   "messages": {
     "connectFirst": "Please connect to terminal first",

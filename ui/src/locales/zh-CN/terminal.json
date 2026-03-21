@@ -10,7 +10,8 @@
     "connectedTo": "已连接到集群 {{clusterId}} - 命名空间: {{namespace}}",
     "clusterNotFound": "集群ID不存在",
     "welcomeMessage": "请选择命名空间并点击\"连接终端\"开始...",
-    "connecting": "正在连接终端..."
+    "connecting": "正在连接终端...",
+    "prepHint": "若长时间停留在此，多为集群正在创建终端 Pod 或拉取镜像；下方会显示 Kubernetes 返回的当前状态。"
   },
   "messages": {
     "connectFirst": "请先连接终端",

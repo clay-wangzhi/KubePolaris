@@ -38,6 +38,7 @@
   "kubectlTerminal": {
     "title": "Kubectl Terminal",
     "connect": "Connect",
+    "preparing": "Connecting…",
     "disconnect": "Disconnect",
     "clear": "Clear",
     "fullscreen": "Fullscreen",

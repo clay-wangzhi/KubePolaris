@@ -38,6 +38,7 @@
   "kubectlTerminal": {
     "title": "Kubectl 终端",
     "connect": "连接",
+    "preparing": "正在连接…",
     "disconnect": "断开",
     "clear": "清屏",
     "fullscreen": "全屏",

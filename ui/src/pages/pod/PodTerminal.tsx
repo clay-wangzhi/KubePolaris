@@ -23,6 +23,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
+import { buildWebSocketUrl } from '../../utils/wsUrl';
 import { PodService } from '../../services/podService';
 import type { PodInfo } from '../../services/podService';
 import { useTranslation } from 'react-i18next';
@@ -234,9 +235,9 @@ const [pod, setPod] = useState<PodInfo | null>(null);
       terminal.current.writeln('\x1b[33m正在连接终端...\x1b[0m');
     }
     
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // 在 URL 中添加 token 参数用于 WebSocket 认证
-    const wsUrl = `${protocol}//${window.location.hostname}:8080/ws/clusters/${clusterId}/pods/${namespace}/${name}/terminal?container=${selectedContainer}&token=${encodeURIComponent(token)}`;
+    const wsUrl = buildWebSocketUrl(
+      `/ws/clusters/${clusterId}/pods/${namespace}/${name}/terminal?container=${selectedContainer}&token=${encodeURIComponent(token)}`
+    );
     
     try {
       const ws = new WebSocket(wsUrl);

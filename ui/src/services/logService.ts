@@ -1,4 +1,5 @@
 import { request } from '../utils/api';
+import { buildWebSocketUrl } from '../utils/wsUrl';
 
 // 日志条目类型
 export interface LogEntry {
@@ -184,12 +185,7 @@ export const logService = {
     config: LogStreamConfig
   ): { ws: WebSocket; config: LogStreamConfig } => {
     const token = localStorage.getItem('token');
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    
-    // 开发环境使用后端端口
-    const wsHost = import.meta.env.DEV ? 'localhost:8080' : host;
-    const url = `${protocol}//${wsHost}/ws/clusters/${clusterId}/logs/stream?token=${token}`;
+    const url = buildWebSocketUrl(`/ws/clusters/${clusterId}/logs/stream?token=${token}`);
     
     const ws = new WebSocket(url);
     
@@ -210,12 +206,7 @@ export const logService = {
     }
   ): WebSocket => {
     const token = localStorage.getItem('token');
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    
-    // 开发环境使用后端端口
-    const wsHost = import.meta.env.DEV ? 'localhost:8080' : host;
-    
+
     const query = new URLSearchParams();
     query.set('token', token || '');
     if (options?.container) query.set('container', options.container);
@@ -223,7 +214,9 @@ export const logService = {
     if (options?.tailLines) query.set('tailLines', String(options.tailLines));
     if (options?.sinceSeconds) query.set('sinceSeconds', String(options.sinceSeconds));
     
-    const url = `${protocol}//${wsHost}/ws/clusters/${clusterId}/logs/pod/${namespace}/${podName}?${query.toString()}`;
+    const url = buildWebSocketUrl(
+      `/ws/clusters/${clusterId}/logs/pod/${namespace}/${podName}?${query.toString()}`
+    );
     
     return new WebSocket(url);
   },
