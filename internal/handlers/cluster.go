@@ -3,21 +3,21 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/clay-wangzhi/KubePolaris/internal/config"
-	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
-	"github.com/clay-wangzhi/KubePolaris/internal/models"
-	"github.com/clay-wangzhi/KubePolaris/internal/services"
-	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/config"
+	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
+	"github.com/clay-wangzhi/KubePolaris/internal/services"
+	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
 
 // ClusterHandler 集群处理器
@@ -28,10 +28,11 @@ type ClusterHandler struct {
 	k8sMgr           *k8s.ClusterInformerManager
 	promService      *services.PrometheusService
 	monitoringCfgSvc *services.MonitoringConfigService
+	permissionSvc    *services.PermissionService
 }
 
 // NewClusterHandler 创建集群处理器
-func NewClusterHandler(db *gorm.DB, cfg *config.Config, mgr *k8s.ClusterInformerManager, promService *services.PrometheusService, monitoringCfgSvc *services.MonitoringConfigService) *ClusterHandler {
+func NewClusterHandler(db *gorm.DB, cfg *config.Config, mgr *k8s.ClusterInformerManager, promService *services.PrometheusService, monitoringCfgSvc *services.MonitoringConfigService, permSvc *services.PermissionService) *ClusterHandler {
 	return &ClusterHandler{
 		db:               db,
 		cfg:              cfg,
@@ -39,20 +40,19 @@ func NewClusterHandler(db *gorm.DB, cfg *config.Config, mgr *k8s.ClusterInformer
 		k8sMgr:           mgr,
 		promService:      promService,
 		monitoringCfgSvc: monitoringCfgSvc,
+		permissionSvc:    permSvc,
 	}
 }
 
-// GetClusters 获取集群列表
+// GetClusters 获取集群列表（按用户权限过滤）
 func (h *ClusterHandler) GetClusters(c *gin.Context) {
+	userID := c.GetUint("user_id")
 
-	clusters, err := h.clusterService.GetAllClusters()
+	// 获取用户可访问的集群
+	clusters, err := h.getAccessibleClusters(userID)
 	if err != nil {
 		logger.Error("获取集群列表失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群列表失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群列表失败: "+err.Error())
 		return
 	}
 
@@ -91,16 +91,7 @@ func (h *ClusterHandler) GetClusters(c *gin.Context) {
 		clusterList = append(clusterList, clusterData)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"items":    clusterList,
-			"total":    len(clusterList),
-			"page":     1,
-			"pageSize": 10,
-		},
-	})
+	response.PagedList(c, clusterList, int64(len(clusterList)), 1, 10)
 }
 
 // ImportCluster 导入集群
@@ -118,11 +109,7 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -130,11 +117,7 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 
 	// 验证参数
 	if req.Kubeconfig == "" && (req.ApiServer == "" || req.Token == "") {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请提供kubeconfig或者API Server地址和访问令牌",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请提供kubeconfig或者API Server地址和访问令牌")
 		return
 	}
 
@@ -146,22 +129,14 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 		k8sClient, err = services.NewK8sClientFromKubeconfig(req.Kubeconfig)
 		if err != nil {
 			logger.Error("从kubeconfig创建客户端失败", "error", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": fmt.Sprintf("kubeconfig格式错误: %v", err),
-				"data":    nil,
-			})
+			response.BadRequest(c, fmt.Sprintf("kubeconfig格式错误: %v", err))
 			return
 		}
 	} else {
 		k8sClient, err = services.NewK8sClientFromToken(req.ApiServer, req.Token, req.CaCert)
 		if err != nil {
 			logger.Error("从Token创建客户端失败", "error", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": fmt.Sprintf("连接配置错误: %v", err),
-				"data":    nil,
-			})
+			response.BadRequest(c, fmt.Sprintf("连接配置错误: %v", err))
 			return
 		}
 	}
@@ -170,11 +145,7 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 	clusterInfo, err := k8sClient.TestConnection()
 	if err != nil {
 		logger.Error("连接测试失败", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": fmt.Sprintf("连接测试失败: %v", err),
-			"data":    nil,
-		})
+		response.BadRequest(c, fmt.Sprintf("连接测试失败: %v", err))
 		return
 	}
 
@@ -208,11 +179,7 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 	err = h.clusterService.CreateCluster(cluster)
 	if err != nil {
 		logger.Error("保存集群信息失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "保存集群信息失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "保存集群信息失败: "+err.Error())
 		return
 	}
 
@@ -226,11 +193,7 @@ func (h *ClusterHandler) ImportCluster(c *gin.Context) {
 		"createdAt": cluster.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "集群导入成功",
-		"data":    newCluster,
-	})
+	response.OK(c, newCluster)
 }
 
 // GetCluster 获取集群详情
@@ -238,21 +201,13 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 	idStr := c.Param("clusterID")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, err.Error())
 		return
 	}
 
@@ -270,11 +225,7 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 		clusterData["lastHeartbeat"] = cluster.LastHeartbeat.Format("2006-01-02T15:04:05Z")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    clusterData,
-	})
+	response.OK(c, clusterData)
 }
 
 // DeleteCluster 删除集群
@@ -282,11 +233,7 @@ func (h *ClusterHandler) DeleteCluster(c *gin.Context) {
 	idStr := c.Param("clusterID")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
@@ -301,26 +248,14 @@ func (h *ClusterHandler) DeleteCluster(c *gin.Context) {
 	if err != nil {
 		// 检查是否是集群不存在的错误
 		if strings.Contains(err.Error(), "集群不存在") {
-			c.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": err.Error(),
-				"data":    nil,
-			})
+			response.NotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-		"data":    nil,
-	})
+	response.OK(c, nil)
 }
 
 // GetClusterStats 获取集群统计
@@ -330,19 +265,11 @@ func (h *ClusterHandler) GetClusterStats(c *gin.Context) {
 	stats, err := h.clusterService.GetClusterStats()
 	if err != nil {
 		logger.Error("获取集群统计失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群统计失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群统计失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }
 
 // GetClusterStatus 获取集群实时状态
@@ -350,21 +277,13 @@ func (h *ClusterHandler) GetClusterStatus(c *gin.Context) {
 	idStr := c.Param("clusterID")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, err.Error())
 		return
 	}
 
@@ -380,11 +299,7 @@ func (h *ClusterHandler) GetClusterStatus(c *gin.Context) {
 		"version":    cluster.Version,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    statusData,
-	})
+	response.OK(c, statusData)
 }
 
 // GetClusterOverview 获取集群概览信息
@@ -392,22 +307,14 @@ func (h *ClusterHandler) GetClusterOverview(c *gin.Context) {
 	clusterID := c.Param("clusterID")
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 获取集群信息
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -429,21 +336,13 @@ func (h *ClusterHandler) GetClusterOverview(c *gin.Context) {
 				}
 			}
 
-			c.JSON(http.StatusOK, gin.H{
-				"code":    200,
-				"message": "获取成功",
-				"data":    snap,
-			})
+			response.OK(c, snap)
 			return
 		}
 	}
 
 	// 如果 informer 方式失败，返回错误
-	c.JSON(http.StatusServiceUnavailable, gin.H{
-		"code":    503,
-		"message": "集群信息获取失败",
-		"data":    nil,
-	})
+	response.ServiceUnavailable(c, "集群信息获取失败")
 }
 
 // getContainerSubnetIPs 获取容器子网IP信息
@@ -475,13 +374,13 @@ func (h *ClusterHandler) GetClusterEvents(c *gin.Context) {
 	idStr := c.Param("clusterID")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID", "data": nil})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -489,7 +388,7 @@ func (h *ClusterHandler) GetClusterEvents(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取K8s客户端失败: " + err.Error(), "data": nil})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -499,7 +398,7 @@ func (h *ClusterHandler) GetClusterEvents(c *gin.Context) {
 	evList, err := cs.CoreV1().Events("").List(c.Request.Context(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error("获取K8s事件失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取K8s事件失败: " + err.Error(), "data": nil})
+		response.InternalError(c, "获取K8s事件失败: "+err.Error())
 		return
 	}
 
@@ -577,11 +476,7 @@ func (h *ClusterHandler) GetClusterEvents(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    out,
-	})
+	response.OK(c, out)
 }
 
 // GetClusterMetrics 获取集群监控数据
@@ -596,22 +491,14 @@ func (h *ClusterHandler) GetClusterMetrics(c *gin.Context) {
 	// 从数据库获取集群
 	clusterID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
 		logger.Error("获取集群失败", "error", err)
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -619,11 +506,7 @@ func (h *ClusterHandler) GetClusterMetrics(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群监控数据失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群监控数据失败: "+err.Error())
 		return
 	}
 
@@ -631,19 +514,11 @@ func (h *ClusterHandler) GetClusterMetrics(c *gin.Context) {
 	metrics, err := k8sClient.GetClusterMetrics(rangeParam, step)
 	if err != nil {
 		logger.Error("获取集群监控数据失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群监控数据失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群监控数据失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    metrics,
-	})
+	response.OK(c, metrics)
 }
 
 // TestConnection 测试集群连接
@@ -660,11 +535,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Error("参数绑定错误: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -672,11 +543,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 
 	// 验证参数
 	if req.Kubeconfig == "" && (req.ApiServer == "" || req.Token == "") {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请提供kubeconfig或者API Server地址和访问令牌",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请提供kubeconfig或者API Server地址和访问令牌")
 		return
 	}
 
@@ -689,11 +556,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 		k8sClient, err = services.NewK8sClientFromKubeconfig(req.Kubeconfig)
 		if err != nil {
 			logger.Error("从kubeconfig创建客户端失败", "error", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": fmt.Sprintf("kubeconfig格式错误: %v", err),
-				"data":    nil,
-			})
+			response.BadRequest(c, fmt.Sprintf("kubeconfig格式错误: %v", err))
 			return
 		}
 	} else {
@@ -701,11 +564,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 		k8sClient, err = services.NewK8sClientFromToken(req.ApiServer, req.Token, req.CaCert)
 		if err != nil {
 			logger.Error("从Token创建客户端失败", "error", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": fmt.Sprintf("连接配置错误: %v", err),
-				"data":    nil,
-			})
+			response.BadRequest(c, fmt.Sprintf("连接配置错误: %v", err))
 			return
 		}
 	}
@@ -714,11 +573,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 	clusterInfo, err := k8sClient.TestConnection()
 	if err != nil {
 		logger.Error("连接测试失败", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": fmt.Sprintf("连接测试失败: %v", err),
-			"data":    nil,
-		})
+		response.BadRequest(c, fmt.Sprintf("连接测试失败: %v", err))
 		return
 	}
 
@@ -729,11 +584,7 @@ func (h *ClusterHandler) TestConnection(c *gin.Context) {
 		"status":     clusterInfo.Status,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "连接测试成功",
-		"data":    testResult,
-	})
+	response.OK(c, testResult)
 }
 
 // getClusterNodeInfo 获取集群节点信息
@@ -837,6 +688,25 @@ func extractLatestValueFromResponse(resp *models.MetricsResponse) float64 {
 		}
 	}
 	return -1
+}
+
+// getAccessibleClusters 获取用户可访问的集群列表
+func (h *ClusterHandler) getAccessibleClusters(userID uint) ([]*models.Cluster, error) {
+	clusterIDs, isAll, err := h.permissionSvc.GetUserAccessibleClusterIDs(userID)
+	if err != nil {
+		return nil, err
+	}
+	if isAll {
+		return h.clusterService.GetAllClusters()
+	}
+	if len(clusterIDs) == 0 {
+		return []*models.Cluster{}, nil
+	}
+	var clusters []*models.Cluster
+	if err := h.db.Where("id IN ?", clusterIDs).Find(&clusters).Error; err != nil {
+		return nil, fmt.Errorf("获取集群列表失败: %w", err)
+	}
+	return clusters, nil
 }
 
 // maxInt 返回较大的整数，避免出现负数（例如 worker = total - 1）

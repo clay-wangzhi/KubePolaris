@@ -44,7 +44,7 @@ const ClusterSelector: React.FC = () => {
   const fetchClusters = useCallback(async () => {
     try {
       const response = await clusterService.getClusters();
-      setClusters(response.data.items || []);
+      setClusters(response.items || []);
     } catch (error) {
       console.error('Failed to fetch clusters:', error);
     }

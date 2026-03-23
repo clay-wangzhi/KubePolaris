@@ -86,9 +86,7 @@ const [events, setEvents] = useState<EventLogEntry[]>([]);
     if (!clusterId) return;
     try {
       const res = await logService.getNamespaces(clusterId);
-      if (res.code === 200) {
-        setNamespaces(res.data || []);
-      }
+      setNamespaces(res || []);
     } catch (error) {
       console.error('获取命名空间失败', error);
     }
@@ -104,8 +102,8 @@ const [events, setEvents] = useState<EventLogEntry[]>([]);
         type: eventType,
         limit: 500,
       });
-      if (res.code === 200) {
-        let items = res.data?.items || [];
+      {
+        let items = res?.items || [];
         
         // 客户端过滤
         if (resourceKind) {

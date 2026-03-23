@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -37,11 +37,7 @@ func (h *SystemSettingHandler) GetLDAPConfig(c *gin.Context) {
 	config, err := h.ldapService.GetLDAPConfig()
 	if err != nil {
 		logger.Error("获取LDAP配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取LDAP配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取LDAP配置失败")
 		return
 	}
 
@@ -51,11 +47,7 @@ func (h *SystemSettingHandler) GetLDAPConfig(c *gin.Context) {
 		safeConfig.BindPassword = "******"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    safeConfig,
-	})
+	response.OK(c, safeConfig)
 }
 
 // UpdateLDAPConfigRequest LDAP配置更新请求
@@ -80,11 +72,7 @@ type UpdateLDAPConfigRequest struct {
 func (h *SystemSettingHandler) UpdateLDAPConfig(c *gin.Context) {
 	var req UpdateLDAPConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -92,11 +80,7 @@ func (h *SystemSettingHandler) UpdateLDAPConfig(c *gin.Context) {
 	existingConfig, err := h.ldapService.GetLDAPConfig()
 	if err != nil {
 		logger.Error("获取现有LDAP配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "更新LDAP配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "更新LDAP配置失败")
 		return
 	}
 
@@ -127,32 +111,20 @@ func (h *SystemSettingHandler) UpdateLDAPConfig(c *gin.Context) {
 	// 保存配置
 	if err := h.ldapService.SaveLDAPConfig(config); err != nil {
 		logger.Error("保存LDAP配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "保存LDAP配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "保存LDAP配置失败")
 		return
 	}
 
 	logger.Info("LDAP配置更新成功")
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "LDAP配置更新成功",
-		"data":    nil,
-	})
+	response.OK(c, gin.H{"message": "LDAP配置更新成功"})
 }
 
 // TestLDAPConnection 测试LDAP连接
 func (h *SystemSettingHandler) TestLDAPConnection(c *gin.Context) {
 	var req UpdateLDAPConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -186,25 +158,17 @@ func (h *SystemSettingHandler) TestLDAPConnection(c *gin.Context) {
 	// 测试连接
 	if err := h.ldapService.TestConnection(config); err != nil {
 		logger.Warn("LDAP连接测试失败: %v", err)
-		c.JSON(http.StatusOK, gin.H{
-			"code":    400,
-			"message": err.Error(),
-			"data": gin.H{
-				"success": false,
-				"error":   err.Error(),
-			},
+		response.OK(c, gin.H{
+			"success": false,
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	logger.Info("LDAP连接测试成功")
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "LDAP连接测试成功",
-		"data": gin.H{
-			"success": true,
-		},
+	response.OK(c, gin.H{
+		"success": true,
 	})
 }
 
@@ -231,11 +195,7 @@ type TestLDAPAuthRequest struct {
 func (h *SystemSettingHandler) TestLDAPAuth(c *gin.Context) {
 	var req TestLDAPAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -270,29 +230,21 @@ func (h *SystemSettingHandler) TestLDAPAuth(c *gin.Context) {
 	ldapUser, err := h.ldapService.AuthenticateWithConfig(req.Username, req.Password, config)
 	if err != nil {
 		logger.Warn("LDAP用户认证测试失败: %v", err)
-		c.JSON(http.StatusOK, gin.H{
-			"code":    400,
-			"message": err.Error(),
-			"data": gin.H{
-				"success": false,
-				"error":   err.Error(),
-			},
+		response.OK(c, gin.H{
+			"success": false,
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	logger.Info("LDAP用户认证测试成功: %s", req.Username)
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "LDAP用户认证测试成功",
-		"data": gin.H{
-			"success":      true,
-			"username":     ldapUser.Username,
-			"email":        ldapUser.Email,
-			"display_name": ldapUser.DisplayName,
-			"groups":       ldapUser.Groups,
-		},
+	response.OK(c, gin.H{
+		"success":      true,
+		"username":     ldapUser.Username,
+		"email":        ldapUser.Email,
+		"display_name": ldapUser.DisplayName,
+		"groups":       ldapUser.Groups,
 	})
 }
 
@@ -303,11 +255,7 @@ func (h *SystemSettingHandler) GetSSHConfig(c *gin.Context) {
 	config, err := h.sshSettingService.GetSSHConfig()
 	if err != nil {
 		logger.Error("获取SSH配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取SSH配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取SSH配置失败")
 		return
 	}
 
@@ -320,11 +268,7 @@ func (h *SystemSettingHandler) GetSSHConfig(c *gin.Context) {
 		safeConfig.PrivateKey = "******"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    safeConfig,
-	})
+	response.OK(c, safeConfig)
 }
 
 // UpdateSSHConfigRequest SSH配置更新请求
@@ -341,11 +285,7 @@ type UpdateSSHConfigRequest struct {
 func (h *SystemSettingHandler) UpdateSSHConfig(c *gin.Context) {
 	var req UpdateSSHConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -353,11 +293,7 @@ func (h *SystemSettingHandler) UpdateSSHConfig(c *gin.Context) {
 	existingConfig, err := h.sshSettingService.GetSSHConfig()
 	if err != nil {
 		logger.Error("获取现有SSH配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "更新SSH配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "更新SSH配置失败")
 		return
 	}
 
@@ -397,21 +333,13 @@ func (h *SystemSettingHandler) UpdateSSHConfig(c *gin.Context) {
 	// 保存配置
 	if err := h.sshSettingService.SaveSSHConfig(config); err != nil {
 		logger.Error("保存SSH配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "保存SSH配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "保存SSH配置失败")
 		return
 	}
 
 	logger.Info("SSH配置更新成功")
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "SSH配置更新成功",
-		"data":    nil,
-	})
+	response.OK(c, gin.H{"message": "SSH配置更新成功"})
 }
 
 // GetSSHCredentials 获取SSH凭据（用于自动连接，返回完整凭据）
@@ -419,32 +347,20 @@ func (h *SystemSettingHandler) GetSSHCredentials(c *gin.Context) {
 	config, err := h.sshSettingService.GetSSHConfig()
 	if err != nil {
 		logger.Error("获取SSH凭据失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取SSH凭据失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取SSH凭据失败")
 		return
 	}
 
 	// 检查是否启用
 	if !config.Enabled {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "SSH全局配置未启用",
-			"data": gin.H{
-				"enabled": false,
-			},
+		response.OK(c, gin.H{
+			"enabled": false,
 		})
 		return
 	}
 
 	// 返回完整凭据（用于自动连接）
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    config,
-	})
+	response.OK(c, config)
 }
 
 // ==================== Grafana 配置相关接口 ====================
@@ -454,11 +370,7 @@ func (h *SystemSettingHandler) GetGrafanaConfig(c *gin.Context) {
 	config, err := h.grafanaSettingService.GetGrafanaConfig()
 	if err != nil {
 		logger.Error("获取 Grafana 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取 Grafana 配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取 Grafana 配置失败")
 		return
 	}
 
@@ -467,11 +379,7 @@ func (h *SystemSettingHandler) GetGrafanaConfig(c *gin.Context) {
 		safeConfig.APIKey = "******"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    safeConfig,
-	})
+	response.OK(c, safeConfig)
 }
 
 // UpdateGrafanaConfigRequest Grafana 配置更新请求
@@ -484,22 +392,14 @@ type UpdateGrafanaConfigRequest struct {
 func (h *SystemSettingHandler) UpdateGrafanaConfig(c *gin.Context) {
 	var req UpdateGrafanaConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	existingConfig, err := h.grafanaSettingService.GetGrafanaConfig()
 	if err != nil {
 		logger.Error("获取现有 Grafana 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "更新 Grafana 配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "更新 Grafana 配置失败")
 		return
 	}
 
@@ -515,11 +415,7 @@ func (h *SystemSettingHandler) UpdateGrafanaConfig(c *gin.Context) {
 
 	if err := h.grafanaSettingService.SaveGrafanaConfig(config); err != nil {
 		logger.Error("保存 Grafana 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "保存 Grafana 配置失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "保存 Grafana 配置失败")
 		return
 	}
 
@@ -531,22 +427,14 @@ func (h *SystemSettingHandler) UpdateGrafanaConfig(c *gin.Context) {
 
 	logger.Info("Grafana 配置更新成功")
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Grafana 配置更新成功",
-		"data":    nil,
-	})
+	response.OK(c, gin.H{"message": "Grafana 配置更新成功"})
 }
 
 // TestGrafanaConnection 测试 Grafana 连接
 func (h *SystemSettingHandler) TestGrafanaConnection(c *gin.Context) {
 	var req UpdateGrafanaConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -561,39 +449,27 @@ func (h *SystemSettingHandler) TestGrafanaConnection(c *gin.Context) {
 	testSvc := services.NewGrafanaService(req.URL, apiKey)
 	if err := testSvc.TestConnection(); err != nil {
 		logger.Warn("Grafana 连接测试失败: %v", err)
-		c.JSON(http.StatusOK, gin.H{
-			"code":    400,
-			"message": err.Error(),
-			"data": gin.H{
-				"success": false,
-				"error":   err.Error(),
-			},
+		response.OK(c, gin.H{
+			"success": false,
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	logger.Info("Grafana 连接测试成功")
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Grafana 连接测试成功",
-		"data": gin.H{
-			"success": true,
-		},
+	response.OK(c, gin.H{
+		"success": true,
 	})
 }
 
 // GetGrafanaDashboardStatus 获取 Dashboard 同步状态
 func (h *SystemSettingHandler) GetGrafanaDashboardStatus(c *gin.Context) {
 	if h.grafanaService == nil || !h.grafanaService.IsEnabled() {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "Grafana 未配置",
-			"data": gin.H{
-				"folder_exists": false,
-				"dashboards":    []interface{}{},
-				"all_synced":    false,
-			},
+		response.OK(c, gin.H{
+			"folder_exists": false,
+			"dashboards":    []interface{}{},
+			"all_synced":    false,
 		})
 		return
 	}
@@ -601,31 +477,19 @@ func (h *SystemSettingHandler) GetGrafanaDashboardStatus(c *gin.Context) {
 	status, err := h.grafanaService.GetDashboardSyncStatus()
 	if err != nil {
 		logger.Error("获取 Dashboard 同步状态失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取 Dashboard 同步状态失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取 Dashboard 同步状态失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    status,
-	})
+	response.OK(c, status)
 }
 
 // GetGrafanaDataSourceStatus 获取数据源同步状态
 func (h *SystemSettingHandler) GetGrafanaDataSourceStatus(c *gin.Context) {
 	if h.grafanaService == nil || !h.grafanaService.IsEnabled() {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "Grafana 未配置",
-			"data": gin.H{
-				"datasources": []interface{}{},
-				"all_synced":  false,
-			},
+		response.OK(c, gin.H{
+			"datasources": []interface{}{},
+			"all_synced":  false,
 		})
 		return
 	}
@@ -633,65 +497,36 @@ func (h *SystemSettingHandler) GetGrafanaDataSourceStatus(c *gin.Context) {
 	clusters := h.getMonitoringClusters()
 	status, err := h.grafanaService.GetDataSourceSyncStatus(clusters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取数据源同步状态失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取数据源同步状态失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    status,
-	})
+	response.OK(c, status)
 }
 
 // SyncGrafanaDataSources 同步所有数据源到 Grafana
 func (h *SystemSettingHandler) SyncGrafanaDataSources(c *gin.Context) {
 	if h.grafanaService == nil || !h.grafanaService.IsEnabled() {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请先配置 Grafana 连接信息",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请先配置 Grafana 连接信息")
 		return
 	}
 
 	clusters := h.getMonitoringClusters()
 	if len(clusters) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "没有已配置监控的集群",
-			"data": gin.H{
-				"datasources": []interface{}{},
-				"all_synced":  false,
-			},
+		response.OK(c, gin.H{
+			"datasources": []interface{}{},
+			"all_synced":  false,
 		})
 		return
 	}
 
 	status, err := h.grafanaService.SyncAllDataSources(clusters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "同步数据源失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "同步数据源失败: "+err.Error())
 		return
 	}
 
-	msg := "数据源同步成功"
-	if !status.AllSynced {
-		msg = "部分数据源同步失败，请检查日志"
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": msg,
-		"data":    status,
-	})
+	response.OK(c, status)
 }
 
 // getMonitoringClusters 获取所有启用了监控的集群信息
@@ -722,35 +557,18 @@ func (h *SystemSettingHandler) getMonitoringClusters() []services.DataSourceClus
 // SyncGrafanaDashboards 同步 Dashboard 到 Grafana
 func (h *SystemSettingHandler) SyncGrafanaDashboards(c *gin.Context) {
 	if h.grafanaService == nil || !h.grafanaService.IsEnabled() {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请先配置 Grafana 连接信息",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请先配置 Grafana 连接信息")
 		return
 	}
 
 	status, err := h.grafanaService.EnsureDashboards()
 	if err != nil {
 		logger.Error("同步 Dashboard 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "同步 Dashboard 失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "同步 Dashboard 失败: "+err.Error())
 		return
 	}
 
 	logger.Info("Dashboard 同步完成", "all_synced", status.AllSynced)
 
-	msg := "Dashboard 同步成功"
-	if !status.AllSynced {
-		msg = "部分 Dashboard 同步失败，请检查日志"
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": msg,
-		"data":    status,
-	})
+	response.OK(c, status)
 }

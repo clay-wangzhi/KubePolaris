@@ -1,15 +1,15 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/clay-wangzhi/KubePolaris/internal/config"
-	"github.com/clay-wangzhi/KubePolaris/internal/services"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/config"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
+	"github.com/clay-wangzhi/KubePolaris/internal/services"
 )
 
 // AuditHandler 审计处理器
@@ -29,18 +29,12 @@ func NewAuditHandler(db *gorm.DB, cfg *config.Config) *AuditHandler {
 }
 
 // GetAuditLogs 获取审计日志
+// TODO: 尚未实现通用审计日志查询，当前仅返回空列表。
+// 终端会话审计已通过 GetTerminalSessions 等端点实现；
+// 操作审计已通过 OperationLog 模块实现。
+// 此端点预留用于未来整合所有审计数据的统一查询入口。
 func (h *AuditHandler) GetAuditLogs(c *gin.Context) {
-	// TODO: 实现审计日志查询逻辑
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"items":    []interface{}{},
-			"total":    0,
-			"page":     1,
-			"pageSize": 10,
-		},
-	})
+	response.PagedList(c, []interface{}{}, 0, 1, 10)
 }
 
 // GetTerminalSessions 获取终端会话记录
@@ -87,18 +81,11 @@ func (h *AuditHandler) GetTerminalSessions(c *gin.Context) {
 
 	resp, err := h.auditService.GetSessions(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取会话列表失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取会话列表失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    resp,
-	})
+	response.OK(c, resp)
 }
 
 // GetTerminalSession 获取终端会话详情
@@ -106,27 +93,17 @@ func (h *AuditHandler) GetTerminalSession(c *gin.Context) {
 	sessionIDStr := c.Param("sessionId")
 	sessionID, err := strconv.ParseUint(sessionIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的会话ID",
-		})
+		response.BadRequest(c, "无效的会话ID")
 		return
 	}
 
 	session, err := h.auditService.GetSessionDetail(uint(sessionID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "会话不存在",
-		})
+		response.NotFound(c, "会话不存在")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    session,
-	})
+	response.OK(c, session)
 }
 
 // GetTerminalCommands 获取终端命令记录
@@ -134,10 +111,7 @@ func (h *AuditHandler) GetTerminalCommands(c *gin.Context) {
 	sessionIDStr := c.Param("sessionId")
 	sessionID, err := strconv.ParseUint(sessionIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的会话ID",
-		})
+		response.BadRequest(c, "无效的会话ID")
 		return
 	}
 
@@ -146,34 +120,20 @@ func (h *AuditHandler) GetTerminalCommands(c *gin.Context) {
 
 	resp, err := h.auditService.GetSessionCommands(uint(sessionID), page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取命令记录失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取命令记录失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    resp,
-	})
+	response.OK(c, resp)
 }
 
 // GetTerminalStats 获取终端会话统计
 func (h *AuditHandler) GetTerminalStats(c *gin.Context) {
 	stats, err := h.auditService.GetSessionStats()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取统计信息失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取统计信息失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }

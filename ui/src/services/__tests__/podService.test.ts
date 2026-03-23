@@ -28,25 +28,21 @@ describe('PodService', () => {
   describe('getPods', () => {
     it('should fetch pods for a cluster', async () => {
       const mockResponse = {
-        code: 200,
-        data: {
-          items: [
-            {
-              name: 'nginx-pod-1',
-              namespace: 'default',
-              status: 'Running',
-              nodeName: 'node-1',
-            },
-            {
-              name: 'nginx-pod-2',
-              namespace: 'default',
-              status: 'Running',
-              nodeName: 'node-2',
-            },
-          ],
-          total: 2,
-        },
-        message: 'success',
+        items: [
+          {
+            name: 'nginx-pod-1',
+            namespace: 'default',
+            status: 'Running',
+            nodeName: 'node-1',
+          },
+          {
+            name: 'nginx-pod-2',
+            namespace: 'default',
+            status: 'Running',
+            nodeName: 'node-2',
+          },
+        ],
+        total: 2,
       }
 
       vi.mocked(request.get).mockResolvedValue(mockResponse)
@@ -58,11 +54,7 @@ describe('PodService', () => {
     })
 
     it('should fetch pods with namespace filter', async () => {
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: { items: [], total: 0 },
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue({ items: [], total: 0 })
 
       await PodService.getPods('1', 'kube-system')
 
@@ -72,11 +64,7 @@ describe('PodService', () => {
     })
 
     it('should fetch pods with pagination', async () => {
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: { items: [], total: 0 },
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue({ items: [], total: 0 })
 
       await PodService.getPods('1', undefined, undefined, undefined, undefined, undefined, 2, 20)
 
@@ -101,18 +89,14 @@ describe('PodService', () => {
         createdAt: '2024-01-01T00:00:00Z',
       }
 
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: mockPod,
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue(mockPod)
 
       const result = await PodService.getPodDetail('1', 'default', 'nginx-pod')
 
       expect(request.get).toHaveBeenCalledWith(
         '/clusters/1/pods/default/nginx-pod'
       )
-      expect((result.data as unknown as { name: string }).name).toBe('nginx-pod')
+      expect((result as unknown as { name: string }).name).toBe('nginx-pod')
     })
 
     it('should handle pod not found', async () => {
@@ -131,11 +115,7 @@ describe('PodService', () => {
 
   describe('deletePod', () => {
     it('should delete a pod', async () => {
-      vi.mocked(request.delete).mockResolvedValue({
-        code: 200,
-        message: 'Pod deleted successfully',
-        data: null,
-      })
+      vi.mocked(request.delete).mockResolvedValue(null)
 
       await PodService.deletePod('1', 'default', 'nginx-pod')
 
@@ -162,11 +142,7 @@ describe('PodService', () => {
     it('should fetch pod logs', async () => {
       const mockLogs = 'Starting nginx...\nNginx started successfully.'
 
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: mockLogs,
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue(mockLogs)
 
       await PodService.getPodLogs('1', 'default', 'nginx-pod')
 
@@ -174,11 +150,7 @@ describe('PodService', () => {
     })
 
     it('should fetch logs with container filter', async () => {
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: 'Container logs...',
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue('Container logs...')
 
       await PodService.getPodLogs('1', 'default', 'multi-container-pod', 'sidecar')
 
@@ -188,11 +160,7 @@ describe('PodService', () => {
     })
 
     it('should fetch logs with tail lines', async () => {
-      vi.mocked(request.get).mockResolvedValue({
-        code: 200,
-        data: { logs: 'Last 100 lines...' },
-        message: 'success',
-      })
+      vi.mocked(request.get).mockResolvedValue({ logs: 'Last 100 lines...' })
 
       await PodService.getPodLogs('1', 'default', 'nginx-pod', undefined, false, false, 100)
 
@@ -204,11 +172,7 @@ describe('PodService', () => {
 
   describe('batchDeletePods', () => {
     it('should batch delete pods', async () => {
-      vi.mocked(request.delete).mockResolvedValue({
-        code: 200,
-        message: 'Deleted',
-        data: null,
-      })
+      vi.mocked(request.delete).mockResolvedValue(null)
 
       const pods = [
         { namespace: 'default', name: 'pod-1' },

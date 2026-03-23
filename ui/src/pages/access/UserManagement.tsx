@@ -58,10 +58,8 @@ const UserManagement: React.FC = () => {
         status: filterStatus || undefined,
         auth_type: filterAuthType || undefined,
       });
-      if (res.code === 200 && res.data) {
-        setUsers(res.data.items || []);
-        setTotal(res.data.total ?? 0);
-      }
+      setUsers(res.items || []);
+      setTotal(res.total ?? 0);
     } catch (err) {
       message.error('获取用户列表失败');
       console.error('Failed to load users:', err);
@@ -102,14 +100,10 @@ const UserManagement: React.FC = () => {
           email: values.email,
           phone: values.phone,
         };
-        const res = await userService.updateUser(editingUser.id, data);
-        if (res.code === 200) {
-          message.success('更新成功');
-          setModalVisible(false);
-          loadUsers();
-        } else {
-          message.error(res.message || '更新失败');
-        }
+        await userService.updateUser(editingUser.id, data);
+        message.success('更新成功');
+        setModalVisible(false);
+        loadUsers();
       } else {
         const data: CreateUserRequest = {
           username: values.username,
@@ -118,14 +112,10 @@ const UserManagement: React.FC = () => {
           email: values.email,
           phone: values.phone,
         };
-        const res = await userService.createUser(data);
-        if (res.code === 200) {
-          message.success('创建成功');
-          setModalVisible(false);
-          loadUsers();
-        } else {
-          message.error(res.message || '创建失败');
-        }
+        await userService.createUser(data);
+        message.success('创建成功');
+        setModalVisible(false);
+        loadUsers();
       }
     } catch (err) {
       console.error('Submit error:', err);
@@ -148,13 +138,9 @@ const UserManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          const res = await userService.updateUserStatus(record.id, newStatus);
-          if (res.code === 200) {
-            message.success(`${action}成功`);
-            loadUsers();
-          } else {
-            message.error(res.message || `${action}失败`);
-          }
+          await userService.updateUserStatus(record.id, newStatus);
+          message.success(`${action}成功`);
+          loadUsers();
         } catch (err) {
           message.error(`${action}失败`);
           console.error(err);
@@ -174,14 +160,10 @@ const UserManagement: React.FC = () => {
     try {
       const values = await resetForm.validateFields();
       setSubmitLoading(true);
-      const res = await userService.resetPassword(resetUserId, values.new_password);
-      if (res.code === 200) {
-        message.success('密码重置成功');
-        setResetModalVisible(false);
-        setResetUserId(null);
-      } else {
-        message.error(res.message || '密码重置失败');
-      }
+      await userService.resetPassword(resetUserId, values.new_password);
+      message.success('密码重置成功');
+      setResetModalVisible(false);
+      setResetUserId(null);
     } catch (err) {
       console.error('Reset password error:', err);
     } finally {
@@ -202,13 +184,9 @@ const UserManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          const res = await userService.deleteUser(record.id);
-          if (res.code === 200) {
-            message.success('删除成功');
-            loadUsers();
-          } else {
-            message.error(res.message || '删除失败');
-          }
+          await userService.deleteUser(record.id);
+          message.success('删除成功');
+          loadUsers();
         } catch (err) {
           message.error('删除失败');
           console.error(err);

@@ -154,12 +154,8 @@ export interface Workload {
   updatedAt: string;
 }
 
-// API响应类型
-export interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
-}
+// API 响应类型（后端直接返回数据体，无包装）
+export type ApiResponse<T> = T;
 
 export interface PaginatedResponse<T> {
   items: T[];
@@ -185,17 +181,13 @@ export interface SearchResult {
 }
 
 export interface SearchResponse {
-  code: number;
-  message: string;
-  data: {
-    results: SearchResult[];
-    total: number;
-    stats: {
-      cluster: number;
-      node: number;
-      pod: number;
-      workload: number;
-    };
+  results: SearchResult[];
+  total: number;
+  stats: {
+    cluster: number;
+    node: number;
+    pod: number;
+    workload: number;
   };
 }
 

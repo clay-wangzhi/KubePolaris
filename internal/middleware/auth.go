@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 )
 
 // AuthRequired JWT认证中间件
@@ -19,11 +20,7 @@ func AuthRequired(secret string) gin.HandlerFunc {
 			// 检查Bearer前缀
 			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 			if tokenString == authHeader {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"code":    401,
-					"message": "认证令牌格式错误",
-				})
-				c.Abort()
+				response.Unauthorized(c, "认证令牌格式错误")
 				return
 			}
 		} else {
@@ -32,11 +29,7 @@ func AuthRequired(secret string) gin.HandlerFunc {
 		}
 
 		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    401,
-				"message": "缺少认证令牌",
-			})
-			c.Abort()
+			response.Unauthorized(c, "缺少认证令牌")
 			return
 		}
 
@@ -46,11 +39,7 @@ func AuthRequired(secret string) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    401,
-				"message": "认证令牌无效",
-			})
-			c.Abort()
+			response.Unauthorized(c, "认证令牌无效")
 			return
 		}
 
@@ -60,21 +49,13 @@ func AuthRequired(secret string) gin.HandlerFunc {
 			if userIDFloat, ok := claims["user_id"].(float64); ok {
 				c.Set("user_id", uint(userIDFloat))
 			} else {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"code":    401,
-					"message": "认证令牌中缺少用户ID",
-				})
-				c.Abort()
+				response.Unauthorized(c, "认证令牌中缺少用户ID")
 				return
 			}
 			c.Set("username", claims["username"])
 			c.Set("auth_type", claims["auth_type"])
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    401,
-				"message": "认证令牌格式无效",
-			})
-			c.Abort()
+			response.Unauthorized(c, "认证令牌格式无效")
 			return
 		}
 

@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { alertService } from '../services/alertService';
+import { parseApiError } from '../utils/api';
 import type { AlertManagerConfig, AlertManagerStatus } from '../services/alertService';
 
 const { Option } = Select;
@@ -55,7 +56,7 @@ const AlertManagerConfigForm: React.FC<AlertManagerConfigFormProps> = ({
     try {
       setLoading(true);
       const response = await alertService.getConfig(clusterId);
-      const config = response.data;
+      const config = response;
       setEnabled(config.enabled);
       form.setFieldsValue({
         enabled: config.enabled,
@@ -75,7 +76,7 @@ const AlertManagerConfigForm: React.FC<AlertManagerConfigFormProps> = ({
     try {
       setStatusLoading(true);
       const response = await alertService.getStatus(clusterId);
-      setStatus(response.data);
+      setStatus(response);
     } catch (error: unknown) {
       console.error('Failed to get Alertmanager status:', error);
       setStatus(null);
@@ -132,13 +133,7 @@ const AlertManagerConfigForm: React.FC<AlertManagerConfigFormProps> = ({
         return;
       }
 
-      let errorMsg = t('alertManagerConfig.saveFailed');
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        errorMsg = axiosError.response?.data?.message || errorMsg;
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-      }
+      const errorMsg = parseApiError(error);
 
       message.error(errorMsg);
       setSaveResult({ success: false, message: errorMsg });
@@ -181,13 +176,7 @@ const AlertManagerConfigForm: React.FC<AlertManagerConfigFormProps> = ({
         return;
       }
 
-      let errorMsg = t('alertManagerConfig.testFailed');
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        errorMsg = axiosError.response?.data?.message || errorMsg;
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-      }
+      const errorMsg = parseApiError(error);
 
       message.error(errorMsg);
       setTestResult({ success: false, message: errorMsg });

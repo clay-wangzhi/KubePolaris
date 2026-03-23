@@ -216,7 +216,7 @@ const MonitoringCharts: React.FC<MonitoringChartsProps> = ({
       }
 
       const response = await api.get(`${url}?${params.toString()}`);
-      const data = response.data.data;
+      const data = response.data;
       setMetrics(data);
       
       // 更新缓存

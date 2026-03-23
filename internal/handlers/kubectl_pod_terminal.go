@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -52,7 +54,13 @@ func NewKubectlPodTerminalHandler(clusterService *services.ClusterService, audit
 		podTerminal:    NewPodTerminalHandler(clusterService, auditService, k8sMgr),
 		activeSessions: make(map[string]int),
 		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool { return true },
+			CheckOrigin: func(r *http.Request) bool {
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true
+				}
+				return middleware.IsOriginAllowed(origin)
+			},
 		},
 	}
 
@@ -67,7 +75,7 @@ func (h *KubectlPodTerminalHandler) HandleKubectlPodTerminal(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
@@ -101,14 +109,14 @@ func (h *KubectlPodTerminalHandler) HandleKubectlPodTerminal(c *gin.Context) {
 	// 获取集群信息
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取K8s客户端失败: " + err.Error()})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 	client := k8sClient.GetClientset()

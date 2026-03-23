@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -57,7 +57,7 @@ type ResourceYAMLResponse struct {
 func (h *ResourceYAMLHandler) ApplyConfigMapYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -69,13 +69,13 @@ func (h *ResourceYAMLHandler) ApplyConfigMapYAML(c *gin.Context) {
 	// 解析YAML
 	var cm corev1.ConfigMap
 	if err := yaml.Unmarshal([]byte(req.YAML), &cm); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	// 验证kind
 	if cm.Kind != "" && cm.Kind != "ConfigMap" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望ConfigMap，实际为: " + cm.Kind})
+		response.BadRequest(c, "YAML类型错误，期望ConfigMap，实际为: "+cm.Kind)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h *ResourceYAMLHandler) ApplyConfigMapYAML(c *gin.Context) {
 		cm.ResourceVersion = existing.ResourceVersion
 		result, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Update(ctx, &cm, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新ConfigMap失败: " + err.Error()})
+			response.InternalError(c, "更新ConfigMap失败: "+err.Error())
 			return
 		}
 	} else {
@@ -110,21 +110,17 @@ func (h *ResourceYAMLHandler) ApplyConfigMapYAML(c *gin.Context) {
 		isCreated = true
 		result, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Create(ctx, &cm, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建ConfigMap失败: " + err.Error()})
+			response.InternalError(c, "创建ConfigMap失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Namespace:       result.Namespace,
-			Kind:            "ConfigMap",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Namespace:       result.Namespace,
+		Kind:            "ConfigMap",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -139,7 +135,7 @@ func (h *ResourceYAMLHandler) GetConfigMapYAML(c *gin.Context) {
 
 	cm, err := k8sClient.GetClientset().CoreV1().ConfigMaps(c.Param("namespace")).Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "ConfigMap不存在: " + err.Error()})
+		response.NotFound(c, "ConfigMap不存在: "+err.Error())
 		return
 	}
 	clean := cm.DeepCopy()
@@ -153,7 +149,7 @@ func (h *ResourceYAMLHandler) GetConfigMapYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplySecretYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -164,12 +160,12 @@ func (h *ResourceYAMLHandler) ApplySecretYAML(c *gin.Context) {
 
 	var secret corev1.Secret
 	if err := yaml.Unmarshal([]byte(req.YAML), &secret); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if secret.Kind != "" && secret.Kind != "Secret" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望Secret，实际为: " + secret.Kind})
+		response.BadRequest(c, "YAML类型错误，期望Secret，实际为: "+secret.Kind)
 		return
 	}
 
@@ -194,28 +190,24 @@ func (h *ResourceYAMLHandler) ApplySecretYAML(c *gin.Context) {
 		secret.ResourceVersion = existing.ResourceVersion
 		result, err = clientset.CoreV1().Secrets(secret.Namespace).Update(ctx, &secret, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新Secret失败: " + err.Error()})
+			response.InternalError(c, "更新Secret失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.CoreV1().Secrets(secret.Namespace).Create(ctx, &secret, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建Secret失败: " + err.Error()})
+			response.InternalError(c, "创建Secret失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Namespace:       result.Namespace,
-			Kind:            "Secret",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Namespace:       result.Namespace,
+		Kind:            "Secret",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -225,16 +217,20 @@ func (h *ResourceYAMLHandler) GetSecretYAML(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	id := parseClusterID(clusterID)
+	id, err := parseClusterID(clusterID)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	k8sClient, err := h.createK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建K8s客户端失败: " + err.Error()})
+		response.InternalError(c, "创建K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -243,7 +239,7 @@ func (h *ResourceYAMLHandler) GetSecretYAML(c *gin.Context) {
 
 	secret, err := k8sClient.GetClientset().CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "Secret不存在: " + err.Error()})
+		response.NotFound(c, "Secret不存在: "+err.Error())
 		return
 	}
 
@@ -254,16 +250,12 @@ func (h *ResourceYAMLHandler) GetSecretYAML(c *gin.Context) {
 
 	yamlBytes, err := sigsyaml.Marshal(cleanSecret)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "转换YAML失败: " + err.Error()})
+		response.InternalError(c, "转换YAML失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"yaml": string(yamlBytes),
-		},
+	response.OK(c, gin.H{
+		"yaml": string(yamlBytes),
 	})
 }
 
@@ -271,7 +263,7 @@ func (h *ResourceYAMLHandler) GetSecretYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplyServiceYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -282,12 +274,12 @@ func (h *ResourceYAMLHandler) ApplyServiceYAML(c *gin.Context) {
 
 	var svc corev1.Service
 	if err := yaml.Unmarshal([]byte(req.YAML), &svc); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if svc.Kind != "" && svc.Kind != "Service" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望Service，实际为: " + svc.Kind})
+		response.BadRequest(c, "YAML类型错误，期望Service，实际为: "+svc.Kind)
 		return
 	}
 
@@ -315,28 +307,24 @@ func (h *ResourceYAMLHandler) ApplyServiceYAML(c *gin.Context) {
 		svc.Spec.ClusterIPs = existing.Spec.ClusterIPs
 		result, err = clientset.CoreV1().Services(svc.Namespace).Update(ctx, &svc, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新Service失败: " + err.Error()})
+			response.InternalError(c, "更新Service失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.CoreV1().Services(svc.Namespace).Create(ctx, &svc, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建Service失败: " + err.Error()})
+			response.InternalError(c, "创建Service失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Namespace:       result.Namespace,
-			Kind:            "Service",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Namespace:       result.Namespace,
+		Kind:            "Service",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -344,7 +332,7 @@ func (h *ResourceYAMLHandler) ApplyServiceYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplyIngressYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -355,12 +343,12 @@ func (h *ResourceYAMLHandler) ApplyIngressYAML(c *gin.Context) {
 
 	var ing networkingv1.Ingress
 	if err := yaml.Unmarshal([]byte(req.YAML), &ing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if ing.Kind != "" && ing.Kind != "Ingress" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望Ingress，实际为: " + ing.Kind})
+		response.BadRequest(c, "YAML类型错误，期望Ingress，实际为: "+ing.Kind)
 		return
 	}
 
@@ -385,28 +373,24 @@ func (h *ResourceYAMLHandler) ApplyIngressYAML(c *gin.Context) {
 		ing.ResourceVersion = existing.ResourceVersion
 		result, err = clientset.NetworkingV1().Ingresses(ing.Namespace).Update(ctx, &ing, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新Ingress失败: " + err.Error()})
+			response.InternalError(c, "更新Ingress失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.NetworkingV1().Ingresses(ing.Namespace).Create(ctx, &ing, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建Ingress失败: " + err.Error()})
+			response.InternalError(c, "创建Ingress失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Namespace:       result.Namespace,
-			Kind:            "Ingress",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Namespace:       result.Namespace,
+		Kind:            "Ingress",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -414,7 +398,7 @@ func (h *ResourceYAMLHandler) ApplyIngressYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplyPVCYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -425,12 +409,12 @@ func (h *ResourceYAMLHandler) ApplyPVCYAML(c *gin.Context) {
 
 	var pvc corev1.PersistentVolumeClaim
 	if err := yaml.Unmarshal([]byte(req.YAML), &pvc); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if pvc.Kind != "" && pvc.Kind != "PersistentVolumeClaim" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望PersistentVolumeClaim，实际为: " + pvc.Kind})
+		response.BadRequest(c, "YAML类型错误，期望PersistentVolumeClaim，实际为: "+pvc.Kind)
 		return
 	}
 
@@ -457,28 +441,24 @@ func (h *ResourceYAMLHandler) ApplyPVCYAML(c *gin.Context) {
 		pvc.Spec.VolumeName = existing.Spec.VolumeName
 		result, err = clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, &pvc, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新PVC失败: " + err.Error()})
+			response.InternalError(c, "更新PVC失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(ctx, &pvc, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建PVC失败: " + err.Error()})
+			response.InternalError(c, "创建PVC失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Namespace:       result.Namespace,
-			Kind:            "PersistentVolumeClaim",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Namespace:       result.Namespace,
+		Kind:            "PersistentVolumeClaim",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -486,7 +466,7 @@ func (h *ResourceYAMLHandler) ApplyPVCYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplyPVYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -497,12 +477,12 @@ func (h *ResourceYAMLHandler) ApplyPVYAML(c *gin.Context) {
 
 	var pv corev1.PersistentVolume
 	if err := yaml.Unmarshal([]byte(req.YAML), &pv); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if pv.Kind != "" && pv.Kind != "PersistentVolume" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望PersistentVolume，实际为: " + pv.Kind})
+		response.BadRequest(c, "YAML类型错误，期望PersistentVolume，实际为: "+pv.Kind)
 		return
 	}
 
@@ -523,27 +503,23 @@ func (h *ResourceYAMLHandler) ApplyPVYAML(c *gin.Context) {
 		pv.ResourceVersion = existing.ResourceVersion
 		result, err = clientset.CoreV1().PersistentVolumes().Update(ctx, &pv, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新PV失败: " + err.Error()})
+			response.InternalError(c, "更新PV失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.CoreV1().PersistentVolumes().Create(ctx, &pv, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建PV失败: " + err.Error()})
+			response.InternalError(c, "创建PV失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Kind:            "PersistentVolume",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Kind:            "PersistentVolume",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -551,7 +527,7 @@ func (h *ResourceYAMLHandler) ApplyPVYAML(c *gin.Context) {
 func (h *ResourceYAMLHandler) ApplyStorageClassYAML(c *gin.Context) {
 	var req ResourceYAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -562,12 +538,12 @@ func (h *ResourceYAMLHandler) ApplyStorageClassYAML(c *gin.Context) {
 
 	var sc storagev1.StorageClass
 	if err := yaml.Unmarshal([]byte(req.YAML), &sc); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML格式错误: " + err.Error()})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if sc.Kind != "" && sc.Kind != "StorageClass" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "YAML类型错误，期望StorageClass，实际为: " + sc.Kind})
+		response.BadRequest(c, "YAML类型错误，期望StorageClass，实际为: "+sc.Kind)
 		return
 	}
 
@@ -588,27 +564,23 @@ func (h *ResourceYAMLHandler) ApplyStorageClassYAML(c *gin.Context) {
 		sc.ResourceVersion = existing.ResourceVersion
 		result, err = clientset.StorageV1().StorageClasses().Update(ctx, &sc, metav1.UpdateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新StorageClass失败: " + err.Error()})
+			response.InternalError(c, "更新StorageClass失败: "+err.Error())
 			return
 		}
 	} else {
 		isCreated = true
 		result, err = clientset.StorageV1().StorageClasses().Create(ctx, &sc, metav1.CreateOptions{DryRun: dryRunOpt})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建StorageClass失败: " + err.Error()})
+			response.InternalError(c, "创建StorageClass失败: "+err.Error())
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data": ResourceYAMLResponse{
-			Name:            result.Name,
-			Kind:            "StorageClass",
-			ResourceVersion: result.ResourceVersion,
-			IsCreated:       isCreated,
-		},
+	response.OK(c, ResourceYAMLResponse{
+		Name:            result.Name,
+		Kind:            "StorageClass",
+		ResourceVersion: result.ResourceVersion,
+		IsCreated:       isCreated,
 	})
 }
 
@@ -620,15 +592,19 @@ func (h *ResourceYAMLHandler) createK8sClient(cluster *models.Cluster) (*service
 // prepareK8sClient 通用初始化：解析 clusterID → 获取集群 → 创建客户端
 func (h *ResourceYAMLHandler) prepareK8sClient(c *gin.Context) (*services.K8sClient, bool) {
 	clusterID := c.Param("clusterID")
-	id := parseClusterID(clusterID)
+	id, err := parseClusterID(clusterID)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return nil, false
+	}
 	cluster, err := h.clusterService.GetCluster(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return nil, false
 	}
 	k8sClient, err := h.createK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建K8s客户端失败: " + err.Error()})
+		response.InternalError(c, "创建K8s客户端失败: "+err.Error())
 		return nil, false
 	}
 	return k8sClient, true
@@ -638,14 +614,10 @@ func (h *ResourceYAMLHandler) prepareK8sClient(c *gin.Context) (*services.K8sCli
 func respondWithYAML(c *gin.Context, obj interface{}) {
 	yamlBytes, err := sigsyaml.Marshal(obj)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "转换YAML失败: " + err.Error()})
+		response.InternalError(c, "转换YAML失败: "+err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    gin.H{"yaml": string(yamlBytes)},
-	})
+	response.OK(c, gin.H{"yaml": string(yamlBytes)})
 }
 
 // GetServiceYAMLClean 获取干净的Service YAML（用于编辑）
@@ -659,7 +631,7 @@ func (h *ResourceYAMLHandler) GetServiceYAMLClean(c *gin.Context) {
 
 	svc, err := k8sClient.GetClientset().CoreV1().Services(c.Param("namespace")).Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "Service不存在: " + err.Error()})
+		response.NotFound(c, "Service不存在: "+err.Error())
 		return
 	}
 	clean := svc.DeepCopy()
@@ -680,7 +652,7 @@ func (h *ResourceYAMLHandler) GetIngressYAMLClean(c *gin.Context) {
 
 	ing, err := k8sClient.GetClientset().NetworkingV1().Ingresses(c.Param("namespace")).Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "Ingress不存在: " + err.Error()})
+		response.NotFound(c, "Ingress不存在: "+err.Error())
 		return
 	}
 	clean := ing.DeepCopy()
@@ -701,7 +673,7 @@ func (h *ResourceYAMLHandler) GetPVCYAMLClean(c *gin.Context) {
 
 	pvc, err := k8sClient.GetClientset().CoreV1().PersistentVolumeClaims(c.Param("namespace")).Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "PVC不存在: " + err.Error()})
+		response.NotFound(c, "PVC不存在: "+err.Error())
 		return
 	}
 	clean := pvc.DeepCopy()
@@ -722,7 +694,7 @@ func (h *ResourceYAMLHandler) GetPVYAMLClean(c *gin.Context) {
 
 	pv, err := k8sClient.GetClientset().CoreV1().PersistentVolumes().Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "PV不存在: " + err.Error()})
+		response.NotFound(c, "PV不存在: "+err.Error())
 		return
 	}
 	clean := pv.DeepCopy()
@@ -743,7 +715,7 @@ func (h *ResourceYAMLHandler) GetStorageClassYAMLClean(c *gin.Context) {
 
 	sc, err := k8sClient.GetClientset().StorageV1().StorageClasses().Get(ctx, c.Param("name"), metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "StorageClass不存在: " + err.Error()})
+		response.NotFound(c, "StorageClass不存在: "+err.Error())
 		return
 	}
 	clean := sc.DeepCopy()

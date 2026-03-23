@@ -40,8 +40,8 @@ const AISettings: React.FC = () => {
     const fetchConfig = async () => {
       try {
         const response = await aiService.getConfig();
-        if (response.code === 200) {
-          const config = response.data;
+        {
+          const config = response;
           if (config.api_key === '******') {
             setHasApiKey(true);
             config.api_key = '';
@@ -73,14 +73,10 @@ const AISettings: React.FC = () => {
       setSaving(true);
       const submitData = getSubmitData();
       const response = await aiService.updateConfig(submitData);
-      if (response.code === 200) {
-        message.success(t('settings:ai.saveConfigSuccess'));
-        if (form.getFieldValue('api_key')) {
-          setHasApiKey(true);
-          form.setFieldValue('api_key', '');
-        }
-      } else {
-        message.error(response.message || t('settings:ai.saveFailed'));
+      message.success(t('settings:ai.saveConfigSuccess'));
+      if (form.getFieldValue('api_key')) {
+        setHasApiKey(true);
+        form.setFieldValue('api_key', '');
       }
     } catch (error) {
       message.error(t('settings:ai.saveConfigFailed'));
@@ -100,10 +96,10 @@ const AISettings: React.FC = () => {
       setTesting(true);
       const submitData = getSubmitData();
       const response = await aiService.testConnection(submitData);
-      if (response.code === 200 && response.data?.success) {
+      if (response?.success) {
         message.success(t('settings:ai.testConnectionSuccess'));
       } else {
-        message.error(response.message || t('settings:ai.testConnectionFailed'));
+        message.error(t('settings:ai.testConnectionFailed'));
       }
     } catch (error) {
       message.error(t('settings:ai.testConnectionFailed'));

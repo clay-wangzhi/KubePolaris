@@ -46,14 +46,12 @@ const [form] = Form.useForm();
     setLoading(true);
     try {
       const response = await argoCDService.getConfig(clusterId);
-      if (response.code === 200 && response.data) {
-        form.setFieldsValue(response.data);
-        setEnabled(response.data.enabled);
-        setConnectionStatus(
-          response.data.connection_status === 'connected' ? 'connected' :
-          response.data.connection_status === 'disconnected' ? 'disconnected' : 'unknown'
-        );
-      }
+      form.setFieldsValue(response);
+      setEnabled(response.enabled);
+      setConnectionStatus(
+        response.connection_status === 'connected' ? 'connected' :
+        response.connection_status === 'disconnected' ? 'disconnected' : 'unknown'
+      );
     } catch (error) {
       console.error('加载配置失败:', error);
       message.error(t('plugins:config.loadConfigFailed'));
@@ -72,11 +70,7 @@ const [form] = Form.useForm();
       setSaving(true);
       
       const response = await argoCDService.saveConfig(clusterId!, values);
-      if (response.code === 200) {
-        message.success(t('plugins:config.saveSuccess'));
-      } else {
-        message.error(response.message || t('plugins:config.saveFailed'));
-      }
+      message.success(t('plugins:config.saveSuccess'));
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('plugins:config.saveFailed');
       message.error(errorMessage);
@@ -98,11 +92,11 @@ const [form] = Form.useForm();
       setTesting(true);
       
       const response = await argoCDService.testConnection(clusterId!, values);
-      if (response.code === 200 && response.data.connected) {
+      if (response.connected) {
         message.success(t('plugins:config.connectionSuccess'));
         setConnectionStatus('connected');
       } else {
-        message.error(response.message || t('plugins:config.connectionFailed'));
+        message.error(t('plugins:config.connectionFailed'));
         setConnectionStatus('disconnected');
       }
     } catch (error: unknown) {

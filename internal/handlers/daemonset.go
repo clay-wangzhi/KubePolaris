@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -72,13 +72,14 @@ func (h *DaemonSetHandler) ListDaemonSets(c *gin.Context) {
 
 	logger.Info("获取DaemonSet列表: cluster=%s, namespace=%s, search=%s", clusterId, namespace, searchName)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -86,20 +87,14 @@ func (h *DaemonSetHandler) ListDaemonSets(c *gin.Context) {
 	defer cancel()
 
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
 	// 检查命名空间权限
 	nsInfo, hasAccess := middleware.CheckNamespacePermission(c, namespace)
 	if !hasAccess {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": fmt.Sprintf("无权访问命名空间: %s", namespace),
-		})
+		response.Forbidden(c, fmt.Sprintf("无权访问命名空间: %s", namespace))
 		return
 	}
 
@@ -159,16 +154,7 @@ func (h *DaemonSetHandler) ListDaemonSets(c *gin.Context) {
 	}
 	pagedDaemonSets := daemonSets[start:end]
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items":    pagedDaemonSets,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, pagedDaemonSets, int64(total), page, pageSize)
 }
 
 // GetDaemonSet 获取DaemonSet详情
@@ -179,22 +165,20 @@ func (h *DaemonSetHandler) GetDaemonSet(c *gin.Context) {
 
 	logger.Info("获取DaemonSet详情: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -204,10 +188,7 @@ func (h *DaemonSetHandler) GetDaemonSet(c *gin.Context) {
 	clientset := k8sClient.GetClientset()
 	daemonSet, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "DaemonSet不存在: " + err.Error(),
-		})
+		response.NotFound(c, "DaemonSet不存在: "+err.Error())
 		return
 	}
 
@@ -234,15 +215,11 @@ func (h *DaemonSetHandler) GetDaemonSet(c *gin.Context) {
 		yamlString = ""
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"workload": h.convertToDaemonSetInfo(daemonSet),
-			"raw":      daemonSet,
-			"yaml":     yamlString,
-			"pods":     pods,
-		},
+	response.OK(c, gin.H{
+		"workload": h.convertToDaemonSetInfo(daemonSet),
+		"raw":      daemonSet,
+		"yaml":     yamlString,
+		"pods":     pods,
 	})
 }
 
@@ -250,13 +227,14 @@ func (h *DaemonSetHandler) GetDaemonSet(c *gin.Context) {
 func (h *DaemonSetHandler) GetDaemonSetNamespaces(c *gin.Context) {
 	clusterId := c.Param("clusterID")
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -264,20 +242,14 @@ func (h *DaemonSetHandler) GetDaemonSetNamespaces(c *gin.Context) {
 	defer cancel()
 
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
 	sel := labels.Everything()
 	dss, err := h.k8sMgr.DaemonSetsLister(cluster.ID).List(sel)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "读取DaemonSet缓存失败: " + err.Error(),
-		})
+		response.InternalError(c, "读取DaemonSet缓存失败: "+err.Error())
 		return
 	}
 
@@ -303,11 +275,7 @@ func (h *DaemonSetHandler) GetDaemonSetNamespaces(c *gin.Context) {
 		return namespaces[i].Name < namespaces[j].Name
 	})
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    namespaces,
-	})
+	response.OK(c, namespaces)
 }
 
 // ApplyYAML 应用DaemonSet YAML
@@ -316,31 +284,26 @@ func (h *DaemonSetHandler) ApplyYAML(c *gin.Context) {
 
 	var req YAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	logger.Info("应用DaemonSet YAML: cluster=%s, dryRun=%v", clusterId, req.DryRun)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -349,36 +312,24 @@ func (h *DaemonSetHandler) ApplyYAML(c *gin.Context) {
 
 	var objMap map[string]interface{}
 	if err := yaml.Unmarshal([]byte(req.YAML), &objMap); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML格式错误: " + err.Error(),
-		})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	if objMap["apiVersion"] == nil || objMap["kind"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML缺少必要字段: apiVersion 或 kind",
-		})
+		response.BadRequest(c, "YAML缺少必要字段: apiVersion 或 kind")
 		return
 	}
 
 	kind := objMap["kind"].(string)
 	if kind != "DaemonSet" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML类型错误，期望DaemonSet，实际为: " + kind,
-		})
+		response.BadRequest(c, "YAML类型错误，期望DaemonSet，实际为: "+kind)
 		return
 	}
 
 	metadata, ok := objMap["metadata"].(map[string]interface{})
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML缺少 metadata 字段",
-		})
+		response.BadRequest(c, "YAML缺少 metadata 字段")
 		return
 	}
 
@@ -389,18 +340,11 @@ func (h *DaemonSetHandler) ApplyYAML(c *gin.Context) {
 
 	result, err := h.applyYAML(ctx, k8sClient, req.YAML, namespace, req.DryRun)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "YAML应用失败: " + err.Error(),
-		})
+		response.InternalError(c, "YAML应用失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // DeleteDaemonSet 删除DaemonSet
@@ -411,22 +355,20 @@ func (h *DaemonSetHandler) DeleteDaemonSet(c *gin.Context) {
 
 	logger.Info("删除DaemonSet: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -436,17 +378,11 @@ func (h *DaemonSetHandler) DeleteDaemonSet(c *gin.Context) {
 	clientset := k8sClient.GetClientset()
 	err = clientset.AppsV1().DaemonSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "删除失败: " + err.Error(),
-		})
+		response.InternalError(c, "删除失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, gin.H{"message": "删除成功"})
 }
 
 // 辅助方法

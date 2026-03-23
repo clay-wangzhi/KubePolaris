@@ -85,11 +85,7 @@ const [loading, setLoading] = useState(false);
         name
       );
 
-      if (response.code === 200 && response.data) {
-        setRollout(response.data.workload);
-      } else {
-        message.error(response.message || t('messages.fetchDetailError', { type: 'Rollout' }));
-      }
+      setRollout(response.workload);
     } catch (error) {
       console.error('获取Rollout详情失败:', error);
       message.error(t('messages.fetchDetailError', { type: 'Rollout' }));
@@ -108,8 +104,8 @@ const [loading, setLoading] = useState(false);
       if (!clusterId) return;
       try {
         const response = await clusterService.getCluster(clusterId);
-        if (response.code === 200 && response.data) {
-          setClusterName(response.data.name);
+        if (response) {
+          setClusterName(response.name);
         }
       } catch (error) {
         console.error('获取集群信息失败:', error);

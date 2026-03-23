@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -45,35 +45,33 @@ func (h *NodeHandler) GetNodes(c *gin.Context) {
 	logger.Info("获取节点列表: %s", clusterId)
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	if clusterID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 使用 informer+lister 获取节点列表
 	if h.k8sMgr == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "K8s informer 管理器未初始化"})
+		response.ServiceUnavailable(c, "K8s informer 管理器未初始化")
 		return
 	}
 	if _, err := h.k8sMgr.EnsureAndWait(context.Background(), cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 	nodeObjs, err := h.k8sMgr.NodesLister(cluster.ID).List(labels.Everything())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取节点缓存失败: " + err.Error()})
+		response.InternalError(c, "读取节点缓存失败: "+err.Error())
 		return
 	}
 	// 转为值类型以复用原有处理逻辑
@@ -187,16 +185,7 @@ func (h *NodeHandler) GetNodes(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"items":    result,
-			"total":    len(result),
-			"page":     1,
-			"pageSize": 50,
-		},
-	})
+	response.PagedList(c, result, int64(len(result)), 1, 50)
 }
 
 // GetNodeOverview 获取节点概览信息
@@ -205,27 +194,27 @@ func (h *NodeHandler) GetNodeOverview(c *gin.Context) {
 	logger.Info("获取节点概览: %s", clusterId)
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 使用 informer+lister 读取节点并统计
 	if _, err := h.k8sMgr.EnsureAndWait(context.Background(), cluster, 5*time.Second); err != nil {
 		logger.Error("informer 未就绪", "error", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error(), "data": nil})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 	nodeObjs, err := h.k8sMgr.NodesLister(cluster.ID).List(labels.Everything())
 	if err != nil {
 		logger.Error("读取节点缓存失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取节点缓存失败: " + err.Error(), "data": nil})
+		response.InternalError(c, "读取节点缓存失败: "+err.Error())
 		return
 	}
 	totalNodes := len(nodeObjs)
@@ -276,11 +265,7 @@ func (h *NodeHandler) GetNodeOverview(c *gin.Context) {
 		"storageUsage":     0.0,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    overview,
-	})
+	response.OK(c, overview)
 }
 
 // GetNode 获取节点详情
@@ -290,28 +275,29 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 	logger.Info("获取节点详情: %s/%s", clusterId, name)
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 使用 informer+lister 获取节点详情
 	if h.k8sMgr == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "K8s informer 管理器未初始化"})
+		response.ServiceUnavailable(c, "K8s informer 管理器未初始化")
 		return
 	}
 	if _, err := h.k8sMgr.EnsureAndWait(context.Background(), cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 	node, err := h.k8sMgr.NodesLister(cluster.ID).Get(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取节点缓存失败: " + err.Error()})
+		response.InternalError(c, "读取节点缓存失败: "+err.Error())
 		return
 	}
 
@@ -423,11 +409,7 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 		},
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // CordonNode 封锁节点
@@ -437,41 +419,32 @@ func (h *NodeHandler) CordonNode(c *gin.Context) {
 	logger.Info("封锁节点: %s/%s", clusterId, name)
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	// 封锁节点
 	err = k8sClient.CordonNode(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "封锁节点失败: " + err.Error(),
-		})
+		response.InternalError(c, "封锁节点失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "节点封锁成功",
-		"data":    nil,
-	})
+	response.NoContent(c)
 }
 
 // UncordonNode 解封节点
@@ -481,41 +454,32 @@ func (h *NodeHandler) UncordonNode(c *gin.Context) {
 	logger.Info("解封节点: %s/%s", clusterId, name)
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	// 解封节点
 	err = k8sClient.UncordonNode(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "解封节点失败: " + err.Error(),
-		})
+		response.InternalError(c, "解封节点失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "节点解封成功",
-		"data":    nil,
-	})
+	response.NoContent(c)
 }
 
 // DrainNode 驱逐节点
@@ -527,49 +491,37 @@ func (h *NodeHandler) DrainNode(c *gin.Context) {
 	// 解析请求参数
 	var options map[string]interface{}
 	if err := c.ShouldBindJSON(&options); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数解析失败: " + err.Error(),
-		})
+		response.BadRequest(c, "参数解析失败: "+err.Error())
 		return
 	}
 
 	// 从集群服务获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	// 驱逐节点
 	err = k8sClient.DrainNode(name, options)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "驱逐节点失败: " + err.Error(),
-		})
+		response.InternalError(c, "驱逐节点失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "节点驱逐成功",
-		"data":    nil,
-	})
+	response.NoContent(c)
 }
 
 // 获取节点内部IP

@@ -156,15 +156,12 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
           editName
         );
         
-        if (response.code === 200 && response.data) {
-          // 优先使用后端返回的原始 YAML 字符串（保持原始格式）
-          // 如果没有 yaml 字段，则回退到 raw 对象序列化
+        if (response) {
           let yaml: string;
-          if (response.data.yaml && typeof response.data.yaml === 'string') {
-            yaml = response.data.yaml;
+          if (response.yaml && typeof response.yaml === 'string') {
+            yaml = response.yaml;
           } else {
-            // 回退方案：使用 raw 对象序列化
-            const rawResource = response.data.raw || response.data.workload;
+            const rawResource = response.raw || response.workload;
             yaml = YAML.stringify(rawResource);
           }
           
@@ -303,17 +300,10 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
     try {
       const response = await WorkloadService.applyYAML(clusterId!, yaml, true);
       
-      if (response.code === 200) {
-        setDryRunResult({
-          success: true,
-          message: t('create.dryRunPassed'),
-        });
-      } else {
-        setDryRunResult({
-          success: false,
-          message: response.message || t('create.dryRunFailed'),
-        });
-      }
+      setDryRunResult({
+        success: true,
+        message: t('create.dryRunPassed'),
+      });
     } catch (error: unknown) {
       setDryRunResult({
         success: false,
@@ -335,12 +325,8 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
     try {
       const response = await WorkloadService.applyYAML(clusterId, yaml, false);
       
-      if (response.code === 200) {
-        messageApi.success(isEdit ? t('messages.updateSuccess') : t('messages.createSuccess'));
-        navigate(`/clusters/${clusterId}/workloads`);
-      } else {
-        messageApi.error(response.message || t('messages.operationFailed'));
-      }
+      messageApi.success(isEdit ? t('messages.updateSuccess') : t('messages.createSuccess'));
+      navigate(`/clusters/${clusterId}/workloads`);
     } catch (error: unknown) {
       console.error('提交失败:', error);
       messageApi.error(error instanceof Error ? error.message : t('messages.operationFailed'));

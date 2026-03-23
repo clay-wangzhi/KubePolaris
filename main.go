@@ -40,7 +40,7 @@ func main() {
 	}
 
 	// 初始化路由
-	r := router.Setup(db, cfg, staticFS)
+	r, k8sMgr := router.Setup(db, cfg, staticFS)
 
 	// 创建 HTTP 服务器
 	srv := &http.Server{
@@ -67,6 +67,16 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Fatal("服务器强制关闭: %v", err)
+	}
+
+	// 关闭 K8s Informer 管理器
+	k8sMgr.Stop()
+	logger.Info("K8s Informer 管理器已关闭")
+
+	// 关闭数据库连接
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+		logger.Info("数据库连接已关闭")
 	}
 
 	logger.Info("服务器已退出")

@@ -88,9 +88,8 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
       
-      if (response.code === 200 && response.data) {
-        // 使用 raw 字段获取完整的工作负载对象
-        const data = response.data as WorkloadResponse;
+      {
+        const data = response as unknown as WorkloadResponse;
         const deployment = data.raw || data.workload;
         const spec = deployment?.spec;
         if (spec?.template?.spec) {
@@ -100,8 +99,6 @@ const [loading, setLoading] = useState(false);
             tolerations: spec.template.spec.tolerations as SchedulingInfo['tolerations'],
           });
         }
-      } else {
-        message.error(response.message || t('messages.fetchSchedulingError'));
       }
     } catch (error) {
       console.error('获取调度策略失败:', error);

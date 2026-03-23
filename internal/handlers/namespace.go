@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -48,14 +48,14 @@ func (h *NamespaceHandler) GetNamespaces(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 
 	// 获取集群信息
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "集群不存在: " + err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在: "+err.Error())
 		return
 	}
 
@@ -63,14 +63,14 @@ func (h *NamespaceHandler) GetNamespaces(c *gin.Context) {
 	defer cancel()
 
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
 	// 获取命名空间列表
 	namespaces, err := h.k8sMgr.NamespacesLister(clusterID).List(labels.Everything())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取命名空间缓存失败: " + err.Error()})
+		response.InternalError(c, "读取命名空间缓存失败: "+err.Error())
 		return
 	}
 
@@ -96,10 +96,8 @@ func (h *NamespaceHandler) GetNamespaces(c *gin.Context) {
 	}
 
 	// 返回结果，同时告知前端用户是否有全部权限
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "success",
-		"data":    namespaceList,
+	response.OK(c, gin.H{
+		"items": namespaceList,
 		"meta": gin.H{
 			"hasAllAccess":      hasAllAccess,
 			"allowedNamespaces": allowedNs,
@@ -114,33 +112,26 @@ func (h *NamespaceHandler) GetNamespaceDetail(c *gin.Context) {
 
 	// 检查命名空间访问权限
 	if !middleware.HasNamespaceAccess(c, namespaceName) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": "无权访问命名空间: " + namespaceName,
-		})
+		response.Forbidden(c, "无权访问命名空间: "+namespaceName)
 		return
 	}
 
 	// 获取集群信息
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "集群不存在: " + err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在: "+err.Error())
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -149,11 +140,7 @@ func (h *NamespaceHandler) GetNamespaceDetail(c *gin.Context) {
 	// 获取命名空间详情
 	namespace, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "命名空间不存在: " + err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, "命名空间不存在: "+err.Error())
 		return
 	}
 
@@ -194,11 +181,7 @@ func (h *NamespaceHandler) GetNamespaceDetail(c *gin.Context) {
 		"resourceCount":     resourceCount,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "success",
-		"data":    namespaceDetail,
-	})
+	response.OK(c, namespaceDetail)
 }
 
 // CreateNamespace 创建命名空间
@@ -206,22 +189,19 @@ func (h *NamespaceHandler) CreateNamespace(c *gin.Context) {
 	// 检查是否有管理员权限（只有管理员才能创建命名空间）
 	permission := middleware.GetClusterPermission(c)
 	if permission == nil || permission.PermissionType != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": "只有管理员才能创建命名空间",
-		})
+		response.Forbidden(c, "只有管理员才能创建命名空间")
 		return
 	}
 
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "集群不存在: " + err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在: "+err.Error())
 		return
 	}
 
@@ -232,22 +212,14 @@ func (h *NamespaceHandler) CreateNamespace(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -265,24 +237,16 @@ func (h *NamespaceHandler) CreateNamespace(c *gin.Context) {
 	// 创建命名空间
 	createdNs, err := clientset.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": "创建命名空间失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "创建命名空间失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "命名空间创建成功",
-		"data": NamespaceResponse{
-			Name:              createdNs.Name,
-			Status:            string(createdNs.Status.Phase),
-			Labels:            createdNs.Labels,
-			Annotations:       createdNs.Annotations,
-			CreationTimestamp: createdNs.CreationTimestamp.Format("2006-01-02 15:04:05"),
-		},
+	response.OK(c, NamespaceResponse{
+		Name:              createdNs.Name,
+		Status:            string(createdNs.Status.Phase),
+		Labels:            createdNs.Labels,
+		Annotations:       createdNs.Annotations,
+		CreationTimestamp: createdNs.CreationTimestamp.Format("2006-01-02 15:04:05"),
 	})
 }
 
@@ -291,10 +255,7 @@ func (h *NamespaceHandler) DeleteNamespace(c *gin.Context) {
 	// 检查是否有管理员权限（只有管理员才能删除命名空间）
 	permission := middleware.GetClusterPermission(c)
 	if permission == nil || permission.PermissionType != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": "只有管理员才能删除命名空间",
-		})
+		response.Forbidden(c, "只有管理员才能删除命名空间")
 		return
 	}
 
@@ -302,25 +263,21 @@ func (h *NamespaceHandler) DeleteNamespace(c *gin.Context) {
 	namespaceName := c.Param("namespace")
 
 	// 获取集群信息
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "集群不存在: " + err.Error(),
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在: "+err.Error())
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -329,19 +286,11 @@ func (h *NamespaceHandler) DeleteNamespace(c *gin.Context) {
 	// 删除命名空间
 	err = clientset.CoreV1().Namespaces().Delete(context.TODO(), namespaceName, metav1.DeleteOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": "删除命名空间失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "删除命名空间失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "命名空间删除成功",
-		"data":    nil,
-	})
+	response.NoContent(c)
 }
 
 // convertResourceList 转换资源列表为字符串map

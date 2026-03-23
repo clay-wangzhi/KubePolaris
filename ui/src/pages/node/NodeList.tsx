@@ -97,7 +97,7 @@ const NodeList: React.FC = () => {
       });
       
       // 保存原始数据
-      setAllNodes(response.data.items || []);
+      setAllNodes(response.items || []);
     } catch (error) {
       console.error('Failed to fetch nodes:', error);
       message.error(t('list.fetchError'));
@@ -114,7 +114,7 @@ const NodeList: React.FC = () => {
     
     try {
       const response = await nodeService.getNodeOverview(selectedClusterId);
-      setOverview(response.data);
+      setOverview(response);
     } catch (error) {
       console.error('Failed to fetch node overview:', error);
     }

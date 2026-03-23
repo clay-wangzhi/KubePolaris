@@ -80,14 +80,12 @@ const navigate = useNavigate();
         name
       );
       
-      if (response.code === 200) {
-        setWorkload(response.data.raw);
-        setWorkloadInfo(response.data.workload);
-        // 后端返回的 pods 是 K8s PodList 对象 {items: [...]}, 需要提取并转换
+      {
+        setWorkload(response.raw);
+        setWorkloadInfo(response.workload);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const podsData = response.data.pods as any;
+        const podsData = response.pods as any;
         const rawPods: Array<Record<string, unknown>> = Array.isArray(podsData) ? podsData : (podsData?.items || []);
-        // 将 K8s 原始 Pod 对象转换为前端扁平结构
         const flatPods = rawPods.map((pod: Record<string, unknown>) => {
           const metadata = (pod.metadata || {}) as Record<string, unknown>;
           const spec = (pod.spec || {}) as Record<string, unknown>;
@@ -113,9 +111,7 @@ const navigate = useNavigate();
           };
         });
         setPods(flatPods);
-        setScaleReplicas(response.data.workload.replicas || 1);
-      } else {
-        message.error(response.message || t('detail.fetchError'));
+        setScaleReplicas(response.workload.replicas || 1);
       }
     } catch (error) {
       console.error('获取工作负载详情失败:', error);
@@ -138,13 +134,9 @@ const navigate = useNavigate();
         scaleReplicas
       );
       
-      if (response.code === 200) {
-        message.success(t('messages.scaleSuccess'));
-        setScaleModalVisible(false);
-        fetchWorkloadDetail();
-      } else {
-        message.error(response.message || t('messages.scaleError'));
-      }
+      message.success(t('messages.scaleSuccess'));
+      setScaleModalVisible(false);
+      fetchWorkloadDetail();
     } catch (error) {
       console.error('扩缩容失败:', error);
       message.error(t('messages.scaleError'));
@@ -163,12 +155,8 @@ const navigate = useNavigate();
         workloadType
       );
       
-      if (response.code === 200) {
-        message.success(t('messages.deleteSuccess'));
-        navigate(`/clusters/${clusterId}/workloads`);
-      } else {
-        message.error(response.message || t('messages.deleteError'));
-      }
+      message.success(t('messages.deleteSuccess'));
+      navigate(`/clusters/${clusterId}/workloads`);
     } catch (error) {
       console.error('删除失败:', error);
       message.error(t('messages.deleteError'));

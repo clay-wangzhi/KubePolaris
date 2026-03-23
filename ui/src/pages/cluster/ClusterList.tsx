@@ -45,7 +45,7 @@ const ClusterList: React.FC = () => {
     setLoading(true);
     try {
       const response = await clusterService.getClusters();
-      setClusters(response.data.items || []);
+      setClusters(response.items || []);
     } catch (error) {
       message.error(t('list.fetchError'));
       console.error('Failed to fetch clusters:', error);

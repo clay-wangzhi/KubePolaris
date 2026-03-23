@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/constants"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -35,11 +34,7 @@ type LoginRequest struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -48,17 +43,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		logger.Warn("用户登录失败: %s, 错误: %v", req.Username, err)
 
 		// 判断错误类型确定状态码
-		statusCode := http.StatusUnauthorized
-		code := 401
+		statusCode := 401
 		if err.Error() == "用户账号已被禁用" {
-			statusCode = http.StatusForbidden
-			code = 403
+			statusCode = 403
 		} else if err.Error() == "不支持的认证类型" {
-			statusCode = http.StatusBadRequest
-			code = 400
+			statusCode = 400
 		} else if err.Error() == "JWT token生成失败" {
-			statusCode = http.StatusInternalServerError
-			code = 500
+			statusCode = 500
 		}
 
 		// 记录登录失败审计日志
@@ -79,11 +70,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			})
 		}
 
-		c.JSON(statusCode, gin.H{
-			"code":    code,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		switch statusCode {
+		case 400:
+			response.BadRequest(c, err.Error())
+		case 403:
+			response.Forbidden(c, err.Error())
+		case 500:
+			response.InternalError(c, err.Error())
+		default:
+			response.Unauthorized(c, err.Error())
+		}
 		return
 	}
 
@@ -106,11 +102,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "登录成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // Logout 用户登出
@@ -142,40 +134,24 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "登出成功",
-		"data":    nil,
-	})
+	response.OK(c, nil)
 }
 
 // GetProfile 获取用户信息
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    401,
-			"message": "无效的用户认证信息",
-			"data":    nil,
-		})
+		response.Unauthorized(c, "无效的用户认证信息")
 		return
 	}
 
 	user, err := h.authService.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "用户不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "用户不存在")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    user,
-	})
+	response.OK(c, user)
 }
 
 // AuthStatusResponse 认证状态响应
@@ -187,12 +163,8 @@ type AuthStatusResponse struct {
 func (h *AuthHandler) GetAuthStatus(c *gin.Context) {
 	ldapEnabled, _ := h.authService.GetAuthStatus()
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": AuthStatusResponse{
-			LDAPEnabled: ldapEnabled,
-		},
+	response.OK(c, AuthStatusResponse{
+		LDAPEnabled: ldapEnabled,
 	})
 }
 
@@ -206,51 +178,30 @@ type ChangePasswordRequest struct {
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    401,
-			"message": "无效的用户认证信息",
-			"data":    nil,
-		})
+		response.Unauthorized(c, "无效的用户认证信息")
 		return
 	}
 
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	err := h.authService.ChangePassword(userID, req.OldPassword, req.NewPassword)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		code := 500
 		switch err.Error() {
 		case "用户不存在":
-			statusCode = http.StatusNotFound
-			code = 404
+			response.NotFound(c, err.Error())
 		case "LDAP用户不能在此修改密码":
-			statusCode = http.StatusForbidden
-			code = 403
+			response.Forbidden(c, err.Error())
 		case "原密码错误":
-			statusCode = http.StatusUnauthorized
-			code = 401
+			response.Unauthorized(c, err.Error())
+		default:
+			response.InternalError(c, err.Error())
 		}
-
-		c.JSON(statusCode, gin.H{
-			"code":    code,
-			"message": err.Error(),
-			"data":    nil,
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "密码修改成功",
-		"data":    nil,
-	})
+	response.OK(c, nil)
 }

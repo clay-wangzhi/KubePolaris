@@ -46,9 +46,7 @@ const GrafanaSettings: React.FC = () => {
   const fetchDashboardStatus = useCallback(async () => {
     try {
       const response = await systemSettingService.getGrafanaDashboardStatus();
-      if (response.code === 200) {
-        setDashboardStatus(response.data);
-      }
+      setDashboardStatus(response);
     } catch {
       // Dashboard 状态查询失败不影响主流程
     }
@@ -57,9 +55,7 @@ const GrafanaSettings: React.FC = () => {
   const fetchDataSourceStatus = useCallback(async () => {
     try {
       const response = await systemSettingService.getGrafanaDataSourceStatus();
-      if (response.code === 200) {
-        setDataSourceStatus(response.data);
-      }
+      setDataSourceStatus(response);
     } catch {
       // 数据源状态查询失败不影响主流程
     }
@@ -69,8 +65,8 @@ const GrafanaSettings: React.FC = () => {
     const fetchConfig = async () => {
       try {
         const response = await systemSettingService.getGrafanaConfig();
-        if (response.code === 200) {
-          const config = response.data;
+        {
+          const config = response;
 
           if (config.api_key === '******') {
             setHasApiKey(true);
@@ -112,18 +108,14 @@ const GrafanaSettings: React.FC = () => {
       const submitData = getSubmitData();
 
       const response = await systemSettingService.updateGrafanaConfig(submitData);
-      if (response.code === 200) {
-        message.success(t('settings:grafana.saveConfigSuccess'));
-        invalidateGrafanaUrlCache();
-        if (form.getFieldValue('api_key')) {
-          setHasApiKey(true);
-          form.setFieldValue('api_key', '');
-        }
-        fetchDashboardStatus();
-        fetchDataSourceStatus();
-      } else {
-        message.error(response.message || t('settings:grafana.saveFailed'));
+      message.success(t('settings:grafana.saveConfigSuccess'));
+      invalidateGrafanaUrlCache();
+      if (form.getFieldValue('api_key')) {
+        setHasApiKey(true);
+        form.setFieldValue('api_key', '');
       }
+      fetchDashboardStatus();
+      fetchDataSourceStatus();
     } catch (error) {
       message.error(t('settings:grafana.saveConfigFailed'));
       console.error(error);
@@ -145,12 +137,12 @@ const GrafanaSettings: React.FC = () => {
       const submitData = getSubmitData();
 
       const response = await systemSettingService.testGrafanaConnection(submitData);
-      if (response.code === 200 && response.data?.success) {
+      if (response?.success) {
         message.success(t('settings:grafana.testConnectionSuccess'));
         fetchDashboardStatus();
         fetchDataSourceStatus();
       } else {
-        message.error(response.message || t('settings:grafana.testConnectionFailed'));
+        message.error(t('settings:grafana.testConnectionFailed'));
       }
     } catch (error) {
       message.error(t('settings:grafana.testConnectionFailed'));
@@ -164,15 +156,11 @@ const GrafanaSettings: React.FC = () => {
     try {
       setSyncingDS(true);
       const response = await systemSettingService.syncGrafanaDataSources();
-      if (response.code === 200) {
-        setDataSourceStatus(response.data);
-        if (response.data?.all_synced) {
-          message.success(t('settings:grafana.syncDataSourcesSuccess'));
-        } else {
-          message.warning(t('settings:grafana.syncDataSourcesPartial'));
-        }
+      setDataSourceStatus(response);
+      if (response?.all_synced) {
+        message.success(t('settings:grafana.syncDataSourcesSuccess'));
       } else {
-        message.error(response.message || t('settings:grafana.syncDataSourcesFailed'));
+        message.warning(t('settings:grafana.syncDataSourcesPartial'));
       }
     } catch (error) {
       message.error(t('settings:grafana.syncDataSourcesFailed'));
@@ -186,15 +174,11 @@ const GrafanaSettings: React.FC = () => {
     try {
       setSyncing(true);
       const response = await systemSettingService.syncGrafanaDashboards();
-      if (response.code === 200) {
-        setDashboardStatus(response.data);
-        if (response.data?.all_synced) {
-          message.success(t('settings:grafana.syncDashboardsSuccess'));
-        } else {
-          message.warning(t('settings:grafana.syncDashboardsPartial'));
-        }
+      setDashboardStatus(response);
+      if (response?.all_synced) {
+        message.success(t('settings:grafana.syncDashboardsSuccess'));
       } else {
-        message.error(response.message || t('settings:grafana.syncDashboardsFailed'));
+        message.warning(t('settings:grafana.syncDashboardsPartial'));
       }
     } catch (error) {
       message.error(t('settings:grafana.syncDashboardsFailed'));

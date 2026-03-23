@@ -14,6 +14,7 @@ import (
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -44,34 +45,34 @@ func (h *AIChatHandler) Chat(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	var req chatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误: " + err.Error()})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
 	if len(req.Messages) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "消息不能为空"})
+		response.BadRequest(c, "消息不能为空")
 		return
 	}
 
 	aiConfig, err := h.aiConfigService.GetConfigWithAPIKey()
 	if err != nil || aiConfig == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "AI 功能未配置，请在系统设置中配置 AI"})
+		response.BadRequest(c, "AI 功能未配置，请在系统设置中配置 AI")
 		return
 	}
 	if !aiConfig.Enabled || aiConfig.APIKey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "AI 功能未启用"})
+		response.BadRequest(c, "AI 功能未启用")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "集群不存在"})
+		response.BadRequest(c, "集群不存在")
 		return
 	}
 
@@ -97,7 +98,7 @@ func (h *AIChatHandler) Chat(c *gin.Context) {
 
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "不支持流式响应"})
+		response.InternalError(c, "不支持流式响应")
 		return
 	}
 

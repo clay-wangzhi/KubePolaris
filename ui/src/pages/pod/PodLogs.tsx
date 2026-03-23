@@ -69,14 +69,9 @@ const [pod, setPod] = useState<PodInfo | null>(null);
     try {
       const response = await PodService.getPodDetail(clusterId, namespace, name);
       
-      if (response.code === 200) {
-        setPod(response.data.pod);
-        // 如果没有选择容器且有容器列表，默认选择第一个
-        if (!selectedContainer && response.data.pod.containers.length > 0) {
-          setSelectedContainer(response.data.pod.containers[0].name);
-        }
-      } else {
-        message.error(response.message || t('pod:logs.fetchPodError'));
+      setPod(response.pod);
+      if (!selectedContainer && response.pod.containers.length > 0) {
+        setSelectedContainer(response.pod.containers[0].name);
       }
     } catch (error) {
       console.error('获取Pod详情失败:', error);
@@ -101,24 +96,17 @@ const [pod, setPod] = useState<PodInfo | null>(null);
         sinceSeconds
       );
       
-      if (response.code === 200) {
-        if (isFollow) {
-          // 追加日志内容
-          setLogs(prev => prev + response.data.logs);
-        } else {
-          // 替换日志内容
-          setLogs(response.data.logs);
-        }
-        
-        // 自动滚动到底部
-        setTimeout(() => {
-          if (logsRef.current) {
-            logsRef.current.scrollTop = logsRef.current.scrollHeight;
-          }
-        }, 100);
+      if (isFollow) {
+        setLogs(prev => prev + response.logs);
       } else {
-        message.error(response.message || t('pod:logs.fetchError'));
+        setLogs(response.logs);
       }
+      
+      setTimeout(() => {
+        if (logsRef.current) {
+          logsRef.current.scrollTop = logsRef.current.scrollHeight;
+        }
+      }, 100);
     } catch (error) {
       console.error('获取日志失败:', error);
       message.error(t('pod:logs.fetchError'));

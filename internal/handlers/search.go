@@ -1,35 +1,39 @@
 package handlers
 
 import (
-	"net/http"
+	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/clay-wangzhi/KubePolaris/internal/config"
-	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
-	"github.com/clay-wangzhi/KubePolaris/internal/services"
-	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/config"
+	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
+	"github.com/clay-wangzhi/KubePolaris/internal/services"
+	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
 
 // SearchHandler 搜索处理器
 type SearchHandler struct {
-	db         *gorm.DB
-	cfg        *config.Config
-	k8sMgr     *k8s.ClusterInformerManager
-	clusterSvc *services.ClusterService
+	db            *gorm.DB
+	cfg           *config.Config
+	k8sMgr        *k8s.ClusterInformerManager
+	clusterSvc    *services.ClusterService
+	permissionSvc *services.PermissionService
 }
 
 // NewSearchHandler 创建搜索处理器
-func NewSearchHandler(db *gorm.DB, cfg *config.Config, k8sMgr *k8s.ClusterInformerManager, clusterSvc *services.ClusterService) *SearchHandler {
+func NewSearchHandler(db *gorm.DB, cfg *config.Config, k8sMgr *k8s.ClusterInformerManager, clusterSvc *services.ClusterService, permSvc *services.PermissionService) *SearchHandler {
 	return &SearchHandler{
-		db:         db,
-		cfg:        cfg,
-		k8sMgr:     k8sMgr,
-		clusterSvc: clusterSvc,
+		db:            db,
+		cfg:           cfg,
+		k8sMgr:        k8sMgr,
+		clusterSvc:    clusterSvc,
+		permissionSvc: permSvc,
 	}
 }
 
@@ -51,25 +55,17 @@ type SearchResult struct {
 func (h *SearchHandler) GlobalSearch(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "搜索关键词不能为空",
-			"data":    nil,
-		})
+		response.BadRequest(c, "搜索关键词不能为空")
 		return
 	}
 
 	logger.Info("全局搜索: %s", query)
 
-	// 获取所有集群
-	clusters, err := h.clusterSvc.GetAllClusters()
+	// 获取用户可访问的集群
+	clusters, err := h.getAccessibleClusters(c.GetUint("user_id"))
 	if err != nil {
 		logger.Error("获取集群列表失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群列表失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群列表失败")
 		return
 	}
 
@@ -304,14 +300,10 @@ func (h *SearchHandler) GlobalSearch(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "搜索成功",
-		"data": gin.H{
-			"results": results,
-			"total":   len(results),
-			"stats":   stats,
-		},
+	response.OK(c, gin.H{
+		"results": results,
+		"total":   len(results),
+		"stats":   stats,
 	})
 }
 
@@ -325,27 +317,19 @@ func (h *SearchHandler) QuickSearch(c *gin.Context) {
 	}
 
 	if query == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "搜索成功",
-			"data": gin.H{
-				"results": []SearchResult{},
-			},
+		response.OK(c, gin.H{
+			"results": []SearchResult{},
 		})
 		return
 	}
 
 	logger.Info("快速搜索: %s", query)
 
-	// 获取所有集群
-	clusters, err := h.clusterSvc.GetAllClusters()
+	// 获取用户可访问的集群
+	clusters, err := h.getAccessibleClusters(c.GetUint("user_id"))
 	if err != nil {
 		logger.Error("获取集群列表失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取集群列表失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取集群列表失败")
 		return
 	}
 
@@ -567,13 +551,28 @@ func (h *SearchHandler) QuickSearch(c *gin.Context) {
 		results = append(results, typeResult...)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "搜索成功",
-		"data": gin.H{
-			"results": results,
-		},
+	response.OK(c, gin.H{
+		"results": results,
 	})
+}
+
+// getAccessibleClusters 获取用户可访问的集群列表
+func (h *SearchHandler) getAccessibleClusters(userID uint) ([]*models.Cluster, error) {
+	clusterIDs, isAll, err := h.permissionSvc.GetUserAccessibleClusterIDs(userID)
+	if err != nil {
+		return nil, err
+	}
+	if isAll {
+		return h.clusterSvc.GetAllClusters()
+	}
+	if len(clusterIDs) == 0 {
+		return []*models.Cluster{}, nil
+	}
+	var clusters []*models.Cluster
+	if err := h.db.Where("id IN ?", clusterIDs).Find(&clusters).Error; err != nil {
+		return nil, fmt.Errorf("获取集群列表失败: %w", err)
+	}
+	return clusters, nil
 }
 
 // getNodeStatus 获取节点状态

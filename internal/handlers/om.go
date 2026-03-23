@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -41,22 +41,14 @@ func (h *OMHandler) GetHealthDiagnosis(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 获取集群信息
 	cluster, err := h.clusterSvc.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -64,21 +56,13 @@ func (h *OMHandler) GetHealthDiagnosis(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	clientset := k8sClient.GetClientset()
 	if clientset == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败")
 		return
 	}
 
@@ -86,19 +70,11 @@ func (h *OMHandler) GetHealthDiagnosis(c *gin.Context) {
 	result, err := h.omSvc.GetHealthDiagnosis(c.Request.Context(), clientset, uint(clusterID))
 	if err != nil {
 		logger.Error("执行健康诊断失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "执行健康诊断失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "执行健康诊断失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // GetResourceTop 获取资源消耗 Top N
@@ -117,22 +93,14 @@ func (h *OMHandler) GetResourceTop(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 解析请求参数
 	var req models.ResourceTopRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -144,11 +112,7 @@ func (h *OMHandler) GetResourceTop(c *gin.Context) {
 	// 获取集群信息
 	cluster, err := h.clusterSvc.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -156,21 +120,13 @@ func (h *OMHandler) GetResourceTop(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	clientset := k8sClient.GetClientset()
 	if clientset == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败")
 		return
 	}
 
@@ -178,19 +134,11 @@ func (h *OMHandler) GetResourceTop(c *gin.Context) {
 	result, err := h.omSvc.GetResourceTop(c.Request.Context(), clientset, uint(clusterID), &req)
 	if err != nil {
 		logger.Error("获取资源Top N失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取资源Top N失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取资源Top N失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // GetControlPlaneStatus 获取控制面组件状态
@@ -206,22 +154,14 @@ func (h *OMHandler) GetControlPlaneStatus(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-			"data":    nil,
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 获取集群信息
 	cluster, err := h.clusterSvc.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-			"data":    nil,
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -229,21 +169,13 @@ func (h *OMHandler) GetControlPlaneStatus(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
 	clientset := k8sClient.GetClientset()
 	if clientset == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败",
-			"data":    nil,
-		})
+		response.InternalError(c, "获取K8s客户端失败")
 		return
 	}
 
@@ -251,17 +183,9 @@ func (h *OMHandler) GetControlPlaneStatus(c *gin.Context) {
 	result, err := h.omSvc.GetControlPlaneStatus(c.Request.Context(), clientset, uint(clusterID))
 	if err != nil {
 		logger.Error("获取控制面状态失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取控制面状态失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取控制面状态失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }

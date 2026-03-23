@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -39,7 +41,11 @@ func NewLogCenterHandler(clusterSvc *services.ClusterService, k8sMgr *k8s.Cluste
 		aggregator: services.NewLogAggregator(clusterSvc),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true
+				}
+				return middleware.IsOriginAllowed(origin)
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -49,7 +55,11 @@ func NewLogCenterHandler(clusterSvc *services.ClusterService, k8sMgr *k8s.Cluste
 
 // GetContainerLogs 获取容器日志
 func (h *LogCenterHandler) GetContainerLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Query("namespace")
 	podName := c.Query("pod")
 	container := c.Query("container")
@@ -58,19 +68,13 @@ func (h *LogCenterHandler) GetContainerLogs(c *gin.Context) {
 	previous := c.Query("previous") == "true"
 
 	if namespace == "" || podName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "namespace 和 pod 参数必填",
-		})
+		response.BadRequest(c, "namespace 和 pod 参数必填")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -79,25 +83,22 @@ func (h *LogCenterHandler) GetContainerLogs(c *gin.Context) {
 
 	logs, err := h.aggregator.GetContainerLogs(ctx, cluster, namespace, podName, container, tailLines, sinceSeconds, previous)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取日志失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取日志失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"logs": logs,
-		},
+	response.OK(c, gin.H{
+		"logs": logs,
 	})
 }
 
 // GetEventLogs 获取K8s事件日志
 func (h *LogCenterHandler) GetEventLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Query("namespace")
 	resourceType := c.Query("resourceType")
 	resourceName := c.Query("resourceName")
@@ -106,20 +107,14 @@ func (h *LogCenterHandler) GetEventLogs(c *gin.Context) {
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -147,10 +142,7 @@ func (h *LogCenterHandler) GetEventLogs(c *gin.Context) {
 
 	events, err := k8sClient.GetClientset().CoreV1().Events(namespace).List(ctx, listOpts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取事件失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取事件失败: "+err.Error())
 		return
 	}
 
@@ -178,35 +170,26 @@ func (h *LogCenterHandler) GetEventLogs(c *gin.Context) {
 		return eventLogs[i].LastTimestamp.After(eventLogs[j].LastTimestamp)
 	})
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"items": eventLogs,
-			"total": len(eventLogs),
-		},
-	})
+	response.List(c, eventLogs, int64(len(eventLogs)))
 }
 
 // SearchLogs 日志搜索
 func (h *LogCenterHandler) SearchLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	var query models.LogQuery
 	if err := c.ShouldBindJSON(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -215,35 +198,26 @@ func (h *LogCenterHandler) SearchLogs(c *gin.Context) {
 
 	results, total, err := h.aggregator.SearchLogs(ctx, cluster, &query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "搜索失败: " + err.Error(),
-		})
+		response.InternalError(c, "搜索失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "搜索成功",
-		"data": gin.H{
-			"items": results,
-			"total": total,
-		},
-	})
+	response.List(c, results, int64(total))
 }
 
 // GetLogStats 获取日志统计
 func (h *LogCenterHandler) GetLogStats(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Query("namespace")
 	timeRange := c.DefaultQuery("timeRange", "1h") // 1h, 6h, 24h, 7d
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -266,10 +240,7 @@ func (h *LogCenterHandler) GetLogStats(c *gin.Context) {
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -279,10 +250,7 @@ func (h *LogCenterHandler) GetLogStats(c *gin.Context) {
 	// 获取事件统计
 	events, err := k8sClient.GetClientset().CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取事件失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取事件失败: "+err.Error())
 		return
 	}
 
@@ -331,20 +299,20 @@ func (h *LogCenterHandler) GetLogStats(c *gin.Context) {
 		return stats.NamespaceStats[i].Count > stats.NamespaceStats[j].Count
 	})
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }
 
 // HandleAggregateLogStream 处理聚合日志流 WebSocket
 func (h *LogCenterHandler) HandleAggregateLogStream(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -435,7 +403,11 @@ func (h *LogCenterHandler) HandleAggregateLogStream(c *gin.Context) {
 
 // HandleSinglePodLogStream 处理单个Pod日志流 WebSocket
 func (h *LogCenterHandler) HandleSinglePodLogStream(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Param("namespace")
 	podName := c.Param("name")
 	container := c.Query("container")
@@ -445,7 +417,7 @@ func (h *LogCenterHandler) HandleSinglePodLogStream(c *gin.Context) {
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -571,14 +543,15 @@ func (h *LogCenterHandler) HandleSinglePodLogStream(c *gin.Context) {
 
 // GetNamespacesForLogs 获取日志中心可用的命名空间列表
 func (h *LogCenterHandler) GetNamespacesForLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -587,7 +560,7 @@ func (h *LogCenterHandler) GetNamespacesForLogs(c *gin.Context) {
 
 	// 确保 informer 缓存就绪
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
@@ -595,10 +568,7 @@ func (h *LogCenterHandler) GetNamespacesForLogs(c *gin.Context) {
 	sel := labels.Everything()
 	pods, err := h.k8sMgr.PodsLister(cluster.ID).List(sel)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取命名空间失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取命名空间失败: "+err.Error())
 		return
 	}
 
@@ -614,24 +584,21 @@ func (h *LogCenterHandler) GetNamespacesForLogs(c *gin.Context) {
 	}
 	sort.Strings(nsList)
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    nsList,
-	})
+	response.OK(c, nsList)
 }
 
 // GetPodsForLogs 获取指定命名空间的Pod列表（用于日志选择）
 func (h *LogCenterHandler) GetPodsForLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Query("namespace")
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -640,7 +607,7 @@ func (h *LogCenterHandler) GetPodsForLogs(c *gin.Context) {
 
 	// 确保 informer 缓存就绪
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "message": "informer 未就绪: " + err.Error()})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
@@ -655,10 +622,7 @@ func (h *LogCenterHandler) GetPodsForLogs(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Pod列表失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Pod列表失败: "+err.Error())
 		return
 	}
 
@@ -688,32 +652,26 @@ func (h *LogCenterHandler) GetPodsForLogs(c *gin.Context) {
 		return podList[i].Name < podList[j].Name
 	})
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    podList,
-	})
+	response.OK(c, podList)
 }
 
 // ExportLogs 导出日志
 func (h *LogCenterHandler) ExportLogs(c *gin.Context) {
-	clusterID := parseClusterID(c.Param("clusterID"))
+	clusterID, err := parseClusterID(c.Param("clusterID"))
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	var query models.LogQuery
 	if err := c.ShouldBindJSON(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -727,10 +685,7 @@ func (h *LogCenterHandler) ExportLogs(c *gin.Context) {
 
 	results, _, err := h.aggregator.SearchLogs(ctx, cluster, &query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取日志失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取日志失败: "+err.Error())
 		return
 	}
 

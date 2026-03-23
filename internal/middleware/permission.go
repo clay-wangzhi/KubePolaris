@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"net/http"
 	"strconv"
-
-	"github.com/clay-wangzhi/KubePolaris/internal/models"
-	"github.com/clay-wangzhi/KubePolaris/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
+	"github.com/clay-wangzhi/KubePolaris/internal/services"
 )
 
 // PermissionMiddleware 权限中间件
@@ -29,11 +29,7 @@ func (m *PermissionMiddleware) ClusterAccessRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetUint("user_id")
 		if userID == 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    401,
-				"message": "未登录",
-			})
-			c.Abort()
+			response.Unauthorized(c, "未登录")
 			return
 		}
 
@@ -50,22 +46,14 @@ func (m *PermissionMiddleware) ClusterAccessRequired() gin.HandlerFunc {
 
 		clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "无效的集群ID",
-			})
-			c.Abort()
+			response.BadRequest(c, "无效的集群ID")
 			return
 		}
 
 		// 检查权限
 		permission, err := m.permissionService.GetUserClusterPermission(userID, uint(clusterID))
 		if err != nil {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无权限访问该集群",
-			})
-			c.Abort()
+			response.Forbidden(c, "无权限访问该集群")
 			return
 		}
 
@@ -83,11 +71,7 @@ func (m *PermissionMiddleware) NamespaceAccessRequired() gin.HandlerFunc {
 		// 获取权限信息
 		permissionInterface, exists := c.Get("cluster_permission")
 		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无集群访问权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "无集群访问权限")
 			return
 		}
 
@@ -101,11 +85,7 @@ func (m *PermissionMiddleware) NamespaceAccessRequired() gin.HandlerFunc {
 
 		// 如果有命名空间参数，检查权限
 		if namespace != "" && !services.HasNamespaceAccess(permission, namespace) {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无权限访问该命名空间",
-			})
-			c.Abort()
+			response.Forbidden(c, "无权限访问该命名空间")
 			return
 		}
 
@@ -120,11 +100,7 @@ func (m *PermissionMiddleware) ActionRequired(actions ...string) gin.HandlerFunc
 		// 获取权限信息
 		permissionInterface, exists := c.Get("cluster_permission")
 		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无集群访问权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "无集群访问权限")
 			return
 		}
 
@@ -133,15 +109,7 @@ func (m *PermissionMiddleware) ActionRequired(actions ...string) gin.HandlerFunc
 		// 检查所有要求的操作权限
 		for _, action := range actions {
 			if !services.CanPerformAction(permission, action) {
-				c.JSON(http.StatusForbidden, gin.H{
-					"code":    403,
-					"message": "权限不足，无法执行此操作",
-					"data": gin.H{
-						"required_action": action,
-						"permission_type": permission.PermissionType,
-					},
-				})
-				c.Abort()
+				response.Forbidden(c, "权限不足，无法执行此操作")
 				return
 			}
 		}
@@ -157,22 +125,14 @@ func (m *PermissionMiddleware) AdminRequired() gin.HandlerFunc {
 		// 获取权限信息
 		permissionInterface, exists := c.Get("cluster_permission")
 		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无集群访问权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "无集群访问权限")
 			return
 		}
 
 		permission := permissionInterface.(*models.ClusterPermission)
 
 		if permission.PermissionType != models.PermissionTypeAdmin {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "需要管理员权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "需要管理员权限")
 			return
 		}
 
@@ -187,22 +147,14 @@ func (m *PermissionMiddleware) WriteRequired() gin.HandlerFunc {
 		// 获取权限信息
 		permissionInterface, exists := c.Get("cluster_permission")
 		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无集群访问权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "无集群访问权限")
 			return
 		}
 
 		permission := permissionInterface.(*models.ClusterPermission)
 
 		if permission.PermissionType == models.PermissionTypeReadonly {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "只读权限无法执行写操作",
-			})
-			c.Abort()
+			response.Forbidden(c, "只读权限无法执行写操作")
 			return
 		}
 
@@ -225,11 +177,7 @@ func (m *PermissionMiddleware) AutoWriteCheck() gin.HandlerFunc {
 		permissionInterface, exists := c.Get("cluster_permission")
 		if !exists {
 			// 如果没有权限信息，说明 ClusterAccessRequired 没有运行或失败
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无集群访问权限",
-			})
-			c.Abort()
+			response.Forbidden(c, "无集群访问权限")
 			return
 		}
 
@@ -237,15 +185,7 @@ func (m *PermissionMiddleware) AutoWriteCheck() gin.HandlerFunc {
 
 		// 只读权限无法执行写操作
 		if permission.PermissionType == models.PermissionTypeReadonly {
-			c.JSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "只读权限无法执行写操作，请联系管理员获取更高权限",
-				"data": gin.H{
-					"permission_type": permission.PermissionType,
-					"method":          method,
-				},
-			})
-			c.Abort()
+			response.Forbidden(c, "只读权限无法执行写操作，请联系管理员获取更高权限")
 			return
 		}
 
@@ -260,8 +200,7 @@ func PlatformAdminRequired(db *gorm.DB) gin.HandlerFunc {
 		userID := c.GetUint("user_id")
 		username := c.GetString("username")
 		if userID == 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未登录"})
-			c.Abort()
+			response.Unauthorized(c, "未登录")
 			return
 		}
 
@@ -293,8 +232,7 @@ func PlatformAdminRequired(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "需要平台管理员权限"})
-		c.Abort()
+		response.Forbidden(c, "需要平台管理员权限")
 	}
 }
 

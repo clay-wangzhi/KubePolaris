@@ -268,13 +268,8 @@ const PodList: React.FC = () => {
         10000 // 获取所有数据
       );
       
-      if (response.code === 200) {
-        const items = response.data.items || [];
-        // 保存原始数据，筛选和分页会在useEffect中自动处理
-        setAllPods(items);
-      } else {
-        message.error(response.message || t('list.fetchError'));
-      }
+      const items = response.items || [];
+      setAllPods(items);
     } catch (error) {
       console.error('Failed to fetch pods:', error);
       message.error(t('list.fetchError'));
@@ -288,14 +283,9 @@ const PodList: React.FC = () => {
     if (!clusterId) return;
     
     try {
-      const response = await PodService.deletePod(clusterId, pod.namespace, pod.name);
-      
-      if (response.code === 200) {
-        message.success(tc('messages.deleteSuccess'));
-        loadPods();
-      } else {
-        message.error(response.message || tc('messages.deleteError'));
-      }
+      await PodService.deletePod(clusterId, pod.namespace, pod.name);
+      message.success(tc('messages.deleteSuccess'));
+      loadPods();
     } catch (error) {
       console.error('Failed to delete pod:', error);
       message.error(tc('messages.deleteError'));

@@ -46,8 +46,8 @@ const NamespaceSelector: React.FC<NamespaceSelectorProps> = ({
       setLoading(true);
       try {
         const response = await namespaceService.getNamespaces(String(clusterId));
-        if (response.code === 200 && response.data) {
-          const names = response.data.map((ns: { name?: string } | string) => 
+        if (response) {
+          const names = (response as ({ name?: string } | string)[]).map((ns: { name?: string } | string) => 
             typeof ns === 'string' ? ns : (ns.name || '')
           );
           setAllNamespaces(names.filter(Boolean));

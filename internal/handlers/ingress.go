@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -83,7 +83,11 @@ type LoadBalancerStatus struct {
 // ListIngresses 获取Ingress列表
 func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	// 获取查询参数
 	namespace := c.DefaultQuery("namespace", "")
@@ -96,7 +100,7 @@ func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -104,7 +108,7 @@ func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -113,10 +117,7 @@ func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	// 检查命名空间权限
 	nsInfo, hasAccess := middleware.CheckNamespacePermission(c, namespace)
 	if !hasAccess {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": fmt.Sprintf("无权访问命名空间: %s", namespace),
-		})
+		response.Forbidden(c, fmt.Sprintf("无权访问命名空间: %s", namespace))
 		return
 	}
 
@@ -124,7 +125,7 @@ func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	ingresses, err := h.getIngresses(clientset, namespace)
 	if err != nil {
 		logger.Error("获取Ingresses失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Ingresses失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Ingresses失败: %v", err))
 		return
 	}
 
@@ -155,22 +156,17 @@ func (h *IngressHandler) ListIngresses(c *gin.Context) {
 	}
 	pagedIngresses := filteredIngresses[start:end]
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items":    pagedIngresses,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, pagedIngresses, int64(total), page, pageSize)
 }
 
 // GetIngress 获取单个Ingress详情
 func (h *IngressHandler) GetIngress(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -179,7 +175,7 @@ func (h *IngressHandler) GetIngress(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -187,7 +183,7 @@ func (h *IngressHandler) GetIngress(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -197,23 +193,23 @@ func (h *IngressHandler) GetIngress(c *gin.Context) {
 	ingress, err := clientset.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Ingress失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Ingress失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Ingress失败: %v", err))
 		return
 	}
 
 	ingressInfo := h.convertToIngressInfo(ingress)
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    ingressInfo,
-	})
+	response.OK(c, ingressInfo)
 }
 
 // GetIngressYAML 获取Ingress的YAML
 func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -222,7 +218,7 @@ func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -230,7 +226,7 @@ func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -240,7 +236,7 @@ func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 	ingress, err := clientset.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Ingress失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Ingress失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Ingress失败: %v", err))
 		return
 	}
 
@@ -254,21 +250,21 @@ func (h *IngressHandler) GetIngressYAML(c *gin.Context) {
 	yamlData, err := yaml.Marshal(cleanIng)
 	if err != nil {
 		logger.Error("转换YAML失败", "error", err)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("转换YAML失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("转换YAML失败: %v", err))
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    gin.H{"yaml": string(yamlData)},
-	})
+	response.OK(c, gin.H{"yaml": string(yamlData)})
 }
 
 // DeleteIngress 删除Ingress
 func (h *IngressHandler) DeleteIngress(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -277,7 +273,7 @@ func (h *IngressHandler) DeleteIngress(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -285,7 +281,7 @@ func (h *IngressHandler) DeleteIngress(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -295,12 +291,12 @@ func (h *IngressHandler) DeleteIngress(c *gin.Context) {
 	err = clientset.NetworkingV1().Ingresses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		logger.Error("删除Ingress失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("删除Ingress失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("删除Ingress失败: %v", err))
 		return
 	}
 
 	logger.Info("Ingress删除成功", "clusterId", clusterID, "namespace", namespace, "name", name)
-	c.JSON(200, gin.H{"code": 200, "message": "Ingress删除成功", "data": nil})
+	response.NoContent(c)
 }
 
 // 辅助函数
@@ -491,11 +487,15 @@ type IngressTLSFormData struct {
 // CreateIngress 创建Ingress
 func (h *IngressHandler) CreateIngress(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	var req CreateIngressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"code": 400, "message": "参数错误: " + err.Error(), "data": nil})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -503,7 +503,7 @@ func (h *IngressHandler) CreateIngress(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -511,7 +511,7 @@ func (h *IngressHandler) CreateIngress(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -527,30 +527,34 @@ func (h *IngressHandler) CreateIngress(c *gin.Context) {
 		// 表单方式创建
 		ingress, err = h.createIngressFromForm(clientset, req.Namespace, req.FormData)
 	} else {
-		c.JSON(400, gin.H{"code": 400, "message": "必须提供YAML或表单数据", "data": nil})
+		response.BadRequest(c, "必须提供YAML或表单数据")
 		return
 	}
 
 	if err != nil {
 		logger.Error("创建Ingress失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("创建Ingress失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("创建Ingress失败: %v", err))
 		return
 	}
 
 	logger.Info("Ingress创建成功", "clusterId", clusterID, "namespace", ingress.Namespace, "name", ingress.Name)
-	c.JSON(200, gin.H{"code": 200, "message": "Ingress创建成功", "data": h.convertToIngressInfo(ingress)})
+	response.OK(c, h.convertToIngressInfo(ingress))
 }
 
 // UpdateIngress 更新Ingress
 func (h *IngressHandler) UpdateIngress(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
 	var req CreateIngressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"code": 400, "message": "参数错误: " + err.Error(), "data": nil})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -558,7 +562,7 @@ func (h *IngressHandler) UpdateIngress(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -566,7 +570,7 @@ func (h *IngressHandler) UpdateIngress(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -582,18 +586,18 @@ func (h *IngressHandler) UpdateIngress(c *gin.Context) {
 		// 表单方式更新
 		ingress, err = h.updateIngressFromForm(clientset, namespace, name, req.FormData)
 	} else {
-		c.JSON(400, gin.H{"code": 400, "message": "必须提供YAML或表单数据", "data": nil})
+		response.BadRequest(c, "必须提供YAML或表单数据")
 		return
 	}
 
 	if err != nil {
 		logger.Error("更新Ingress失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("更新Ingress失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("更新Ingress失败: %v", err))
 		return
 	}
 
 	logger.Info("Ingress更新成功", "clusterId", clusterID, "namespace", ingress.Namespace, "name", ingress.Name)
-	c.JSON(200, gin.H{"code": 200, "message": "Ingress更新成功", "data": h.convertToIngressInfo(ingress)})
+	response.OK(c, h.convertToIngressInfo(ingress))
 }
 
 // createIngressFromYAML 从YAML创建Ingress
@@ -786,20 +790,20 @@ func (h *IngressHandler) GetIngressNamespaces(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(404, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 	clientset := k8sClient.GetClientset()
@@ -808,7 +812,7 @@ func (h *IngressHandler) GetIngressNamespaces(c *gin.Context) {
 	ingressList, err := clientset.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error("获取Ingress列表失败", "cluster", cluster.Name, "error", err)
-		c.JSON(500, gin.H{"error": fmt.Sprintf("获取Ingress列表失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取Ingress列表失败: %v", err))
 		return
 	}
 
@@ -836,9 +840,5 @@ func (h *IngressHandler) GetIngressNamespaces(c *gin.Context) {
 		return namespaces[i].Name < namespaces[j].Name
 	})
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    namespaces,
-	})
+	response.OK(c, namespaces)
 }

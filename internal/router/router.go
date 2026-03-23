@@ -14,6 +14,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/handlers"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -21,7 +22,7 @@ import (
 // staticFS 保存嵌入的前端静态文件系统，由 Setup 注入
 var staticFS embed.FS
 
-func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
+func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) (*gin.Engine, *k8s.ClusterInformerManager) {
 	staticFS = frontendFS
 	r := gin.New()
 
@@ -46,11 +47,11 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 
 	// Health endpoints：liveness 与 readiness
 	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		response.OK(c, gin.H{"status": "ok"})
 	})
 	r.GET("/readyz", func(c *gin.Context) {
 		// TODO: 检查 db/k8s 可用性
-		c.JSON(200, gin.H{"ready": true})
+		response.OK(c, gin.H{"ready": true})
 	})
 
 	// 统一的 Service 实例，避免重复创建
@@ -135,13 +136,15 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		// clusters 根分组
 		clusters := protected.Group("/clusters")
 		{
-			clusterHandler := handlers.NewClusterHandler(db, cfg, k8sMgr, prometheusSvc, monitoringConfigSvc)
+			clusterHandler := handlers.NewClusterHandler(db, cfg, k8sMgr, prometheusSvc, monitoringConfigSvc, permissionSvc)
 
-			// 静态路由优先（不需要集群权限检查）
-			clusters.GET("/stats", clusterHandler.GetClusterStats)
-			clusters.POST("/import", clusterHandler.ImportCluster)
-			clusters.POST("/test-connection", clusterHandler.TestConnection)
+			// 集群列表和统计（按用户权限过滤）
 			clusters.GET("", clusterHandler.GetClusters)
+			clusters.GET("/stats", clusterHandler.GetClusterStats)
+
+			// 集群导入和测连（仅平台管理员）
+			clusters.POST("/import", middleware.PlatformAdminRequired(db), clusterHandler.ImportCluster)
+			clusters.POST("/test-connection", middleware.PlatformAdminRequired(db), clusterHandler.TestConnection)
 
 			// 动态 cluster 子分组（需要集群权限检查）
 			cluster := clusters.Group("/:clusterID")
@@ -480,7 +483,7 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		{
 			alertManagerCfgSvc := services.NewAlertManagerConfigService(db)
 			alertManagerSvc := services.NewAlertManagerService()
-			overviewHandler := handlers.NewOverviewHandler(clusterSvc, k8sMgr, prometheusSvc, monitoringConfigSvc, alertManagerCfgSvc, alertManagerSvc)
+			overviewHandler := handlers.NewOverviewHandler(db, clusterSvc, k8sMgr, prometheusSvc, monitoringConfigSvc, alertManagerCfgSvc, alertManagerSvc, permissionSvc)
 			overview.GET("/stats", overviewHandler.GetStats)
 			overview.GET("/resource-usage", overviewHandler.GetResourceUsage)
 			overview.GET("/distribution", overviewHandler.GetDistribution)
@@ -492,7 +495,7 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		// search
 		search := protected.Group("/search")
 		{
-			searchHandler := handlers.NewSearchHandler(db, cfg, k8sMgr, clusterSvc)
+			searchHandler := handlers.NewSearchHandler(db, cfg, k8sMgr, clusterSvc, permissionSvc)
 			search.GET("", searchHandler.GlobalSearch)
 			search.GET("/quick", searchHandler.QuickSearch)
 		}
@@ -551,39 +554,43 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		globalRbacHandler := handlers.NewRBACHandler(clusterSvc, globalRbacSvc, k8sMgr)
 		permissions := protected.Group("/permissions")
 		{
-			// 权限类型
-			permissions.GET("/types", permissionHandler.GetPermissionTypes)
-			// KubePolaris 预定义 ClusterRole 信息
-			permissions.GET("/kubepolaris-roles", globalRbacHandler.GetKubePolarisClusterRoles)
-
-			// 用户列表（用于权限分配）
-			permissions.GET("/users", permissionHandler.ListUsers)
-
-			// 用户组管理
-			userGroups := permissions.Group("/user-groups")
-			{
-				userGroups.GET("", permissionHandler.ListUserGroups)
-				userGroups.POST("", permissionHandler.CreateUserGroup)
-				userGroups.GET("/:id", permissionHandler.GetUserGroup)
-				userGroups.PUT("/:id", permissionHandler.UpdateUserGroup)
-				userGroups.DELETE("/:id", permissionHandler.DeleteUserGroup)
-				userGroups.POST("/:id/users", permissionHandler.AddUserToGroup)
-				userGroups.DELETE("/:id/users/:userId", permissionHandler.RemoveUserFromGroup)
-			}
-
-			// 集群权限管理
-			clusterPerms := permissions.Group("/cluster-permissions")
-			{
-				clusterPerms.GET("", permissionHandler.ListAllClusterPermissions)
-				clusterPerms.POST("", permissionHandler.CreateClusterPermission)
-				clusterPerms.GET("/:id", permissionHandler.GetClusterPermission)
-				clusterPerms.PUT("/:id", permissionHandler.UpdateClusterPermission)
-				clusterPerms.DELETE("/:id", permissionHandler.DeleteClusterPermission)
-				clusterPerms.POST("/batch-delete", permissionHandler.BatchDeleteClusterPermissions)
-			}
-
-			// 当前用户权限查询
+			// 当前用户权限查询（任意登录用户可访问）
 			permissions.GET("/my-permissions", permissionHandler.GetMyPermissions)
+			permissions.GET("/types", permissionHandler.GetPermissionTypes)
+
+			// 以下接口需要平台管理员权限
+			permAdmin := permissions.Group("")
+			permAdmin.Use(middleware.PlatformAdminRequired(db))
+			{
+				// KubePolaris 预定义 ClusterRole 信息
+				permAdmin.GET("/kubepolaris-roles", globalRbacHandler.GetKubePolarisClusterRoles)
+
+				// 用户列表（用于权限分配）
+				permAdmin.GET("/users", permissionHandler.ListUsers)
+
+				// 用户组管理
+				userGroups := permAdmin.Group("/user-groups")
+				{
+					userGroups.GET("", permissionHandler.ListUserGroups)
+					userGroups.POST("", permissionHandler.CreateUserGroup)
+					userGroups.GET("/:id", permissionHandler.GetUserGroup)
+					userGroups.PUT("/:id", permissionHandler.UpdateUserGroup)
+					userGroups.DELETE("/:id", permissionHandler.DeleteUserGroup)
+					userGroups.POST("/:id/users", permissionHandler.AddUserToGroup)
+					userGroups.DELETE("/:id/users/:userId", permissionHandler.RemoveUserFromGroup)
+				}
+
+				// 集群权限管理
+				clusterPerms := permAdmin.Group("/cluster-permissions")
+				{
+					clusterPerms.GET("", permissionHandler.ListAllClusterPermissions)
+					clusterPerms.POST("", permissionHandler.CreateClusterPermission)
+					clusterPerms.GET("/:id", permissionHandler.GetClusterPermission)
+					clusterPerms.PUT("/:id", permissionHandler.UpdateClusterPermission)
+					clusterPerms.DELETE("/:id", permissionHandler.DeleteClusterPermission)
+					clusterPerms.POST("/batch-delete", permissionHandler.BatchDeleteClusterPermissions)
+				}
+			}
 		}
 
 		// 集群级权限查询
@@ -620,8 +627,8 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 		podHandler := handlers.NewPodHandler(db, cfg, clusterSvc, k8sMgr)
 		logCenterHandler := handlers.NewLogCenterHandler(clusterSvc, k8sMgr)
 
-		// 节点 SSH 终端（不需要集群权限检查）
-		ws.GET("/ssh/terminal", ssh.SSHConnect)
+		// 节点 SSH 终端（需要平台管理员权限）
+		ws.GET("/ssh/terminal", middleware.PlatformAdminRequired(db), ssh.SSHConnect)
 
 		// 集群相关的 WebSocket 路由（需要集群权限检查）
 		wsCluster := ws.Group("/clusters/:clusterID")
@@ -651,7 +658,7 @@ func Setup(db *gorm.DB, cfg *config.Config, frontendFS embed.FS) *gin.Engine {
 	// TODO:
 	// - 统一错误处理/响应格式中间件
 	// - OpenAPI/Swagger 文档路由（/swagger/*any）
-	return r
+	return r, k8sMgr
 }
 
 // setupStatic 配置嵌入的前端静态文件服务
@@ -676,7 +683,7 @@ func setupStatic(r *gin.Engine) {
 
 		// API 和 WebSocket 路径返回 404
 		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
-			c.JSON(404, gin.H{"code": 404, "message": "not found"})
+			response.NotFound(c, "not found")
 			return
 		}
 
@@ -694,7 +701,7 @@ func setupStatic(r *gin.Engine) {
 		// 回退到 index.html
 		content, err := staticFS.ReadFile("ui/dist/index.html")
 		if err != nil {
-			c.JSON(500, gin.H{"code": 500, "message": "frontend not available"})
+			response.InternalError(c, "frontend not available")
 			return
 		}
 		c.Data(200, "text/html; charset=utf-8", content)

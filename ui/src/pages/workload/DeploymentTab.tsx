@@ -171,13 +171,8 @@ const { t } = useTranslation(['workload', 'common']);
         undefined
       );
       
-      if (response.code === 200) {
-        const items = response.data.items || [];
-        // 保存原始数据，筛选和分页会在useEffect中自动处理
-        setAllWorkloads(items);
-      } else {
-message.error(response.message || t('messages.fetchError', { type: 'Deployment' }));
-}
+      const items = response.items || [];
+      setAllWorkloads(items);
     } catch (error) {
       console.error('获取Deployment列表失败:', error);
 message.error(t('messages.fetchError', { type: 'Deployment' }));
@@ -199,13 +194,9 @@ message.error(t('messages.fetchError', { type: 'Deployment' }));
         scaleReplicas
       );
       
-      if (response.code === 200) {
-message.success(t('messages.scaleSuccess'));
-setScaleModalVisible(false);
-        loadWorkloads();
-      } else {
-message.error(response.message || t('messages.scaleError'));
-}
+      message.success(t('messages.scaleSuccess'));
+      setScaleModalVisible(false);
+      loadWorkloads();
     } catch (error) {
       console.error('扩缩容失败:', error);
 message.error(t('messages.scaleError'));
@@ -224,12 +215,8 @@ message.error(t('messages.scaleError'));
         workload.type
       );
       
-      if (response.code === 200) {
-message.success(t('messages.deleteSuccess'));
-loadWorkloads();
-      } else {
-message.error(response.message || t('messages.deleteError'));
-}
+      message.success(t('messages.deleteSuccess'));
+      loadWorkloads();
     } catch (error) {
       console.error('删除失败:', error);
 message.error(t('messages.deleteError'));

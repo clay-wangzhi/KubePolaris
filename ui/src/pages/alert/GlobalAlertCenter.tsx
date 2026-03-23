@@ -59,7 +59,7 @@ const [loading, setLoading] = useState(true);
     try {
       setLoading(true);
       const response = await overviewService.getAlertStats();
-      setAlertStats(response.data);
+      setAlertStats(response);
     } catch (error) {
       console.error('加载告警统计失败:', error);
       message.error(t('alert:global.loadFailed'));

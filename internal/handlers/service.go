@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -78,7 +78,11 @@ type LoadBalancerIngress struct {
 // ListServices 获取Service列表
 func (h *ServiceHandler) ListServices(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	// 获取查询参数
 	namespace := c.DefaultQuery("namespace", "")
@@ -91,7 +95,7 @@ func (h *ServiceHandler) ListServices(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -99,7 +103,7 @@ func (h *ServiceHandler) ListServices(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -108,10 +112,7 @@ func (h *ServiceHandler) ListServices(c *gin.Context) {
 	// 检查命名空间权限
 	nsInfo, hasAccess := middleware.CheckNamespacePermission(c, namespace)
 	if !hasAccess {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": fmt.Sprintf("无权访问命名空间: %s", namespace),
-		})
+		response.Forbidden(c, fmt.Sprintf("无权访问命名空间: %s", namespace))
 		return
 	}
 
@@ -119,7 +120,7 @@ func (h *ServiceHandler) ListServices(c *gin.Context) {
 	services, err := h.getServices(clientset, namespace)
 	if err != nil {
 		logger.Error("获取Services失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Services失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Services失败: %v", err))
 		return
 	}
 
@@ -150,22 +151,17 @@ func (h *ServiceHandler) ListServices(c *gin.Context) {
 	}
 	pagedServices := filteredServices[start:end]
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items":    pagedServices,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, pagedServices, int64(total), page, pageSize)
 }
 
 // GetService 获取单个Service详情
 func (h *ServiceHandler) GetService(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -174,7 +170,7 @@ func (h *ServiceHandler) GetService(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -182,7 +178,7 @@ func (h *ServiceHandler) GetService(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -192,23 +188,23 @@ func (h *ServiceHandler) GetService(c *gin.Context) {
 	service, err := clientset.CoreV1().Services(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Service失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Service失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Service失败: %v", err))
 		return
 	}
 
 	serviceInfo := h.convertToServiceInfo(service)
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    serviceInfo,
-	})
+	response.OK(c, serviceInfo)
 }
 
 // GetServiceYAML 获取Service的YAML
 func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -217,7 +213,7 @@ func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -225,7 +221,7 @@ func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -235,7 +231,7 @@ func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 	service, err := clientset.CoreV1().Services(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Service失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Service失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Service失败: %v", err))
 		return
 	}
 
@@ -249,21 +245,21 @@ func (h *ServiceHandler) GetServiceYAML(c *gin.Context) {
 	yamlData, err := yaml.Marshal(cleanSvc)
 	if err != nil {
 		logger.Error("转换YAML失败", "error", err)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("转换YAML失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("转换YAML失败: %v", err))
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    gin.H{"yaml": string(yamlData)},
-	})
+	response.OK(c, gin.H{"yaml": string(yamlData)})
 }
 
 // DeleteService 删除Service
 func (h *ServiceHandler) DeleteService(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -272,7 +268,7 @@ func (h *ServiceHandler) DeleteService(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -280,7 +276,7 @@ func (h *ServiceHandler) DeleteService(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -290,18 +286,22 @@ func (h *ServiceHandler) DeleteService(c *gin.Context) {
 	err = clientset.CoreV1().Services(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		logger.Error("删除Service失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("删除Service失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("删除Service失败: %v", err))
 		return
 	}
 
 	logger.Info("Service删除成功", "clusterId", clusterID, "namespace", namespace, "name", name)
-	c.JSON(200, gin.H{"code": 200, "message": "Service删除成功", "data": nil})
+	response.NoContent(c)
 }
 
 // GetServiceEndpoints 获取Service的Endpoints
 func (h *ServiceHandler) GetServiceEndpoints(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -310,7 +310,7 @@ func (h *ServiceHandler) GetServiceEndpoints(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *ServiceHandler) GetServiceEndpoints(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -328,18 +328,14 @@ func (h *ServiceHandler) GetServiceEndpoints(c *gin.Context) {
 	endpoints, err := clientset.CoreV1().Endpoints(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Endpoints失败", "error", err, "clusterId", clusterID, "namespace", namespace, "name", name)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取Endpoints失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取Endpoints失败: %v", err))
 		return
 	}
 
 	// 转换Endpoints信息
 	endpointInfo := h.convertEndpointsInfo(endpoints)
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    endpointInfo,
-	})
+	response.OK(c, endpointInfo)
 }
 
 // 辅助函数
@@ -515,11 +511,15 @@ type ServicePortForm struct {
 // CreateService 创建Service
 func (h *ServiceHandler) CreateService(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 
 	var req CreateServiceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"code": 400, "message": "参数错误: " + err.Error(), "data": nil})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -527,7 +527,7 @@ func (h *ServiceHandler) CreateService(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -535,7 +535,7 @@ func (h *ServiceHandler) CreateService(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -551,30 +551,34 @@ func (h *ServiceHandler) CreateService(c *gin.Context) {
 		// 表单方式创建
 		service, err = h.createServiceFromForm(clientset, req.Namespace, req.FormData)
 	} else {
-		c.JSON(400, gin.H{"code": 400, "message": "必须提供YAML或表单数据", "data": nil})
+		response.BadRequest(c, "必须提供YAML或表单数据")
 		return
 	}
 
 	if err != nil {
 		logger.Error("创建Service失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("创建Service失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("创建Service失败: %v", err))
 		return
 	}
 
 	logger.Info("Service创建成功", "clusterId", clusterID, "namespace", service.Namespace, "name", service.Name)
-	c.JSON(200, gin.H{"code": 200, "message": "Service创建成功", "data": h.convertToServiceInfo(service)})
+	response.OK(c, h.convertToServiceInfo(service))
 }
 
 // UpdateService 更新Service
 func (h *ServiceHandler) UpdateService(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
-	clusterID := parseClusterID(clusterIDStr)
+	clusterID, err := parseClusterID(clusterIDStr)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
 	var req CreateServiceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"code": 400, "message": "参数错误: " + err.Error(), "data": nil})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -582,7 +586,7 @@ func (h *ServiceHandler) UpdateService(c *gin.Context) {
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
 		logger.Error("获取集群失败", "error", err, "clusterId", clusterID)
-		c.JSON(404, gin.H{"code": 404, "message": "集群不存在", "data": nil})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -590,7 +594,7 @@ func (h *ServiceHandler) UpdateService(c *gin.Context) {
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
 		logger.Error("获取K8s客户端失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("获取K8s客户端失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -606,18 +610,18 @@ func (h *ServiceHandler) UpdateService(c *gin.Context) {
 		// 表单方式更新
 		service, err = h.updateServiceFromForm(clientset, namespace, name, req.FormData)
 	} else {
-		c.JSON(400, gin.H{"code": 400, "message": "必须提供YAML或表单数据", "data": nil})
+		response.BadRequest(c, "必须提供YAML或表单数据")
 		return
 	}
 
 	if err != nil {
 		logger.Error("更新Service失败", "error", err, "clusterId", clusterID)
-		c.JSON(500, gin.H{"code": 500, "message": fmt.Sprintf("更新Service失败: %v", err), "data": nil})
+		response.InternalError(c, fmt.Sprintf("更新Service失败: %v", err))
 		return
 	}
 
 	logger.Info("Service更新成功", "clusterId", clusterID, "namespace", service.Namespace, "name", service.Name)
-	c.JSON(200, gin.H{"code": 200, "message": "Service更新成功", "data": h.convertToServiceInfo(service)})
+	response.OK(c, h.convertToServiceInfo(service))
 }
 
 // createServiceFromYAML 从YAML创建Service
@@ -792,20 +796,20 @@ func (h *ServiceHandler) GetServiceNamespaces(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterService.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(404, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(500, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 	clientset := k8sClient.GetClientset()
@@ -814,7 +818,7 @@ func (h *ServiceHandler) GetServiceNamespaces(c *gin.Context) {
 	serviceList, err := clientset.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error("获取Service列表失败", "cluster", cluster.Name, "error", err)
-		c.JSON(500, gin.H{"error": fmt.Sprintf("获取Service列表失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取Service列表失败: %v", err))
 		return
 	}
 
@@ -842,9 +846,5 @@ func (h *ServiceHandler) GetServiceNamespaces(c *gin.Context) {
 		return namespaces[i].Name < namespaces[j].Name
 	})
 
-	c.JSON(200, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    namespaces,
-	})
+	response.OK(c, namespaces)
 }

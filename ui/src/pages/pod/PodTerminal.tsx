@@ -93,13 +93,9 @@ const [pod, setPod] = useState<PodInfo | null>(null);
     try {
       const response = await PodService.getPodDetail(clusterId, namespace, name);
       
-      if (response.code === 200) {
-        setPod(response.data.pod);
-        if (!selectedContainer && response.data.pod.containers.length > 0) {
-          setSelectedContainer(response.data.pod.containers[0].name);
-        }
-      } else {
-        message.error(response.message || t('pod:terminal.fetchPodError'));
+      setPod(response.pod);
+      if (!selectedContainer && response.pod.containers.length > 0) {
+        setSelectedContainer(response.pod.containers[0].name);
       }
     } catch (error) {
       console.error('获取Pod详情失败:', error);

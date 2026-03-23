@@ -89,7 +89,7 @@ const NodeDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await nodeService.getNode(clusterId, nodeName);
-      setNode(response.data);
+      setNode(response);
     } catch (error) {
       console.error('Failed to fetch node details:', error);
       message.error(t('messages.fetchError'));
@@ -116,9 +116,8 @@ const NodeDetail: React.FC = () => {
         1000       // pageSize: 获取所有 Pod
       );
       
-      if (response.code === 200 && response.data?.items) {
-        // 将 PodInfo 转换为 Pod 类型
-        const convertedPods: Pod[] = response.data.items.map((podInfo) => {
+      if (response?.items) {
+        const convertedPods: Pod[] = response.items.map((podInfo) => {
           // 聚合所有容器的 CPU 和内存 limits
           let totalCpuLimit = 0; // 单位: m (millicore)
           let totalMemoryLimit = 0; // 单位: Mi

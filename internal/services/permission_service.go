@@ -531,6 +531,59 @@ func (s *PermissionService) GetUser(id uint) (*models.User, error) {
 	return &user, nil
 }
 
+// GetUserAccessibleClusterIDs 获取用户可访问的集群 ID 列表
+// 返回值: clusterIDs, isAllAccess（平台管理员）, error
+func (s *PermissionService) GetUserAccessibleClusterIDs(userID uint) ([]uint, bool, error) {
+	var user models.User
+	if err := s.db.First(&user, userID).Error; err != nil {
+		return nil, false, errors.New("用户不存在")
+	}
+
+	// admin 用户拥有全部集群权限
+	if user.Username == "admin" {
+		return nil, true, nil
+	}
+
+	// 检查用户是否直接拥有 admin 权限（即为平台管理员）
+	var adminCount int64
+	s.db.Model(&models.ClusterPermission{}).
+		Where("user_id = ? AND permission_type = ?", userID, models.PermissionTypeAdmin).
+		Count(&adminCount)
+	if adminCount > 0 {
+		return nil, true, nil
+	}
+
+	// 获取用户所在的用户组
+	var groupIDs []uint
+	s.db.Model(&models.UserGroupMember{}).Where("user_id = ?", userID).Pluck("user_group_id", &groupIDs)
+
+	// 检查用户组是否有 admin 权限
+	if len(groupIDs) > 0 {
+		s.db.Model(&models.ClusterPermission{}).
+			Where("user_group_id IN ? AND permission_type = ?", groupIDs, models.PermissionTypeAdmin).
+			Count(&adminCount)
+		if adminCount > 0 {
+			return nil, true, nil
+		}
+	}
+
+	// 收集用户有明确权限的集群 ID（直接权限 + 用户组权限）
+	var clusterIDs []uint
+	query := s.db.Model(&models.ClusterPermission{}).Where("user_id = ?", userID)
+	if len(groupIDs) > 0 {
+		query = s.db.Model(&models.ClusterPermission{}).Where("user_id = ? OR user_group_id IN ?", userID, groupIDs)
+	}
+	query.Distinct().Pluck("cluster_id", &clusterIDs)
+
+	// 没有任何明确权限记录的用户，拥有所有集群的默认只读权限
+	// 与 GetUserAllClusterPermissions / GetUserClusterPermission 保持一致
+	if len(clusterIDs) == 0 {
+		return nil, true, nil
+	}
+
+	return clusterIDs, false, nil
+}
+
 // BatchDeleteClusterPermissions 批量删除集群权限
 func (s *PermissionService) BatchDeleteClusterPermissions(ids []uint) error {
 	if len(ids) == 0 {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -61,7 +62,11 @@ type SSHSession struct {
 // WebSocket升级器
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // 允许跨域
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		return middleware.IsOriginAllowed(origin)
 	},
 }
 

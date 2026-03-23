@@ -77,8 +77,8 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
       
-      if (response.code === 200 && response.data) {
-        setHpa(response.data as HPAInfo);
+      if (response) {
+        setHpa(response as HPAInfo);
       } else {
         setHpa(null);
       }

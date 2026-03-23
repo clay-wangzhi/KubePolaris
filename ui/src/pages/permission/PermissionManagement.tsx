@@ -53,6 +53,7 @@ import rbacService from '../../services/rbacService';
 import type { SyncStatusResult } from '../../services/rbacService';
 import CustomRoleEditor from '../../components/CustomRoleEditor';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -155,11 +156,11 @@ const [loading, setLoading] = useState(false);
         permissionService.getUserGroups(),
       ]);
 
-      setPermissions(permissionsRes.data || []);
-      setPermissionTypes(typesRes.data || []);
-      setClusters(clustersRes.data?.items || []);
-      setUsers(usersRes.data || []);
-      setUserGroups(groupsRes.data || []);
+      setPermissions(permissionsRes || []);
+      setPermissionTypes(typesRes || []);
+      setClusters(clustersRes?.items || []);
+      setUsers(usersRes || []);
+      setUserGroups(groupsRes || []);
     } catch (error) {
       console.error('Failed to load data:', error);
       message.error(t('permission:loadError'));
@@ -207,8 +208,8 @@ const [loading, setLoading] = useState(false);
     for (const cluster of clusters) {
       try {
         const res = await rbacService.getSyncStatus(Number(cluster.id));
-        if (res.code === 200 && res.data) {
-          statusMap[cluster.id] = res.data;
+        if (res) {
+          statusMap[cluster.id] = res;
         }
       } catch (err) {
         console.error(`获取集群 ${cluster.name} 同步状态失败:`, err);
@@ -223,15 +224,10 @@ const [loading, setLoading] = useState(false);
     setSyncLoading(true);
     try {
       const res = await rbacService.syncPermissions(Number(clusterId));
-      if (res.code === 200) {
-        message.success(res.data?.message || t('permission:sync.syncSuccess'));
-        // 刷新该集群的同步状态
-        const statusRes = await rbacService.getSyncStatus(Number(clusterId));
-        if (statusRes.code === 200 && statusRes.data) {
-          setSyncStatus(prev => ({ ...prev, [clusterId]: statusRes.data! }));
-        }
-      } else {
-        message.error(res.message || t('permission:sync.syncFailed'));
+      message.success(res?.message || t('permission:sync.syncSuccess'));
+      const statusRes = await rbacService.getSyncStatus(Number(clusterId));
+      if (statusRes) {
+        setSyncStatus(prev => ({ ...prev, [clusterId]: statusRes }));
       }
     } catch {
       message.error(t('permission:sync.syncFailed'));
@@ -316,10 +312,7 @@ const [loading, setLoading] = useState(false);
       setModalVisible(false);
       loadData();
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      if (err.response?.data?.message) {
-        message.error(err.response.data.message);
-      }
+      message.error(parseApiError(error));
     }
   };
 

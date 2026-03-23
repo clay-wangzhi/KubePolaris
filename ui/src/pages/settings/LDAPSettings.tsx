@@ -28,6 +28,7 @@ import {
 import { systemSettingService } from '../../services/authService';
 import type { LDAPConfig } from '../../types';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 
 const { Title, Text } = Typography;
 
@@ -54,9 +55,7 @@ const [form] = Form.useForm();
     const fetchConfig = async () => {
       try {
         const response = await systemSettingService.getLDAPConfig();
-        if (response.code === 200) {
-          form.setFieldsValue(response.data);
-        }
+        form.setFieldsValue(response);
       } catch (error) {
         message.error(t('settings:ldap.loadConfigFailed'));
         console.error(error);
@@ -74,11 +73,7 @@ const [form] = Form.useForm();
       setSaving(true);
       
       const response = await systemSettingService.updateLDAPConfig(values as LDAPConfig);
-      if (response.code === 200) {
-        message.success(t('settings:ldap.saveConfigSuccess'));
-      } else {
-        message.error(response.message || t('settings:ldap.saveFailed'));
-      }
+      message.success(t('settings:ldap.saveConfigSuccess'));
     } catch (error) {
       message.error(t('settings:ldap.saveConfigFailed'));
       console.error(error);
@@ -94,17 +89,15 @@ const [form] = Form.useForm();
       
       const response = await systemSettingService.testLDAPConnection(values as LDAPConfig);
       
-      if (response.code === 200 && response.data?.success) {
+      if (response?.success) {
         message.success(t('settings:ldap.testConnectionSuccess'));
       } else {
-        const errorMsg = response.data?.error || response.message || t('settings:ldap.testConnectionFailed');
+        const errorMsg = response?.error || t('settings:ldap.testConnectionFailed');
         message.error(errorMsg);
       }
     } catch (error: unknown) {
       console.error(error);
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const errorMsg = err.response?.data?.message || err.message || t('settings:ldap.testConnectionFailed');
-      message.error(errorMsg);
+      message.error(parseApiError(error) || t('settings:ldap.testConnectionFailed'));
     } finally {
       setTesting(false);
     }
@@ -135,20 +128,19 @@ const [form] = Form.useForm();
         group_attr: ldapConfig.group_attr,
       });
       
-      if (response.code === 200 && response.data) {
-        setTestAuthResult(response.data);
+      if (response) {
+        setTestAuthResult(response);
       } else {
         setTestAuthResult({
           success: false,
-          error: response.message || t('settings:ldap.testAuthFailed'),
+          error: t('settings:ldap.testAuthFailed'),
         });
       }
     } catch (error: unknown) {
       console.error(error);
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
       setTestAuthResult({
         success: false,
-        error: err.response?.data?.message || err.message || t('settings:ldap.testAuthFailed'),
+        error: parseApiError(error) || t('settings:ldap.testAuthFailed'),
       });
     } finally {
       setTestingAuth(false);

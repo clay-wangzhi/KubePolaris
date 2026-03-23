@@ -26,6 +26,7 @@ import { configMapService, getNamespaces } from '../../services/configService';
 import MonacoEditor from '@monaco-editor/react';
 import * as YAML from 'yaml';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 
 const ConfigMapCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -310,9 +311,8 @@ data: {}`);
       });
       message.success(t('config:create.messages.configMapCreateSuccess'));
       navigate(`/clusters/${clusterId}/configs`);
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      message.error(err.response?.data?.error || t('config:create.messages.configMapCreateError'));
+    } catch (error: unknown) {
+      message.error(parseApiError(error) || t('config:create.messages.configMapCreateError'));
     } finally {
       setSubmitting(false);
     }

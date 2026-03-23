@@ -23,6 +23,7 @@ import { ResourceService } from '../../services/resourceService';
 import MonacoEditor, { DiffEditor } from '@monaco-editor/react';
 import * as YAML from 'yaml';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 
 const { Text, Title } = Typography;
 
@@ -59,19 +60,12 @@ const [loading, setLoading] = useState(true);
     setLoading(true);
     try {
       const response = await ServiceService.getServiceYAML(clusterId, namespace, name);
-      if (response.code === 200 && response.data) {
-        setServiceName(name);
-        // response.data 是 { yaml: "..." } 格式
-        const yamlStr = response.data.yaml || '';
-        setYamlContent(yamlStr);
-        setOriginalYaml(yamlStr);
-      } else {
-        message.error(response.message || t('network:editPage.loadServiceError'));
-        navigate(`/clusters/${clusterId}/network`);
-      }
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      message.error(err.response?.data?.error || t('network:editPage.loadServiceError'));
+      setServiceName(name);
+      const yamlStr = response.yaml || '';
+      setYamlContent(yamlStr);
+      setOriginalYaml(yamlStr);
+    } catch (error: unknown) {
+      message.error(parseApiError(error) || t('network:editPage.loadServiceError'));
       navigate(`/clusters/${clusterId}/network`);
     } finally {
       setLoading(false);
@@ -103,11 +97,10 @@ const [loading, setLoading] = useState(true);
         success: true,
         message: t('network:editPage.dryRunSuccess'),
       });
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
+    } catch (error: unknown) {
       setDryRunResult({
         success: false,
-        message: err.response?.data?.error || t('network:editPage.dryRunFailed'),
+        message: parseApiError(error) || t('network:editPage.dryRunFailed'),
       });
     } finally {
       setDryRunning(false);
@@ -124,9 +117,8 @@ const [loading, setLoading] = useState(true);
       message.success(t('network:editPage.serviceUpdateSuccess'));
       setDiffModalVisible(false);
       navigate(`/clusters/${clusterId}/network`);
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      message.error(err.response?.data?.error || t('network:editPage.updateFailed'));
+    } catch (error: unknown) {
+      message.error(parseApiError(error) || t('network:editPage.updateFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -151,9 +143,8 @@ const [loading, setLoading] = useState(true);
       // 预检通过，展示 diff 对比
       setPendingYaml(yamlContent);
       setDiffModalVisible(true);
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      message.error(t('network:editPage.dryRunFailedPrefix', { error: err.response?.data?.error || t('network:editPage.unknownError') }));
+    } catch (error: unknown) {
+      message.error(t('network:editPage.dryRunFailedPrefix', { error: parseApiError(error) || t('network:editPage.unknownError') }));
     } finally {
       setSubmitting(false);
     }

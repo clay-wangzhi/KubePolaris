@@ -18,12 +18,8 @@ const [user, setUser] = useState<User | null>(null);
     setLoading(true);
     try {
       const response = await authService.getProfile();
-      if (response.code === 200) {
-        setUser(response.data);
-        tokenManager.setUser(response.data);
-      } else {
-        message.error(response.message || t('profile:fetchProfileFailed'));
-      }
+      setUser(response);
+      tokenManager.setUser(response);
     } catch (error) {
       message.error(t('profile:fetchProfileFailed'));
       console.error(error);
@@ -61,13 +57,9 @@ const [user, setUser] = useState<User | null>(null);
         new_password: values.new_password,
       });
 
-      if (response.code === 200) {
-        message.success(t('profile:changePasswordSuccess'));
-        setChangePasswordModalVisible(false);
-        form.resetFields();
-      } else {
-        message.error(response.message || t('profile:changePasswordFailed'));
-      }
+      message.success(t('profile:changePasswordSuccess'));
+      setChangePasswordModalVisible(false);
+      form.resetFields();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown[]; response?: { data?: { message?: string } }; message?: string };
       if (err.errorFields) {

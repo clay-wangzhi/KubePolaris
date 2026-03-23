@@ -276,8 +276,8 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
 
-      if (response.code === 200 && response.data) {
-        const data = response.data as unknown as {
+      {
+        const data = response as unknown as {
           raw?: Record<string, unknown> & { spec?: DeploymentSpec };
           workload?: Record<string, unknown> & { spec?: DeploymentSpec };
         };
@@ -288,8 +288,6 @@ const [loading, setLoading] = useState(false);
         if (specData?.template?.spec?.containers && Array.isArray(specData.template.spec.containers) && specData.template.spec.containers.length > 0) {
           setSelectedContainer(specData.template.spec.containers[0].name);
         }
-      } else {
-        message.error(response.message || t('messages.fetchContainerError'));
       }
     } catch (error) {
       console.error('获取容器信息失败:', error);

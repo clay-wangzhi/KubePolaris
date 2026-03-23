@@ -65,7 +65,7 @@ const [searchParams, setSearchParams] = useSearchParams();
     setLoading(true);
     try {
       const response = await searchService.globalSearch(searchQuery);
-      setSearchResults(response.data.results || []);
+      setSearchResults(response.results || []);
     } catch (error) {
       message.error(t('searchFailed'));
       console.error('搜索失败:', error);

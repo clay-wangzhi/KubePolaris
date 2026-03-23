@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -36,13 +36,13 @@ func NewArgoCDHandler(db *gorm.DB, argoCDSvc *services.ArgoCDService) *ArgoCDHan
 func (h *ArgoCDHandler) GetConfig(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	config, err := h.argoCDSvc.GetConfig(c.Request.Context(), uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -53,11 +53,7 @@ func (h *ArgoCDHandler) GetConfig(c *gin.Context) {
 	configResp.GitPassword = ""
 	configResp.GitSSHKey = ""
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    configResp,
-	})
+	response.OK(c, configResp)
 }
 
 // SaveConfig 保存 ArgoCD 配置
@@ -72,14 +68,14 @@ func (h *ArgoCDHandler) GetConfig(c *gin.Context) {
 func (h *ArgoCDHandler) SaveConfig(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 使用请求结构体接收前端数据（包含敏感字段）
 	var req models.ArgoCDConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -105,14 +101,11 @@ func (h *ArgoCDHandler) SaveConfig(c *gin.Context) {
 	}
 
 	if err := h.argoCDSvc.SaveConfig(c.Request.Context(), config); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "保存失败: " + err.Error()})
+		response.InternalError(c, "保存失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "保存成功",
-	})
+	response.OK(c, gin.H{"message": "保存成功"})
 }
 
 // TestConnection 测试 ArgoCD 连接
@@ -127,14 +120,14 @@ func (h *ArgoCDHandler) SaveConfig(c *gin.Context) {
 func (h *ArgoCDHandler) TestConnection(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// 使用请求结构体接收前端数据（包含敏感字段）
 	var req models.ArgoCDConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误"})
+		response.BadRequest(c, "参数错误")
 		return
 	}
 
@@ -154,19 +147,14 @@ func (h *ArgoCDHandler) TestConnection(c *gin.Context) {
 	}
 
 	if err := h.argoCDSvc.TestConnection(c.Request.Context(), config); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    400,
-			"message": err.Error(),
-			"data":    gin.H{"connected": false},
+		response.OK(c, gin.H{
+			"connected": false,
+			"error":     err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "连接成功",
-		"data":    gin.H{"connected": true},
-	})
+	response.OK(c, gin.H{"connected": true})
 }
 
 // ListApplications 获取应用列表
@@ -179,24 +167,17 @@ func (h *ArgoCDHandler) TestConnection(c *gin.Context) {
 func (h *ArgoCDHandler) ListApplications(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	apps, err := h.argoCDSvc.ListApplications(c.Request.Context(), uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items": apps,
-			"total": len(apps),
-		},
-	})
+	response.List(c, apps, int64(len(apps)))
 }
 
 // GetApplication 获取应用详情
@@ -210,22 +191,18 @@ func (h *ArgoCDHandler) ListApplications(c *gin.Context) {
 func (h *ArgoCDHandler) GetApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 
 	app, err := h.argoCDSvc.GetApplication(c.Request.Context(), uint(clusterID), appName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    app,
-	})
+	response.OK(c, app)
 }
 
 // CreateApplication 创建应用
@@ -240,27 +217,23 @@ func (h *ArgoCDHandler) GetApplication(c *gin.Context) {
 func (h *ArgoCDHandler) CreateApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	var req models.CreateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	app, err := h.argoCDSvc.CreateApplication(c.Request.Context(), uint(clusterID), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "创建成功",
-		"data":    app,
-	})
+	response.OK(c, app)
 }
 
 // UpdateApplication 更新应用
@@ -276,28 +249,24 @@ func (h *ArgoCDHandler) CreateApplication(c *gin.Context) {
 func (h *ArgoCDHandler) UpdateApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 
 	var req models.CreateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	app, err := h.argoCDSvc.UpdateApplication(c.Request.Context(), uint(clusterID), appName, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "更新成功",
-		"data":    app,
-	})
+	response.OK(c, app)
 }
 
 // SyncApplication 同步应用
@@ -313,26 +282,23 @@ func (h *ArgoCDHandler) UpdateApplication(c *gin.Context) {
 func (h *ArgoCDHandler) SyncApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 
 	var req models.SyncApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误: " + err.Error()})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
 	if err := h.argoCDSvc.SyncApplication(c.Request.Context(), uint(clusterID), appName, req.Revision); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "同步已触发",
-	})
+	response.OK(c, gin.H{"message": "同步已触发"})
 }
 
 // DeleteApplication 删除应用
@@ -347,21 +313,18 @@ func (h *ArgoCDHandler) SyncApplication(c *gin.Context) {
 func (h *ArgoCDHandler) DeleteApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 	cascade := c.Query("cascade") != "false"
 
 	if err := h.argoCDSvc.DeleteApplication(c.Request.Context(), uint(clusterID), appName, cascade); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, gin.H{"message": "删除成功"})
 }
 
 // RollbackApplication 回滚应用
@@ -377,26 +340,23 @@ func (h *ArgoCDHandler) DeleteApplication(c *gin.Context) {
 func (h *ArgoCDHandler) RollbackApplication(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 
 	var req models.RollbackApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误"})
+		response.BadRequest(c, "参数错误")
 		return
 	}
 
 	if err := h.argoCDSvc.RollbackApplication(c.Request.Context(), uint(clusterID), appName, req.RevisionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "回滚已触发",
-	})
+	response.OK(c, gin.H{"message": "回滚已触发"})
 }
 
 // GetApplicationResources 获取应用资源树
@@ -410,20 +370,16 @@ func (h *ArgoCDHandler) RollbackApplication(c *gin.Context) {
 func (h *ArgoCDHandler) GetApplicationResources(c *gin.Context) {
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 	appName := c.Param("appName")
 
 	resources, err := h.argoCDSvc.GetApplicationResources(c.Request.Context(), uint(clusterID), appName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    resources,
-	})
+	response.OK(c, resources)
 }

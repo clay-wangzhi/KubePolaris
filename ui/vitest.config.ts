@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -83,11 +84,10 @@ export default defineConfig({
     }
   },
   
-  // 解析别名（与主项目保持一致）
   resolve: {
     alias: {
-      '@': '/src'
-    }
-  }
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
 })
 

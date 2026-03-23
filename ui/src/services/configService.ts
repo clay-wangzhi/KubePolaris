@@ -72,7 +72,7 @@ export const getNamespaces = async (clusterId: number): Promise<string[]> => {
       `/clusters/${clusterId}/namespaces`
     );
     // 提取命名空间名称数组
-    return response.data.map((ns) => ns.name);
+    return response.map((ns) => ns.name);
   } catch (error) {
     console.error('获取命名空间列表失败:', error);
     // 返回默认命名空间
@@ -98,10 +98,9 @@ export const configMapService = {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
 
-    const response = await request.get<ListResponse<ConfigMapListItem>>(
+    return request.get<ListResponse<ConfigMapListItem>>(
       `/clusters/${clusterId}/configmaps?${queryParams}`
     );
-    return response.data;
   },
 
   // 获取ConfigMap详情
@@ -110,18 +109,16 @@ export const configMapService = {
     namespace: string,
     name: string
   ): Promise<ConfigMapDetail> {
-    const response = await request.get<ConfigMapDetail>(
+    return request.get<ConfigMapDetail>(
       `/clusters/${clusterId}/configmaps/${namespace}/${name}`
     );
-    return response.data;
   },
 
   // 获取ConfigMap命名空间列表
   async getConfigMapNamespaces(clusterId: number): Promise<NamespaceItem[]> {
-    const response = await request.get<NamespaceItem[]>(
+    return request.get<NamespaceItem[]>(
       `/clusters/${clusterId}/configmaps/namespaces`
     );
-    return response.data;
   },
 
   // 创建ConfigMap
@@ -135,11 +132,10 @@ export const configMapService = {
       data?: Record<string, string>;
     }
   ): Promise<{ name: string; namespace: string }> {
-    const response = await request.post<{ name: string; namespace: string }>(
+    return request.post<{ name: string; namespace: string }>(
       `/clusters/${clusterId}/configmaps`,
       data
     );
-    return response.data;
   },
 
   // 更新ConfigMap
@@ -153,11 +149,10 @@ export const configMapService = {
       data?: Record<string, string>;
     }
   ): Promise<{ name: string; namespace: string; resourceVersion: string }> {
-    const response = await request.put<{ name: string; namespace: string; resourceVersion: string }>(
+    return request.put<{ name: string; namespace: string; resourceVersion: string }>(
       `/clusters/${clusterId}/configmaps/${namespace}/${name}`,
       data
     );
-    return response.data;
   },
 
   // 删除ConfigMap
@@ -192,10 +187,9 @@ export const secretService = {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
 
-    const response = await request.get<ListResponse<SecretListItem>>(
+    return request.get<ListResponse<SecretListItem>>(
       `/clusters/${clusterId}/secrets?${queryParams}`
     );
-    return response.data;
   },
 
   // 获取Secret详情
@@ -204,18 +198,16 @@ export const secretService = {
     namespace: string,
     name: string
   ): Promise<SecretDetail> {
-    const response = await request.get<SecretDetail>(
+    return request.get<SecretDetail>(
       `/clusters/${clusterId}/secrets/${namespace}/${name}`
     );
-    return response.data;
   },
 
   // 获取Secret命名空间列表
   async getSecretNamespaces(clusterId: number): Promise<NamespaceItem[]> {
-    const response = await request.get<NamespaceItem[]>(
+    return request.get<NamespaceItem[]>(
       `/clusters/${clusterId}/secrets/namespaces`
     );
-    return response.data;
   },
 
   // 创建Secret
@@ -230,11 +222,10 @@ export const secretService = {
       data?: Record<string, string>;
     }
   ): Promise<{ name: string; namespace: string }> {
-    const response = await request.post<{ name: string; namespace: string }>(
+    return request.post<{ name: string; namespace: string }>(
       `/clusters/${clusterId}/secrets`,
       data
     );
-    return response.data;
   },
 
   // 更新Secret
@@ -248,11 +239,10 @@ export const secretService = {
       data?: Record<string, string>;
     }
   ): Promise<{ name: string; namespace: string; resourceVersion: string }> {
-    const response = await request.put<{ name: string; namespace: string; resourceVersion: string }>(
+    return request.put<{ name: string; namespace: string; resourceVersion: string }>(
       `/clusters/${clusterId}/secrets/${namespace}/${name}`,
       data
     );
-    return response.data;
   },
 
   // 删除Secret

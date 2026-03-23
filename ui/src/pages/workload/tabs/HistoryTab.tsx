@@ -63,11 +63,7 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
       
-      if (response.code === 200 && response.data) {
-        setReplicaSets(((response.data as { items?: unknown[] }).items || []) as ReplicaSetInfo[]);
-      } else {
-        message.error(response.message || t('messages.fetchHistoryError'));
-      }
+      setReplicaSets(((response as unknown as { items?: unknown[] }).items || []) as ReplicaSetInfo[]);
     } catch (error) {
       console.error('获取版本记录失败:', error);
       message.error(t('messages.fetchHistoryError'));

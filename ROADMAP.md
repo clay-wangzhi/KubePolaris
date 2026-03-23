@@ -19,18 +19,41 @@ To become the most popular enterprise-grade Kubernetes multi-cluster management 
 - ✅ Prometheus/Grafana integration
 - ✅ AlertManager integration
 - ✅ ArgoCD integration
-- ✅ Audit logging
+- ✅ Audit logging (terminal sessions + operation logs)
 - ✅ Global search
+- ✅ AI Chat integration (cluster-level)
+- ✅ Log Center (multi-pod aggregation)
+- ✅ Monitoring Center (health diagnosis, resource top, control plane status)
+
+### v1.0.x Security & Quality Fixes
+- ✅ Unified API response format (`internal/response` package)
+- ✅ Permission management APIs restricted to platform admin
+- ✅ Cluster list/search/overview filtered by user permissions
+- ✅ Import/test-connection restricted to platform admin
+- ✅ SSH WebSocket restricted to platform admin
+- ✅ JWT Secret default value detection & production warning
+- ✅ WebSocket CheckOrigin validation against allowed origins
+- ✅ React Error Boundary (global + route level)
+- ✅ PermissionGuard loading state with Spin
+- ✅ Graceful shutdown (DB + InformerManager cleanup)
+- ✅ `parseClusterID` error handling (returns error instead of 0)
+- ✅ `GetNamespaceList` no longer defaults to `["*"]` on parse failure
+- ✅ `hasShellInContainer` timeout context (5s)
+- ✅ Large file decomposition (ServiceTab, IngressTab, workloadYamlService)
 
 ---
 
 ## Q2 2026: v1.1
 
 ### Internationalization (i18n)
-- [ ] Frontend multi-language support (English, Chinese)
+- ✅ Frontend multi-language support (English, Chinese) — 23 namespaces, en/zh complete
 - [ ] Backend error message localization
-- [ ] Language switcher component
+- ✅ Language switcher component
 - [ ] Translated documentation
+
+### API Documentation
+- [ ] Swagger/OpenAPI integration (based on unified response format)
+- [ ] Interactive API explorer
 
 ### OAuth2/OIDC Integration
 - [ ] Generic OIDC provider support
@@ -127,5 +150,5 @@ Your feedback helps shape the future of KubePolaris. Please share your thoughts:
 
 ---
 
-*Last updated: January 2026*
+*Last updated: March 2026*
 

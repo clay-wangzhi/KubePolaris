@@ -88,11 +88,7 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
       
-      if (response.code === 200 && response.data) {
-        setServices(((response.data as { items?: unknown[] }).items || []) as ServiceInfo[]);
-      } else {
-        message.error(response.message || t('messages.fetchServiceError'));
-      }
+      setServices(((response as unknown as { items?: unknown[] }).items || []) as ServiceInfo[]);
     } catch (error) {
       console.error('获取Service列表失败:', error);
       message.error(t('messages.fetchServiceError'));
@@ -114,11 +110,7 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
       
-      if (response.code === 200 && response.data) {
-        setIngresses(((response.data as { items?: unknown[] }).items || []) as IngressInfo[]);
-      } else {
-        message.error(response.message || t('messages.fetchIngressError'));
-      }
+      setIngresses(((response as unknown as { items?: unknown[] }).items || []) as IngressInfo[]);
     } catch (error) {
       console.error('获取Ingress列表失败:', error);
       message.error(t('messages.fetchIngressError'));

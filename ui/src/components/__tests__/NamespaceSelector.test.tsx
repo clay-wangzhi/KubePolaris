@@ -55,11 +55,7 @@ describe('NamespaceSelector', () => {
   })
 
   it('should render with placeholder', () => {
-    vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
-      code: 200,
-      data: [],
-      message: 'success',
-    })
+    vi.mocked(namespaceService.getNamespaces).mockResolvedValue([])
 
     render(<NamespaceSelector clusterId="1" placeholder="选择命名空间" />)
 
@@ -67,15 +63,11 @@ describe('NamespaceSelector', () => {
   })
 
   it('should load namespaces on mount', async () => {
-    vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
-      code: 200,
-      data: [
-        createNamespace('default'),
-        createNamespace('kube-system'),
-        createNamespace('production'),
-      ],
-      message: 'success',
-    })
+    vi.mocked(namespaceService.getNamespaces).mockResolvedValue([
+      createNamespace('default'),
+      createNamespace('kube-system'),
+      createNamespace('production'),
+    ])
 
     render(<NamespaceSelector clusterId="1" />)
 
@@ -85,11 +77,7 @@ describe('NamespaceSelector', () => {
   })
 
   it('should be disabled when disabled prop is true', () => {
-    vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
-      code: 200,
-      data: [],
-      message: 'success',
-    })
+    vi.mocked(namespaceService.getNamespaces).mockResolvedValue([])
 
     render(<NamespaceSelector clusterId="1" disabled />)
 
@@ -100,14 +88,10 @@ describe('NamespaceSelector', () => {
     const user = userEvent.setup()
     const handleChange = vi.fn()
 
-    vi.mocked(namespaceService.getNamespaces).mockResolvedValue({
-      code: 200,
-      data: [
-        createNamespace('default'),
-        createNamespace('production'),
-      ],
-      message: 'success',
-    })
+    vi.mocked(namespaceService.getNamespaces).mockResolvedValue([
+      createNamespace('default'),
+      createNamespace('production'),
+    ])
 
     render(<NamespaceSelector clusterId="1" onChange={handleChange} allowAll />)
 

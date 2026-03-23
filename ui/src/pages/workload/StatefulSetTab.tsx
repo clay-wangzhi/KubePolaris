@@ -211,14 +211,11 @@ const { t } = useTranslation(['workload', 'common']);
         10000
       );
       
-      if (response.code === 200 && response.data) {
-        const items = response.data.items || [];
-        setAllWorkloads(items);
-        
-        // 通知父组件总数
-        if (onCountChange) {
-          onCountChange(items.length);
-        }
+      const items = response.items || [];
+      setAllWorkloads(items);
+      
+      if (onCountChange) {
+        onCountChange(items.length);
       }
     } catch (error) {
       console.error('加载StatefulSet列表失败:', error);

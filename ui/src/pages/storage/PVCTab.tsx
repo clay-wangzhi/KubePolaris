@@ -139,9 +139,7 @@ const [allPVCs, setAllPVCs] = useState<PVC[]>([]);
       if (!clusterId) return;
       try {
         const response = await StorageService.getPVCNamespaces(clusterId);
-        if (response.code === 200) {
-          setNamespaces(response.data);
-        }
+        setNamespaces(response);
       } catch (error) {
         console.error('Failed to load namespaces:', error);
       }
@@ -165,12 +163,8 @@ const [allPVCs, setAllPVCs] = useState<PVC[]>([]);
         10000
       );
       
-      if (response.code === 200) {
-        const items = response.data.items || [];
-        setAllPVCs(items);
-      } else {
-        message.error(response.message || t('storage:messages.fetchPVCError'));
-      }
+      const items = response.items || [];
+      setAllPVCs(items);
     } catch (error) {
       console.error('Failed to fetch PVC list:', error);
       message.error(t('storage:messages.fetchPVCError'));
@@ -240,11 +234,7 @@ const [allPVCs, setAllPVCs] = useState<PVC[]>([]);
         pvc.name
       );
       
-      if (response.code === 200) {
-        setCurrentYaml(response.data.yaml);
-      } else {
-        message.error(response.message || t('storage:messages.fetchYAMLError'));
-      }
+      setCurrentYaml(response.yaml);
     } catch (error) {
       console.error('Failed to fetch YAML:', error);
       message.error(t('storage:messages.fetchYAMLError'));
@@ -262,12 +252,8 @@ const [allPVCs, setAllPVCs] = useState<PVC[]>([]);
         pvc.name
       );
       
-      if (response.code === 200) {
-        message.success(t('common:messages.deleteSuccess'));
-        loadPVCs();
-      } else {
-        message.error(response.message || t('storage:messages.deleteError'));
-      }
+      message.success(t('common:messages.deleteSuccess'));
+      loadPVCs();
     } catch (error) {
       console.error('删除失败:', error);
       message.error(t('common:messages.deleteError'));

@@ -82,11 +82,11 @@ const navigate = useNavigate();
         overviewService.getAlertStats(),
       ]);
       
-      setStats(statsRes.data);
-      setResourceUsage(usageRes.data);
-      setDistribution(distRes.data);
-      setAbnormalWorkloads(workloadsRes.data || []);
-      setAlertStats(alertStatsRes.data);
+      setStats(statsRes);
+      setResourceUsage(usageRes);
+      setDistribution(distRes);
+      setAbnormalWorkloads(workloadsRes || []);
+      setAlertStats(alertStatsRes);
       setLastRefreshTime(new Date());
     } catch (error) {
 console.error('Failed to fetch overview data:', error);
@@ -104,8 +104,8 @@ console.error('Failed to fetch overview data:', error);
       const trendsRes = await overviewService.getTrends({ timeRange: longerRange });
       
       setTrends({
-        podTrends: trendsRes.data?.podTrends || [],
-        nodeTrends: trendsRes.data?.nodeTrends || [],
+        podTrends: trendsRes?.podTrends || [],
+        nodeTrends: trendsRes?.nodeTrends || [],
       });
     } catch (error) {
       console.error('Failed to fetch trend data:', error);

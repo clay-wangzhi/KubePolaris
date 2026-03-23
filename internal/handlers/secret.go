@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -82,13 +82,13 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -97,20 +97,14 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 	defer cancel()
 
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
 	// 检查命名空间权限
 	nsInfo, hasAccess := middleware.CheckNamespacePermission(c, namespace)
 	if !hasAccess {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": fmt.Sprintf("无权访问命名空间: %s", namespace),
-		})
+		response.Forbidden(c, fmt.Sprintf("无权访问命名空间: %s", namespace))
 		return
 	}
 
@@ -123,7 +117,7 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 		secs, err := h.k8sMgr.SecretsLister(cluster.ID).Secrets(namespace).List(sel)
 		if err != nil {
 			logger.Error("读取Secret缓存失败", "cluster", cluster.Name, "namespace", namespace, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取Secret列表失败: %v", err)})
+			response.InternalError(c, fmt.Sprintf("获取Secret列表失败: %v", err))
 			return
 		}
 		// 转换为 []corev1.Secret
@@ -135,7 +129,7 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 		secs, err := h.k8sMgr.SecretsLister(cluster.ID).List(sel)
 		if err != nil {
 			logger.Error("读取Secret缓存失败", "cluster", cluster.Name, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取Secret列表失败: %v", err)})
+			response.InternalError(c, fmt.Sprintf("获取Secret列表失败: %v", err))
 			return
 		}
 		// 转换为 []corev1.Secret
@@ -189,16 +183,7 @@ func (h *SecretHandler) GetSecrets(c *gin.Context) {
 
 	pagedItems := items[start:end]
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items":    pagedItems,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, pagedItems, int64(total), page, pageSize)
 }
 
 // GetSecret 获取Secret详情
@@ -210,20 +195,20 @@ func (h *SecretHandler) GetSecret(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -233,7 +218,7 @@ func (h *SecretHandler) GetSecret(c *gin.Context) {
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Secret失败", "cluster", cluster.Name, "namespace", namespace, "name", name, "error", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Secret不存在: %v", err)})
+		response.NotFound(c, fmt.Sprintf("Secret不存在: %v", err))
 		return
 	}
 
@@ -255,11 +240,7 @@ func (h *SecretHandler) GetSecret(c *gin.Context) {
 		ResourceVersion:   secret.ResourceVersion,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    detail,
-	})
+	response.OK(c, detail)
 }
 
 // GetSecretNamespaces 获取Secret所在的命名空间列表
@@ -269,13 +250,13 @@ func (h *SecretHandler) GetSecretNamespaces(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -283,7 +264,7 @@ func (h *SecretHandler) GetSecretNamespaces(c *gin.Context) {
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -293,7 +274,7 @@ func (h *SecretHandler) GetSecretNamespaces(c *gin.Context) {
 	secrets, err := clientset.CoreV1().Secrets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error("获取Secret列表失败", "cluster", cluster.Name, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取Secret列表失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取Secret列表失败: %v", err))
 		return
 	}
 
@@ -316,11 +297,7 @@ func (h *SecretHandler) GetSecretNamespaces(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    namespaces,
-	})
+	response.OK(c, namespaces)
 }
 
 // DeleteSecret 删除Secret
@@ -332,20 +309,20 @@ func (h *SecretHandler) DeleteSecret(c *gin.Context) {
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -355,15 +332,11 @@ func (h *SecretHandler) DeleteSecret(c *gin.Context) {
 	err = clientset.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		logger.Error("删除Secret失败", "cluster", cluster.Name, "namespace", namespace, "name", name, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("删除Secret失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("删除Secret失败: %v", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Secret删除成功",
-		"data":    nil,
-	})
+	response.NoContent(c)
 }
 
 // CreateSecret 创建Secret
@@ -380,27 +353,27 @@ func (h *SecretHandler) CreateSecret(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("请求参数错误: %v", err)})
+		response.BadRequest(c, fmt.Sprintf("请求参数错误: %v", err))
 		return
 	}
 
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -433,17 +406,13 @@ func (h *SecretHandler) CreateSecret(c *gin.Context) {
 	created, err := clientset.CoreV1().Secrets(req.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error("创建Secret失败", "cluster", cluster.Name, "namespace", req.Namespace, "name", req.Name, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建Secret失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("创建Secret失败: %v", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Secret创建成功",
-		"data": gin.H{
-			"name":      created.Name,
-			"namespace": created.Namespace,
-		},
+	response.OK(c, gin.H{
+		"name":      created.Name,
+		"namespace": created.Namespace,
 	})
 }
 
@@ -460,27 +429,27 @@ func (h *SecretHandler) UpdateSecret(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("请求参数错误: %v", err)})
+		response.BadRequest(c, fmt.Sprintf("请求参数错误: %v", err))
 		return
 	}
 
 	// 获取集群
 	id, err := strconv.ParseUint(clusterID, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的集群ID"})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	cluster, err := h.clusterSvc.GetCluster(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取K8s客户端失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("获取K8s客户端失败: %v", err))
 		return
 	}
 
@@ -490,7 +459,7 @@ func (h *SecretHandler) UpdateSecret(c *gin.Context) {
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		logger.Error("获取Secret失败", "cluster", cluster.Name, "namespace", namespace, "name", name, "error", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Secret不存在: %v", err)})
+		response.NotFound(c, fmt.Sprintf("Secret不存在: %v", err))
 		return
 	}
 
@@ -508,17 +477,13 @@ func (h *SecretHandler) UpdateSecret(c *gin.Context) {
 	updated, err := clientset.CoreV1().Secrets(namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Error("更新Secret失败", "cluster", cluster.Name, "namespace", namespace, "name", name, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("更新Secret失败: %v", err)})
+		response.InternalError(c, fmt.Sprintf("更新Secret失败: %v", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Secret更新成功",
-		"data": gin.H{
-			"name":            updated.Name,
-			"namespace":       updated.Namespace,
-			"resourceVersion": updated.ResourceVersion,
-		},
+	response.OK(c, gin.H{
+		"name":            updated.Name,
+		"namespace":       updated.Namespace,
+		"resourceVersion": updated.ResourceVersion,
 	})
 }

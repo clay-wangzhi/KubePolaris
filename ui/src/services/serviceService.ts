@@ -226,10 +226,9 @@ export class ServiceService {
 
   // 获取Service命名空间列表（带计数）
   static async getServiceNamespaces(clusterId: string): Promise<{ name: string; count: number }[]> {
-    const response = await request.get<{ name: string; count: number }[]>(
+    return request.get<{ name: string; count: number }[]>(
       `/clusters/${clusterId}/services/namespaces`
     );
-    return response.data;
   }
 }
 

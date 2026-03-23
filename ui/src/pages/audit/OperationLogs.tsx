@@ -122,8 +122,8 @@ const [logs, setLogs] = useState<OperationLogItem[]>([]);
         auditService.getModules(),
         auditService.getActions(),
       ]);
-      if (modulesRes.code === 200) setModules(modulesRes.data || []);
-      if (actionsRes.code === 200) setActions(actionsRes.data || []);
+      setModules(modulesRes || []);
+      setActions(actionsRes || []);
     } catch (error) {
       console.error('获取选项失败', error);
     }
@@ -133,9 +133,7 @@ const [logs, setLogs] = useState<OperationLogItem[]>([]);
   const fetchStats = useCallback(async () => {
     try {
       const res = await auditService.getOperationLogStats();
-      if (res.code === 200) {
-        setStats(res.data);
-      }
+      setStats(res);
     } catch (error) {
       console.error('获取统计信息失败', error);
     }
@@ -159,10 +157,8 @@ const [logs, setLogs] = useState<OperationLogItem[]>([]);
       }
 
       const res = await auditService.getOperationLogs(params);
-      if (res.code === 200) {
-        setLogs(res.data.items || []);
-        setTotal(res.data.total);
-      }
+      setLogs(res.items || []);
+      setTotal(res.total);
     } catch {
       message.error(t('audit:operations.fetchFailed'));
     } finally {
@@ -175,9 +171,7 @@ const [logs, setLogs] = useState<OperationLogItem[]>([]);
     setDetailLoading(true);
     try {
       const res = await auditService.getOperationLog(id);
-      if (res.code === 200) {
-        setSelectedLog(res.data);
-      }
+      setSelectedLog(res);
     } catch {
       message.error(t('audit:operations.fetchDetailFailed'));
     } finally {

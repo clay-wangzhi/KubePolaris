@@ -18,24 +18,16 @@ export interface YAMLApplyRequest {
 
 // YAML 应用响应
 export interface YAMLApplyResponse {
-  code: number;
-  message: string;
-  data: {
-    name: string;
-    namespace?: string;
-    kind: string;
-    resourceVersion?: string;
-    isCreated: boolean;
-  };
+  name: string;
+  namespace?: string;
+  kind: string;
+  resourceVersion?: string;
+  isCreated: boolean;
 }
 
 // YAML 获取响应
 export interface YAMLGetResponse {
-  code: number;
-  message: string;
-  data: {
-    yaml: string;
-  };
+  yaml: string;
 }
 
 // 资源端点映射

@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/clay-wangzhi/KubePolaris/internal/constants"
-	"github.com/clay-wangzhi/KubePolaris/internal/services"
-
 	"github.com/gin-gonic/gin"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/constants"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
+	"github.com/clay-wangzhi/KubePolaris/internal/services"
 )
 
 // OperationLogHandler 操作日志处理器
@@ -71,18 +71,11 @@ func (h *OperationLogHandler) GetOperationLogs(c *gin.Context) {
 
 	resp, err := h.opLogSvc.List(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取操作日志失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取操作日志失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    resp,
-	})
+	response.OK(c, resp)
 }
 
 // GetOperationLog 获取操作日志详情
@@ -90,27 +83,17 @@ func (h *OperationLogHandler) GetOperationLog(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的日志ID",
-		})
+		response.BadRequest(c, "无效的日志ID")
 		return
 	}
 
 	log, err := h.opLogSvc.GetDetail(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "日志不存在",
-		})
+		response.NotFound(c, "日志不存在")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    log,
-	})
+	response.OK(c, log)
 }
 
 // GetOperationLogStats 获取操作日志统计
@@ -130,18 +113,11 @@ func (h *OperationLogHandler) GetOperationLogStats(c *gin.Context) {
 
 	stats, err := h.opLogSvc.GetStats(startTime, endTime)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取统计信息失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取统计信息失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }
 
 // GetModules 获取模块列表
@@ -154,11 +130,7 @@ func (h *OperationLogHandler) GetModules(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    modules,
-	})
+	response.OK(c, modules)
 }
 
 // GetActions 获取操作列表
@@ -171,11 +143,7 @@ func (h *OperationLogHandler) GetActions(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    actions,
-	})
+	response.OK(c, actions)
 }
 
 // getIntParam 获取整数参数

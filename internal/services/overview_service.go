@@ -29,6 +29,14 @@ type InformerListerProvider interface {
 	RolloutsLister(clusterID uint) rolloutslisters.RolloutLister
 }
 
+// clusterFilterCtxKey 用于在 context 中传递集群过滤条件
+type clusterFilterCtxKey struct{}
+
+// ContextWithClusterFilter 将集群过滤条件注入 context
+func ContextWithClusterFilter(ctx context.Context, clusterIDs []uint) context.Context {
+	return context.WithValue(ctx, clusterFilterCtxKey{}, clusterIDs)
+}
+
 // OverviewService 总览服务
 type OverviewService struct {
 	db                 *gorm.DB
@@ -59,6 +67,21 @@ func NewOverviewService(
 		alertManagerCfgSvc: alertManagerCfgSvc,
 		alertManagerSvc:    alertManagerSvc,
 	}
+}
+
+// getClusters 获取集群列表，如果 context 中有过滤条件则按条件过滤
+func (s *OverviewService) getClusters(ctx context.Context) ([]*models.Cluster, error) {
+	if filterIDs, ok := ctx.Value(clusterFilterCtxKey{}).([]uint); ok {
+		if len(filterIDs) == 0 {
+			return []*models.Cluster{}, nil
+		}
+		var clusters []*models.Cluster
+		if err := s.db.Where("id IN ?", filterIDs).Find(&clusters).Error; err != nil {
+			return nil, fmt.Errorf("获取集群列表失败: %w", err)
+		}
+		return clusters, nil
+	}
+	return s.clusterService.GetAllClusters()
 }
 
 // ========== 响应结构体 ==========
@@ -188,7 +211,7 @@ type ClusterAlertCount struct {
 
 // GetOverviewStats 获取总览统计数据
 func (s *OverviewService) GetOverviewStats(ctx context.Context) (*OverviewStatsResponse, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}
@@ -280,7 +303,7 @@ func (s *OverviewService) GetOverviewStats(ctx context.Context) (*OverviewStatsR
 
 // GetResourceDistribution 获取资源分布
 func (s *OverviewService) GetResourceDistribution(ctx context.Context) (*ResourceDistributionResponse, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}
@@ -352,7 +375,7 @@ func (s *OverviewService) GetResourceDistribution(ctx context.Context) (*Resourc
 
 // GetResourceUsage 获取资源使用率
 func (s *OverviewService) GetResourceUsage(ctx context.Context) (*ResourceUsageResponse, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}
@@ -501,7 +524,7 @@ func (s *OverviewService) GetResourceUsage(ctx context.Context) (*ResourceUsageR
 
 // GetTrends 获取趋势数据（并发查询优化性能）
 func (s *OverviewService) GetTrends(ctx context.Context, timeRange string, step string) (*TrendResponse, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}
@@ -603,7 +626,7 @@ func (s *OverviewService) GetTrends(ctx context.Context, timeRange string, step 
 
 // GetAbnormalWorkloads 获取异常工作负载
 func (s *OverviewService) GetAbnormalWorkloads(ctx context.Context, limit int) ([]AbnormalWorkload, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}
@@ -727,7 +750,7 @@ func (s *OverviewService) GetAbnormalWorkloads(ctx context.Context, limit int) (
 
 // GetGlobalAlertStats 获取全局告警统计（聚合所有集群的告警数据）
 func (s *OverviewService) GetGlobalAlertStats(ctx context.Context) (*GlobalAlertStats, error) {
-	clusters, err := s.clusterService.GetAllClusters()
+	clusters, err := s.getClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取集群列表失败: %w", err)
 	}

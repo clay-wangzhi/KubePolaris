@@ -75,11 +75,9 @@ const ResourceYAMLEditor: React.FC<ResourceYAMLEditorProps> = ({
     setLoading(true);
     try {
       const response = await ResourceService.getYAML(clusterId, kind, namespace || null, name);
-      if (response.code === 200 && response.data.yaml) {
-        setYamlContent(response.data.yaml);
-        setOriginalYaml(response.data.yaml);
-      } else {
-        messageApi.error(response.message || t('resourceYAMLEditor.loadFailed'));
+      if (response.yaml) {
+        setYamlContent(response.yaml);
+        setOriginalYaml(response.yaml);
       }
     } catch (error) {
       console.error('Failed to load YAML:', error);
@@ -109,21 +107,14 @@ const ResourceYAMLEditor: React.FC<ResourceYAMLEditorProps> = ({
 
     try {
       const response = await ResourceService.applyYAML(clusterId, kind, yamlContent, true);
-      if (response.code === 200) {
-        setDryRunResult({
-          success: true,
-          message: t('resourceYAMLEditor.dryRunPass', {
-            action: response.data.isCreated ? t('resourceYAMLEditor.willCreate') : t('resourceYAMLEditor.willUpdate'),
-            kind: ResourceService.getKindDisplayName(kind),
-            name: response.data.name,
-          }),
-        });
-      } else {
-        setDryRunResult({
-          success: false,
-          message: response.message || t('resourceYAMLEditor.dryRunFailed'),
-        });
-      }
+      setDryRunResult({
+        success: true,
+        message: t('resourceYAMLEditor.dryRunPass', {
+          action: response.isCreated ? t('resourceYAMLEditor.willCreate') : t('resourceYAMLEditor.willUpdate'),
+          kind: ResourceService.getKindDisplayName(kind),
+          name: response.name,
+        }),
+      });
     } catch (error: unknown) {
       setDryRunResult({
         success: false,
@@ -138,12 +129,8 @@ const ResourceYAMLEditor: React.FC<ResourceYAMLEditorProps> = ({
     setSubmitting(true);
     try {
       const response = await ResourceService.applyYAML(clusterId, kind, yaml, false);
-      if (response.code === 200) {
-        messageApi.success(response.data.isCreated ? t('resourceYAMLEditor.createSuccess') : t('resourceYAMLEditor.updateSuccess'));
-        onSuccess?.();
-      } else {
-        messageApi.error(response.message || t('resourceYAMLEditor.operationFailed'));
-      }
+      messageApi.success(response.isCreated ? t('resourceYAMLEditor.createSuccess') : t('resourceYAMLEditor.updateSuccess'));
+      onSuccess?.();
     } catch (error: unknown) {
       console.error('Submit failed:', error);
       messageApi.error(error instanceof Error ? error.message : t('resourceYAMLEditor.operationFailed'));

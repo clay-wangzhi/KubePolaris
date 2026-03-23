@@ -61,31 +61,19 @@ export interface PodInfo {
 }
 
 export interface PodListResponse {
-  code: number;
-  message: string;
-  data: {
-    items: PodInfo[];
-    total: number;
-    page: number;
-    pageSize: number;
-  };
+  items: PodInfo[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface PodDetailResponse {
-  code: number;
-  message: string;
-  data: {
-    pod: PodInfo;
-    raw: Record<string, unknown>;
-  };
+  pod: PodInfo;
+  raw: Record<string, unknown>;
 }
 
 export interface PodLogsResponse {
-  code: number;
-  message: string;
-  data: {
-    logs: string;
-  };
+  logs: string;
 }
 
 export class PodService {
@@ -287,12 +275,12 @@ export class PodService {
   }
 
   // 获取Pod命名空间列表
-  static async getPodNamespaces(clusterId: string): Promise<{ code: number; message: string; data: string[] }> {
+  static async getPodNamespaces(clusterId: string): Promise<string[]> {
     return request.get(`/clusters/${clusterId}/pods/namespaces`);
   }
 
   // 获取Pod节点列表
-  static async getPodNodes(clusterId: string): Promise<{ code: number; message: string; data: string[] }> {
+  static async getPodNodes(clusterId: string): Promise<string[]> {
     return request.get(`/clusters/${clusterId}/pods/nodes`);
   }
 

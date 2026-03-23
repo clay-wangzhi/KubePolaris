@@ -177,9 +177,7 @@ const [activeTab, setActiveTab] = useState('stream');
     setStatsLoading(true);
     try {
       const res = await logService.getLogStats(clusterId, { timeRange: '1h' });
-      if (res.code === 200) {
-        setStats(res.data);
-      }
+      setStats(res);
     } catch (error) {
       console.error('获取日志统计失败', error);
     } finally {
@@ -192,9 +190,7 @@ const [activeTab, setActiveTab] = useState('stream');
     if (!clusterId) return;
     try {
       const res = await logService.getNamespaces(clusterId);
-      if (res.code === 200) {
-        setNamespaces(res.data || []);
-      }
+      setNamespaces(res || []);
     } catch (error) {
       console.error('获取命名空间失败', error);
     }
@@ -206,9 +202,7 @@ const [activeTab, setActiveTab] = useState('stream');
     setPodsLoading(true);
     try {
       const res = await logService.getPods(clusterId, namespace);
-      if (res.code === 200) {
-        setPods(res.data || []);
-      }
+      setPods(res || []);
     } catch (error) {
       console.error('获取Pod列表失败', error);
     } finally {
@@ -226,9 +220,7 @@ const [activeTab, setActiveTab] = useState('stream');
         type: eventType,
         limit: 200,
       });
-      if (res.code === 200) {
-        setEvents(res.data?.items || []);
-      }
+      setEvents(res?.items || []);
     } catch (error) {
       console.error('获取事件日志失败', error);
       message.error(t('logs:center.fetchEventsFailed'));
@@ -254,9 +246,7 @@ const [activeTab, setActiveTab] = useState('stream');
       }
 
       const res = await logService.searchLogs(clusterId, params);
-      if (res.code === 200) {
-        setSearchResults(res.data?.items || []);
-      }
+      setSearchResults(res?.items || []);
     } catch (error) {
       console.error('日志搜索失败', error);
       message.error(t('logs:center.searchFailed'));

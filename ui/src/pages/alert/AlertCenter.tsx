@@ -88,7 +88,7 @@ const [loading, setLoading] = useState(false);
     try {
       setConfigLoading(true);
       const response = await alertService.getConfig(clusterId);
-      setConfigEnabled(response.data?.enabled || false);
+      setConfigEnabled(response?.enabled || false);
     } catch (error) {
       console.error('加载配置失败:', error);
       setConfigEnabled(false);
@@ -108,8 +108,8 @@ const [loading, setLoading] = useState(false);
         }),
         alertService.getAlertStats(clusterId),
       ]);
-      setAlerts(alertsRes.data || []);
-      setStats(statsRes.data);
+      setAlerts(alertsRes || []);
+      setStats(statsRes);
     } catch (error) {
       console.error('加载告警失败:', error);
       message.error(t('alert:center.loadFailed'));
@@ -123,7 +123,7 @@ const [loading, setLoading] = useState(false);
     if (!clusterId || !configEnabled) return;
     try {
       const response = await alertService.getSilences(clusterId);
-      setSilences(response.data || []);
+      setSilences(response || []);
     } catch (error) {
       console.error('加载静默规则失败:', error);
     }

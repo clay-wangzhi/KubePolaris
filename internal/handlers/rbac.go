@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/internal/templates/rbac"
 )
@@ -34,30 +34,21 @@ func (h *RBACHandler) SyncPermissions(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -66,18 +57,11 @@ func (h *RBACHandler) SyncPermissions(c *gin.Context) {
 	// Sync permissions
 	result, err := h.rbacService.SyncPermissions(clientset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "同步权限失败: " + err.Error(),
-		})
+		response.InternalError(c, "同步权限失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": result.Message,
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // GetSyncStatus gets the sync status of KubePolaris RBAC resources
@@ -86,30 +70,21 @@ func (h *RBACHandler) GetSyncStatus(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -118,18 +93,11 @@ func (h *RBACHandler) GetSyncStatus(c *gin.Context) {
 	// Get sync status
 	result, err := h.rbacService.GetSyncStatus(clientset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取同步状态失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取同步状态失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // ListClusterRoles lists all ClusterRoles in the cluster
@@ -138,30 +106,21 @@ func (h *RBACHandler) ListClusterRoles(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -170,10 +129,7 @@ func (h *RBACHandler) ListClusterRoles(c *gin.Context) {
 	// List ClusterRoles
 	clusterRoles, err := h.rbacService.ListClusterRoles(clientset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取ClusterRole列表失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取ClusterRole列表失败: "+err.Error())
 		return
 	}
 
@@ -201,11 +157,7 @@ func (h *RBACHandler) ListClusterRoles(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    items,
-	})
+	response.OK(c, items)
 }
 
 // CreateCustomClusterRoleRequest represents a request to create a custom ClusterRole
@@ -220,39 +172,27 @@ func (h *RBACHandler) CreateCustomClusterRole(c *gin.Context) {
 	clusterIDStr := c.Param("clusterID")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	var req CreateCustomClusterRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -261,17 +201,11 @@ func (h *RBACHandler) CreateCustomClusterRole(c *gin.Context) {
 	// Create ClusterRole
 	err = h.rbacService.CreateCustomClusterRole(clientset, req.Name, req.Rules)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "创建ClusterRole失败: " + err.Error(),
-		})
+		response.InternalError(c, "创建ClusterRole失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "创建成功",
-	})
+	response.OK(c, gin.H{"message": "创建成功"})
 }
 
 // DeleteClusterRole deletes a ClusterRole
@@ -282,30 +216,21 @@ func (h *RBACHandler) DeleteClusterRole(c *gin.Context) {
 
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -314,17 +239,11 @@ func (h *RBACHandler) DeleteClusterRole(c *gin.Context) {
 	// Delete ClusterRole
 	err = h.rbacService.DeleteClusterRole(clientset, name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "删除ClusterRole失败: " + err.Error(),
-		})
+		response.InternalError(c, "删除ClusterRole失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, gin.H{"message": "删除成功"})
 }
 
 // ListRoles lists all Roles in a namespace
@@ -335,30 +254,21 @@ func (h *RBACHandler) ListRoles(c *gin.Context) {
 
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -367,10 +277,7 @@ func (h *RBACHandler) ListRoles(c *gin.Context) {
 	// List Roles
 	roles, err := h.rbacService.ListRoles(clientset, namespace)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Role列表失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Role列表失败: "+err.Error())
 		return
 	}
 
@@ -400,11 +307,7 @@ func (h *RBACHandler) ListRoles(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    items,
-	})
+	response.OK(c, items)
 }
 
 // CreateCustomRoleRequest represents a request to create a custom Role
@@ -421,39 +324,27 @@ func (h *RBACHandler) CreateCustomRole(c *gin.Context) {
 
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	var req CreateCustomRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -462,17 +353,11 @@ func (h *RBACHandler) CreateCustomRole(c *gin.Context) {
 	// Create Role
 	err = h.rbacService.CreateCustomRole(clientset, namespace, req.Name, req.Rules)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "创建Role失败: " + err.Error(),
-		})
+		response.InternalError(c, "创建Role失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "创建成功",
-	})
+	response.OK(c, gin.H{"message": "创建成功"})
 }
 
 // DeleteRole deletes a Role
@@ -484,30 +369,21 @@ func (h *RBACHandler) DeleteRole(c *gin.Context) {
 
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	// Get cluster
 	cluster, err := h.clusterService.GetCluster(uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -516,17 +392,11 @@ func (h *RBACHandler) DeleteRole(c *gin.Context) {
 	// Delete Role
 	err = h.rbacService.DeleteRole(clientset, namespace, name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "删除Role失败: " + err.Error(),
-		})
+		response.InternalError(c, "删除Role失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, gin.H{"message": "删除成功"})
 }
 
 // GetKubePolarisClusterRoles returns the predefined KubePolaris ClusterRoles
@@ -556,9 +426,5 @@ func (h *RBACHandler) GetKubePolarisClusterRoles(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    items,
-	})
+	response.OK(c, items)
 }

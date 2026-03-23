@@ -48,23 +48,17 @@ export interface WorkloadInfo {
 }
 
 export interface WorkloadListResponse {
-  code: number;
-  message: string;
-  data: {
-    items: WorkloadInfo[];
-    total: number;
-  };
+  items: WorkloadInfo[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface WorkloadDetailResponse {
-  code: number;
-  message: string;
-  data: {
-    workload: WorkloadInfo;
-    raw: Record<string, unknown>;
-    yaml?: string;  // 原始 YAML 字符串（保持原始格式）
-    pods: Array<Record<string, unknown>>;
-  };
+  workload: WorkloadInfo;
+  raw: Record<string, unknown>;
+  yaml?: string;
+  pods?: Array<Record<string, unknown>>;
 }
 
 export interface ScaleWorkloadRequest {
@@ -80,7 +74,7 @@ export class WorkloadService {
   // 检查集群是否安装了 Argo Rollouts CRD
   static async checkRolloutCRD(
     clusterId: string
-  ): Promise<{ code: number; message: string; data: { enabled: boolean } }> {
+  ): Promise<{ enabled: boolean }> {
     return request.get(`/clusters/${clusterId}/rollouts/crd-check`);
   }
 
@@ -144,7 +138,7 @@ export class WorkloadService {
   static async getWorkloadNamespaces(
     clusterId: string,
     workloadType?: string
-  ): Promise<{ code: number; message: string; data: Array<{ name: string; count: number }> }> {
+  ): Promise<Array<{ name: string; count: number }>> {
     // 根据workloadType路由到不同的后端API端点
     let endpoint = `/clusters/${clusterId}/`;
     const params = new URLSearchParams();

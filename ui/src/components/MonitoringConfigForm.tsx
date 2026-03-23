@@ -16,7 +16,7 @@ import {
   Collapse,
 } from 'antd';
 import { SaveOutlined, ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import api from '../utils/api';
+import api, { parseApiError } from '../utils/api';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -65,7 +65,7 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
   const loadTemplates = async () => {
     try {
       const response = await api.get('/monitoring/templates');
-      setTemplates(response.data.data);
+      setTemplates(response.data);
     } catch (error: unknown) {
       console.error('加载监控模板失败:', error);
       message.error('加载监控模板失败');
@@ -75,7 +75,7 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
   const loadCurrentConfig = useCallback(async () => {
     try {
       const response = await api.get(`/clusters/${clusterId}/monitoring/config`);
-      const config = response.data.data;
+      const config = response.data;
       setConfigType(config.type);
       form.setFieldsValue(config);
     } catch (error: unknown) {
@@ -124,15 +124,8 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
         return;
       }
       
-      // 处理API错误
-      let errorMsg = '保存监控配置失败';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        errorMsg = axiosError.response?.data?.message || errorMsg;
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      
+      const errorMsg = parseApiError(error);
+
       message.error(errorMsg);
       setSaveResult({ success: false, message: errorMsg });
     } finally {
@@ -173,15 +166,8 @@ const MonitoringConfigForm: React.FC<MonitoringConfigFormProps> = ({
         return;
       }
       
-      // 处理API错误
-      let errorMsg = '连接测试失败';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        errorMsg = axiosError.response?.data?.message || errorMsg;
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      
+      const errorMsg = parseApiError(error);
+
       message.error(errorMsg);
       setTestResult({ success: false, message: errorMsg });
     } finally {

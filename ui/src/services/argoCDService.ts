@@ -113,12 +113,8 @@ export interface RollbackApplicationRequest {
   revision_id: number;
 }
 
-// API 响应类型
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
-}
+// API 响应类型（后端直接返回数据体，无包装）
+type ApiResponse<T> = T;
 
 export const argoCDService = {
   // ==================== 配置管理 ====================

@@ -27,12 +27,20 @@ export interface CreateNamespaceRequest {
   annotations?: Record<string, string>;
 }
 
+export interface NamespaceListResponse {
+  items: NamespaceData[];
+  meta: {
+    hasAllAccess: boolean;
+    allowedNamespaces: string[];
+  };
+}
+
 /**
  * 获取命名空间列表
  */
 export const getNamespaces = async (clusterId: number): Promise<NamespaceData[]> => {
-  const response = await request.get<NamespaceData[]>(`/clusters/${clusterId}/namespaces`);
-  return response.data;
+  const res = await request.get<NamespaceListResponse>(`/clusters/${clusterId}/namespaces`);
+  return res.items || [];
 };
 
 /**
@@ -42,8 +50,7 @@ export const getNamespaceDetail = async (
   clusterId: number,
   namespace: string
 ): Promise<NamespaceDetailData> => {
-  const response = await request.get<NamespaceDetailData>(`/clusters/${clusterId}/namespaces/${namespace}`);
-  return response.data;
+  return request.get<NamespaceDetailData>(`/clusters/${clusterId}/namespaces/${namespace}`);
 };
 
 /**
@@ -53,8 +60,7 @@ export const createNamespace = async (
   clusterId: number,
   data: CreateNamespaceRequest
 ): Promise<NamespaceData> => {
-  const response = await request.post<NamespaceData>(`/clusters/${clusterId}/namespaces`, data);
-  return response.data;
+  return request.post<NamespaceData>(`/clusters/${clusterId}/namespaces`, data);
 };
 
 /**
@@ -72,8 +78,8 @@ export const deleteNamespace = async (
  */
 export const namespaceService = {
   getNamespaces: async (clusterId: string) => {
-    const response = await request.get<NamespaceData[]>(`/clusters/${clusterId}/namespaces`);
-    return { code: 200, data: response.data, message: 'success' };
+    const res = await request.get<NamespaceListResponse>(`/clusters/${clusterId}/namespaces`);
+    return res.items || [];
   },
   getNamespaceDetail,
   createNamespace,

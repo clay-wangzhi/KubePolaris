@@ -22,7 +22,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({ children
     setLoading(true);
     try {
       const response = await permissionService.getMyPermissions();
-      const permissions = response.data || [];
+      const permissions = response || [];
       
       const permMap = new Map<number, MyPermissionsResponse>();
       permissions.forEach((p) => {

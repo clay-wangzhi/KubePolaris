@@ -1,32 +1,37 @@
 package handlers
 
 import (
-	"net/http"
+	"context"
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 // OverviewHandler 总览处理器
 type OverviewHandler struct {
 	overviewService *services.OverviewService
+	permissionSvc   *services.PermissionService
 }
 
 // NewOverviewHandler 创建总览处理器
 func NewOverviewHandler(
+	db *gorm.DB,
 	clusterService *services.ClusterService,
 	listerProvider services.InformerListerProvider,
 	promService *services.PrometheusService,
 	monitoringCfgSvc *services.MonitoringConfigService,
 	alertManagerCfgSvc *services.AlertManagerConfigService,
 	alertManagerSvc *services.AlertManagerService,
+	permSvc *services.PermissionService,
 ) *OverviewHandler {
 	overviewSvc := services.NewOverviewService(
-		nil, // db 可选，如果需要直接查询数据库
+		db,
 		clusterService,
 		listerProvider,
 		promService,
@@ -36,7 +41,18 @@ func NewOverviewHandler(
 	)
 	return &OverviewHandler{
 		overviewService: overviewSvc,
+		permissionSvc:   permSvc,
 	}
+}
+
+// filteredContext 在 context 中注入用户可访问的集群过滤条件
+func (h *OverviewHandler) filteredContext(c *gin.Context) context.Context {
+	userID := c.GetUint("user_id")
+	clusterIDs, isAll, err := h.permissionSvc.GetUserAccessibleClusterIDs(userID)
+	if err != nil || isAll {
+		return c.Request.Context()
+	}
+	return services.ContextWithClusterFilter(c.Request.Context(), clusterIDs)
 }
 
 // GetStats 获取总览统计数据
@@ -50,22 +66,14 @@ func NewOverviewHandler(
 func (h *OverviewHandler) GetStats(c *gin.Context) {
 	logger.Info("获取总览统计数据")
 
-	stats, err := h.overviewService.GetOverviewStats(c.Request.Context())
+	stats, err := h.overviewService.GetOverviewStats(h.filteredContext(c))
 	if err != nil {
 		logger.Error("获取总览统计数据失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取统计数据失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取统计数据失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }
 
 // GetResourceUsage 获取资源使用率
@@ -79,22 +87,14 @@ func (h *OverviewHandler) GetStats(c *gin.Context) {
 func (h *OverviewHandler) GetResourceUsage(c *gin.Context) {
 	logger.Info("获取资源使用率")
 
-	usage, err := h.overviewService.GetResourceUsage(c.Request.Context())
+	usage, err := h.overviewService.GetResourceUsage(h.filteredContext(c))
 	if err != nil {
 		logger.Error("获取资源使用率失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取资源使用率失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取资源使用率失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    usage,
-	})
+	response.OK(c, usage)
 }
 
 // GetDistribution 获取资源分布
@@ -108,22 +108,14 @@ func (h *OverviewHandler) GetResourceUsage(c *gin.Context) {
 func (h *OverviewHandler) GetDistribution(c *gin.Context) {
 	logger.Info("获取资源分布")
 
-	distribution, err := h.overviewService.GetResourceDistribution(c.Request.Context())
+	distribution, err := h.overviewService.GetResourceDistribution(h.filteredContext(c))
 	if err != nil {
 		logger.Error("获取资源分布失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取资源分布失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取资源分布失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    distribution,
-	})
+	response.OK(c, distribution)
 }
 
 // GetTrends 获取趋势数据
@@ -143,26 +135,18 @@ func (h *OverviewHandler) GetTrends(c *gin.Context) {
 
 	logger.Info("获取趋势数据开始", "timeRange", timeRange, "step", step)
 
-	trends, err := h.overviewService.GetTrends(c.Request.Context(), timeRange, step)
+	trends, err := h.overviewService.GetTrends(h.filteredContext(c), timeRange, step)
 
 	elapsed := time.Since(startTime)
 	logger.Info("获取趋势数据完成", "耗时", elapsed.String())
 
 	if err != nil {
 		logger.Error("获取趋势数据失败", "error", err, "耗时", elapsed.String())
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取趋势数据失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取趋势数据失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    trends,
-	})
+	response.OK(c, trends)
 }
 
 // GetAbnormalWorkloads 获取异常工作负载
@@ -180,22 +164,14 @@ func (h *OverviewHandler) GetAbnormalWorkloads(c *gin.Context) {
 
 	logger.Info("获取异常工作负载", "limit", limit)
 
-	workloads, err := h.overviewService.GetAbnormalWorkloads(c.Request.Context(), limit)
+	workloads, err := h.overviewService.GetAbnormalWorkloads(h.filteredContext(c), limit)
 	if err != nil {
 		logger.Error("获取异常工作负载失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取异常工作负载失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取异常工作负载失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    workloads,
-	})
+	response.OK(c, workloads)
 }
 
 // GetAlertStats 获取全局告警统计
@@ -209,20 +185,12 @@ func (h *OverviewHandler) GetAbnormalWorkloads(c *gin.Context) {
 func (h *OverviewHandler) GetAlertStats(c *gin.Context) {
 	logger.Info("获取全局告警统计")
 
-	stats, err := h.overviewService.GetGlobalAlertStats(c.Request.Context())
+	stats, err := h.overviewService.GetGlobalAlertStats(h.filteredContext(c))
 	if err != nil {
 		logger.Error("获取全局告警统计失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取全局告警统计失败: " + err.Error(),
-			"data":    nil,
-		})
+		response.InternalError(c, "获取全局告警统计失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    stats,
-	})
+	response.OK(c, stats)
 }

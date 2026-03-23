@@ -1,6 +1,9 @@
 package handlers
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // ScaleRequest 扩缩容请求
 type ScaleRequest struct {
@@ -14,9 +17,10 @@ type YAMLApplyRequest struct {
 }
 
 // parseClusterID 解析集群ID字符串为uint
-func parseClusterID(clusterIDStr string) uint {
-	if id, err := strconv.ParseUint(clusterIDStr, 10, 32); err == nil {
-		return uint(id)
+func parseClusterID(clusterIDStr string) (uint, error) {
+	id, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("无效的集群ID: %s", clusterIDStr)
 	}
-	return 0
+	return uint(id), nil
 }

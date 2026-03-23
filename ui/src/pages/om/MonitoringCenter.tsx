@@ -98,7 +98,7 @@ const [healthDiagnosis, setHealthDiagnosis] = useState<HealthDiagnosisResponse |
     setHealthLoading(true);
     try {
       const response = await omService.getHealthDiagnosis(clusterId);
-      setHealthDiagnosis(response.data);
+      setHealthDiagnosis(response);
     } catch (error) {
       console.error('加载健康诊断失败:', error);
       message.error(t('common:messages.fetchError'));
@@ -117,7 +117,7 @@ const [healthDiagnosis, setHealthDiagnosis] = useState<HealthDiagnosisResponse |
         level: resourceLevel,
         limit: 10,
       });
-      setResourceTop(response.data);
+      setResourceTop(response);
     } catch (error) {
       console.error('加载资源 Top N 失败:', error);
       message.error(t('common:messages.fetchError'));
@@ -132,7 +132,7 @@ const [healthDiagnosis, setHealthDiagnosis] = useState<HealthDiagnosisResponse |
     setControlPlaneLoading(true);
     try {
       const response = await omService.getControlPlaneStatus(clusterId);
-      setControlPlaneStatus(response.data);
+      setControlPlaneStatus(response);
     } catch (error) {
       console.error('加载控制面状态失败:', error);
       message.error(t('common:messages.fetchError'));

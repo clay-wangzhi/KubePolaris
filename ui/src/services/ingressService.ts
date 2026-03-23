@@ -227,10 +227,9 @@ export class IngressService {
 
   // 获取Ingress命名空间列表（带计数）
   static async getIngressNamespaces(clusterId: string): Promise<{ name: string; count: number }[]> {
-    const response = await request.get<{ name: string; count: number }[]>(
+    return request.get<{ name: string; count: number }[]>(
       `/clusters/${clusterId}/ingresses/namespaces`
     );
-    return response.data;
   }
 }
 

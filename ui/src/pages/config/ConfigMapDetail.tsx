@@ -21,6 +21,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { configMapService, type ConfigMapDetail as ConfigMapDetailType } from '../../services/configService';
 import MonacoEditor from '@monaco-editor/react';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -47,9 +48,8 @@ const [loading, setLoading] = useState(false);
         name
       );
       setConfigMap(data);
-    } catch (error) {
-      const err = error as { response?: { data?: { error?: string } } };
-      message.error(err.response?.data?.error || t('config:detail.loadConfigMapError'));
+    } catch (error: unknown) {
+      message.error(parseApiError(error) || t('config:detail.loadConfigMapError'));
     } finally {
       setLoading(false);
     }
@@ -70,9 +70,8 @@ const [loading, setLoading] = useState(false);
             await configMapService.deleteConfigMap(Number(clusterId), namespace, name);
           message.success(t('config:detail.deleteConfigMapSuccess'));
           navigate(`/clusters/${clusterId}/configs`);
-        } catch (error) {
-          const err = error as { response?: { data?: { error?: string } } };
-          message.error(err.response?.data?.error || t('config:detail.deleteConfigMapError'));
+        } catch (error: unknown) {
+          message.error(parseApiError(error) || t('config:detail.deleteConfigMapError'));
         }
       },
     });

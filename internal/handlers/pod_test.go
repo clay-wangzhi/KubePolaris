@@ -83,7 +83,9 @@ func (s *PodHandlerTestSuite) TestGetPods_ClusterNotFound() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	s.Require().NoError(err)
 
-	assert.Equal(s.T(), float64(404), response["code"])
+	errObj, ok := response["error"].(map[string]interface{})
+	s.Require().True(ok, "response should contain error object")
+	assert.Equal(s.T(), "NOT_FOUND", errObj["code"])
 }
 
 // TestGetPods_InvalidClusterID 测试无效的集群 ID

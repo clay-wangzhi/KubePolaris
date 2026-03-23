@@ -37,7 +37,7 @@ const UserGroupManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await permissionService.getUserGroups();
-      setGroups(res.data || []);
+      setGroups(res || []);
     } catch {
       message.error('加载用户组列表失败');
     } finally {
@@ -121,8 +121,8 @@ const UserGroupManagement: React.FC = () => {
           permissionService.getUserGroup(group.id),
           permissionService.getUsers(),
         ]);
-        setDrawerGroup(groupRes.data || group);
-        setUsers(usersRes.data || []);
+        setDrawerGroup(groupRes || group);
+        setUsers(usersRes || []);
       } catch {
         message.error('加载数据失败');
       } finally {
@@ -155,7 +155,7 @@ const UserGroupManagement: React.FC = () => {
       message.success('添加成功');
       setSelectedUserId(null);
       const groupRes = await permissionService.getUserGroup(drawerGroup.id);
-      setDrawerGroup(groupRes.data || drawerGroup);
+      setDrawerGroup(groupRes || drawerGroup);
     } catch {
       message.error('添加失败');
     } finally {
@@ -176,7 +176,7 @@ const UserGroupManagement: React.FC = () => {
           await permissionService.removeUserFromGroup(drawerGroup.id, user.id);
           message.success('移除成功');
           const groupRes = await permissionService.getUserGroup(drawerGroup.id);
-          setDrawerGroup(groupRes.data || drawerGroup);
+          setDrawerGroup(groupRes || drawerGroup);
         } catch {
           message.error('移除失败');
         }

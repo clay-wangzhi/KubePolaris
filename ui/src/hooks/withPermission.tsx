@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { Result } from 'antd';
 import { usePermission } from './usePermission';
 
 export const withPermission = <P extends object>(
@@ -14,7 +15,7 @@ export const withPermission = <P extends object>(
     const { canPerformAction } = usePermission();
     
     if (requiredAction && !canPerformAction(requiredAction)) {
-      return null; // 或者返回无权限提示组件
+      return <Result status="403" title="无权限" subTitle="您没有权限访问此内容" />;
     }
     
     return <WrappedComponent {...props} />;

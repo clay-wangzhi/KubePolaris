@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { clusterService } from '../../services/clusterService';
 import { useTranslation } from 'react-i18next';
+import { parseApiError } from '../../utils/api';
 const { Step } = Steps;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -56,7 +57,7 @@ const navigate = useNavigate();
       };
 
       const response = await clusterService.testConnection(testData);
-      setTestResult(response.data as { 
+      setTestResult(response as { 
         success: boolean; 
         message?: string;
         version?: string;
@@ -64,12 +65,11 @@ const navigate = useNavigate();
         nodeCount?: number;
         status?: string;
       });
-message.success(t('common:messages.connectionTestSuccess'));
-setCurrentStep(2);
+      message.success(t('common:messages.connectionTestSuccess'));
+      setCurrentStep(2);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-message.error(`${t('common:messages.connectionTestFailed')}: ${err.response?.data?.message || err.message || t('common:status.unknown')}`);
-setTestResult(null);
+      message.error(`${t('common:messages.connectionTestFailed')}: ${parseApiError(error)}`);
+      setTestResult(null);
     } finally {
       setTestLoading(false);
     }
@@ -92,12 +92,11 @@ setTestResult(null);
       };
 
       await clusterService.importCluster(importData);
-message.success(t('import.importSuccess'));
-navigate('/clusters');
+      message.success(t('import.importSuccess'));
+      navigate('/clusters');
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-message.error(`${t('import.importFailed')}: ${err.response?.data?.message || err.message || t('common:status.unknown')}`);
-} finally {
+      message.error(`${t('import.importFailed')}: ${parseApiError(error)}`);
+    } finally {
       setLoading(false);
     }
   };

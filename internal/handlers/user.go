@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 // UserHandler 用户管理处理器
@@ -41,101 +41,92 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 
 	users, total, err := h.userService.ListUsers(params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"items":    users,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, users, total, page, pageSize)
 }
 
 // GetUser 获取用户详情
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	user, err := h.userService.GetUser(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		response.NotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "获取成功", "data": user})
+	response.OK(c, user)
 }
 
 // CreateUser 创建用户
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req services.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	user, err := h.userService.CreateUser(&req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	logger.Info("创建用户: %s", user.Username)
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "创建成功", "data": user})
+	response.OK(c, user)
 }
 
 // UpdateUser 更新用户
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	var req services.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	user, err := h.userService.UpdateUser(uint(id), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "更新成功", "data": user})
+	response.OK(c, user)
 }
 
 // DeleteUser 删除用户
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	// 不能删除自己
 	currentUserID := c.GetUint("user_id")
 	if currentUserID == uint(id) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "不能删除自己"})
+		response.BadRequest(c, "不能删除自己")
 		return
 	}
 
 	if err := h.userService.DeleteUser(uint(id)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "删除成功"})
+	response.OK(c, nil)
 }
 
 // UpdateStatusRequest 更新用户状态请求
@@ -147,22 +138,22 @@ type UpdateStatusRequest struct {
 func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	var req UpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	if err := h.userService.UpdateUserStatus(uint(id), req.Status); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "状态更新成功"})
+	response.OK(c, nil)
 }
 
 // ResetPasswordRequest 重置密码请求
@@ -174,20 +165,20 @@ type ResetPasswordRequest struct {
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误"})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	if err := h.userService.ResetPassword(uint(id), req.NewPassword); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "密码重置成功"})
+	response.OK(c, nil)
 }

@@ -84,7 +84,9 @@ func (s *AuthHandlerTestSuite) TestLogin_EmptyCredentials() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	s.Require().NoError(err)
 
-	assert.Equal(s.T(), float64(400), response["code"])
+	errObj, ok := response["error"].(map[string]interface{})
+	s.Require().True(ok, "response should contain error object")
+	assert.Equal(s.T(), "BAD_REQUEST", errObj["code"])
 }
 
 // TestLogin_UserNotFound 测试用户不存在

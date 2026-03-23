@@ -13,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -60,7 +62,11 @@ func NewKubectlTerminalHandler(clusterService *services.ClusterService, auditSer
 		auditService:   auditService,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true // 在生产环境中应该检查Origin
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true
+				}
+				return middleware.IsOriginAllowed(origin)
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -79,7 +85,7 @@ func (h *KubectlTerminalHandler) HandleKubectlTerminal(c *gin.Context) {
 	// 获取集群信息
 	cluster, err := h.clusterService.GetCluster(uint(mustParseUint(clusterID)))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "集群不存在"})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 

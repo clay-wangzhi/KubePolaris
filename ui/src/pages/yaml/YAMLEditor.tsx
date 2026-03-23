@@ -97,16 +97,9 @@ const { clusterId } = useParams<{ clusterId: string }>();
         name
       );
       
-      if (response.code === 200) {
-        // 优先使用后端返回的yaml字段（包含apiVersion和kind），否则使用raw转换
-        const yamlContent = response.data.yaml || YAML.stringify(response.data.raw);
-        setYaml(yamlContent);
-        setOriginalYaml(yamlContent);
-      } else {
-        const errorMsg = response.message || t('messages.loadFailed');
-        setError(errorMsg);
-        message.error(errorMsg);
-      }
+      const yamlContent = response.yaml || YAML.stringify(response.raw);
+      setYaml(yamlContent);
+      setOriginalYaml(yamlContent);
     } catch (error) {
       console.error('加载YAML失败:', error);
       const errorMsg = t('messages.loadError') + ': ' + (error instanceof Error ? error.message : t('messages.unknownError'));
@@ -129,29 +122,17 @@ const { clusterId } = useParams<{ clusterId: string }>();
     try {
       const response = await WorkloadService.applyYAML(clusterId, yaml, isDryRun);
       
-      if (response.code === 200) {
-        if (isDryRun) {
-          setPreviewResult(response.data as Record<string, unknown>);
-          setDryRunResult({
-            success: true,
-            message: t('messages.dryRunPassed'),
-          });
-          message.success(t('messages.validateSuccess'));
-        } else {
-          message.success(t('messages.applySuccess'));
-          // 更新原始YAML
-          setOriginalYaml(yaml);
-          setDiffModalVisible(false);
-        }
+      if (isDryRun) {
+        setPreviewResult(response as Record<string, unknown>);
+        setDryRunResult({
+          success: true,
+          message: t('messages.dryRunPassed'),
+        });
+        message.success(t('messages.validateSuccess'));
       } else {
-        const errorMsg = response.message || t('messages.yamlFailed', { action: isDryRun ? t('messages.validateFailed') : t('messages.applyFailed') });
-        if (isDryRun) {
-          setDryRunResult({
-            success: false,
-            message: errorMsg,
-          });
-        }
-        message.error(errorMsg);
+        message.success(t('messages.applySuccess'));
+        setOriginalYaml(yaml);
+        setDiffModalVisible(false);
       }
     } catch (error) {
       console.error(`YAML ${isDryRun ? 'validate' : 'apply'} failed:`, error);
@@ -185,13 +166,8 @@ const { clusterId } = useParams<{ clusterId: string }>();
       setApplying(true);
       try {
         const response = await WorkloadService.applyYAML(clusterId, yaml, true);
-        if (response.code === 200) {
-          // 预检通过，展示 diff 对比
-          setPendingYaml(yaml);
-          setDiffModalVisible(true);
-        } else {
-          message.error(t('messages.preCheckFailed') + ': ' + (response.message || t('messages.unknownError')));
-        }
+        setPendingYaml(yaml);
+        setDiffModalVisible(true);
       } catch (error) {
         console.error('预检失败:', error);
         message.error(t('messages.preCheckFailed'));

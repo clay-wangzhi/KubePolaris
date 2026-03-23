@@ -224,8 +224,8 @@ const SSHTerminal: React.FC<SSHTerminalProps> = ({ nodeIP, clusterId }) => {
     try {
       const response = await systemSettingService.getSSHCredentials();
       
-      if (response.code === 200 && response.data?.enabled) {
-        const sshConfig = response.data;
+      if (response?.enabled) {
+        const sshConfig = response;
         
         terminal.current?.writeln(`\x1b[1;32m✓ ${t('sshTerminal.globalConfigEnabled')}\x1b[0m`);
         

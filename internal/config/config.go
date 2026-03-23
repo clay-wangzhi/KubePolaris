@@ -90,6 +90,16 @@ func Load() *Config {
 	if err := viper.Unmarshal(&config); err != nil {
 		logger.Fatal("配置解析失败: %v", err)
 	}
+
+	// 安全检查：JWT Secret 默认值警告
+	if config.JWT.Secret == "kubepolaris-secret" {
+		if config.Server.Mode == "release" {
+			logger.Fatal("安全风险: 生产环境必须设置 JWT_SECRET 环境变量，不能使用默认值")
+		} else {
+			logger.Warn("安全警告: JWT_SECRET 使用默认值，请在生产环境中设置自定义密钥")
+		}
+	}
+
 	logger.Info("配置加载完成: server.port=%d, server.mode=%s, db.driver=%s, log.level=%s",
 		config.Server.Port, config.Server.Mode, config.Database.Driver, config.Log.Level)
 

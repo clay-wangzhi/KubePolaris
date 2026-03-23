@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Result, Button } from 'antd';
+import { Result, Button, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { tokenManager } from '../services/authService';
 import { usePermission } from '../hooks/usePermission';
@@ -39,7 +39,11 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   const { currentClusterPermission, clusterPermissions, loading } = usePermission();
 
   if (loading) {
-    return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   // 检查平台管理员权限
@@ -112,7 +116,11 @@ export const ClusterPermissionGuard: React.FC<{ children: React.ReactNode }> = (
   const { currentClusterPermission, loading } = usePermission();
 
   if (loading) {
-    return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   const pathMatch = location.pathname.match(/\/clusters\/[^/]+(.+)/);

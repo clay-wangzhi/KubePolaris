@@ -2,7 +2,7 @@
 # KubePolaris Makefile
 # ==========================================
 
-.PHONY: help dev dev-backend dev-frontend build build-backend build-frontend test test-backend test-frontend lint lint-backend lint-frontend docker-build docker-push docker-up docker-down docker-logs docker-ps helm-package docs swagger clean version
+.PHONY: help dev dev-backend dev-frontend build build-backend build-frontend test test-backend test-frontend test-e2e test-e2e-ui lint lint-backend lint-frontend docker-build docker-push docker-up docker-down docker-logs docker-ps helm-package docs swagger clean version
 
 # 变量
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -40,6 +40,8 @@ help:
 	@echo "  make test           - 运行所有测试"
 	@echo "  make test-backend   - 运行后端测试"
 	@echo "  make test-frontend  - 运行前端测试"
+	@echo "  make test-e2e       - 运行 E2E 测试（Playwright headless）"
+	@echo "  make test-e2e-ui    - 运行 E2E 测试（Playwright UI 模式）"
 	@echo ""
 	@echo "$(GREEN)代码检查:$(NC)"
 	@echo "  make lint           - 运行代码检查"
@@ -126,6 +128,21 @@ test-backend:
 test-frontend:
 	@echo "$(BLUE)运行前端测试...$(NC)"
 	cd ui && npm run test 2>/dev/null || echo "$(YELLOW)前端测试尚未配置$(NC)"
+
+## test-e2e: 运行 E2E 测试（headless）
+test-e2e:
+	@echo "$(BLUE)启动后端并运行 E2E 测试...$(NC)"
+	@bash scripts/start-test-backend.sh
+	cd ui && npx playwright test; EXIT_CODE=$$?; \
+	bash ../scripts/stop-test-backend.sh; \
+	exit $$EXIT_CODE
+
+## test-e2e-ui: 以 UI 模式运行 E2E 测试
+test-e2e-ui:
+	@echo "$(BLUE)启动后端并打开 Playwright UI...$(NC)"
+	@bash scripts/start-test-backend.sh
+	cd ui && npx playwright test --ui; \
+	bash ../scripts/stop-test-backend.sh
 
 # ==========================================
 # 代码检查

@@ -16,17 +16,13 @@ export interface SearchResult {
 }
 
 export interface SearchResponse {
-  code: number;
-  message: string;
-  data: {
-    results: SearchResult[];
-    total: number;
-    stats: {
-      cluster: number;
-      node: number;
-      pod: number;
-      workload: number;
-    };
+  results: SearchResult[];
+  total: number;
+  stats: {
+    cluster: number;
+    node: number;
+    pod: number;
+    workload: number;
   };
 }
 
@@ -40,6 +36,6 @@ export const searchService = {
   // 快速搜索（用于顶部搜索栏）
   async quickSearch(query: string): Promise<SearchResult[]> {
     const response = await api.get(`/search/quick?q=${encodeURIComponent(query)}&limit=10`);
-    return response.data.data.results || [];
+    return response.data.results || [];
   },
 };

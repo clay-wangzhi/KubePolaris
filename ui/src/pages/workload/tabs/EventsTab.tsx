@@ -72,13 +72,9 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
 
-      if (response.code === 200 && response.data) {
-        const eventList = ((response.data as { items?: unknown[] }).items || []) as EventInfo[];
-        setEvents(eventList);
-        setFilteredEvents(eventList);
-      } else {
-        message.error(response.message || t('messages.fetchEventsError'));
-      }
+      const eventList = ((response as unknown as { items?: unknown[] }).items || []) as EventInfo[];
+      setEvents(eventList);
+      setFilteredEvents(eventList);
     } catch (error) {
       console.error('获取事件列表失败:', error);
       message.error(t('messages.fetchEventsError'));

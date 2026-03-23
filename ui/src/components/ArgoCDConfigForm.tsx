@@ -52,14 +52,12 @@ const ArgoCDConfigForm: React.FC<ArgoCDConfigFormProps> = ({
     setLoading(true);
     try {
       const response = await argoCDService.getConfig(clusterId);
-      if (response.code === 200 && response.data) {
-        form.setFieldsValue(response.data);
-        setEnabled(response.data.enabled);
-        setConnectionStatus(
-          response.data.connection_status === 'connected' ? 'connected' : 
-          response.data.connection_status === 'disconnected' ? 'disconnected' : 'unknown'
-        );
-      }
+      form.setFieldsValue(response);
+      setEnabled(response.enabled);
+      setConnectionStatus(
+        response.connection_status === 'connected' ? 'connected' : 
+        response.connection_status === 'disconnected' ? 'disconnected' : 'unknown'
+      );
     } catch (error) {
       console.error('Failed to load config:', error);
       message.error(t('argoCDConfig.loadFailed'));
@@ -78,12 +76,8 @@ const ArgoCDConfigForm: React.FC<ArgoCDConfigFormProps> = ({
       setSaving(true);
       
       const response = await argoCDService.saveConfig(clusterId, values);
-      if (response.code === 200) {
-        message.success(t('argoCDConfig.saveSuccess'));
-        onConfigChange?.();
-      } else {
-        message.error(response.message || t('argoCDConfig.saveFailed'));
-      }
+      message.success(t('argoCDConfig.saveSuccess'));
+      onConfigChange?.();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('argoCDConfig.saveFailed');
       message.error(errorMessage);
@@ -105,11 +99,11 @@ const ArgoCDConfigForm: React.FC<ArgoCDConfigFormProps> = ({
       setTesting(true);
       
       const response = await argoCDService.testConnection(clusterId, values);
-      if (response.code === 200 && response.data.connected) {
+      if (response.connected) {
         message.success(t('argoCDConfig.testSuccess'));
         setConnectionStatus('connected');
       } else {
-        message.error(response.message || t('argoCDConfig.testFailed'));
+        message.error(t('argoCDConfig.testFailed'));
         setConnectionStatus('disconnected');
       }
     } catch (error: unknown) {

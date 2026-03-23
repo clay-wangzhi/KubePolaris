@@ -53,7 +53,7 @@ const { id } = useParams<{ id: string }>();
     setLoading(true);
     try {
       const response = await clusterService.getCluster(id);
-      setCluster(response.data);
+      setCluster(response);
     } catch (error) {
       message.error(t('detail.fetchError'));
       console.error('Failed to fetch cluster detail:', error);
@@ -68,7 +68,7 @@ const { id } = useParams<{ id: string }>();
     setLoadingOverview(true);
     try {
       const response = await clusterService.getClusterOverview(id);
-      setClusterOverview(response.data as ClusterOverview);
+      setClusterOverview(response as ClusterOverview);
     } catch (error) {
       message.error(t('detail.fetchOverviewError'));
       console.error('Failed to fetch cluster overview:', error);
@@ -111,7 +111,7 @@ const config = statusConfig[status as keyof typeof statusConfig] || statusConfig
     setLoadingEvents(true);
     try {
       const response = await clusterService.getClusterEvents(id, keyword ? { search: keyword } : undefined);
-      setEvents(response.data || []);
+      setEvents(response || []);
     } catch (error) {
       message.error(t('detail.fetchEventsError'));
       console.error('Failed to fetch K8s events:', error);

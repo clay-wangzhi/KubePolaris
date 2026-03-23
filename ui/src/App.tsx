@@ -49,6 +49,7 @@ import { MonitoringCenter } from './pages/om';
 import { PermissionProvider } from './contexts/PermissionContext.tsx';
 import { tokenManager } from './services/authService';
 import { PermissionGuard } from './components/PermissionGuard';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 // 认证保护组件
@@ -82,6 +83,7 @@ const AppContent: React.FC = () => {
     <ConfigProvider locale={currentLocale}>
       <AntdApp>
         <Router>
+          <ErrorBoundary>
           <Routes>
             {/* 登录页面 - 不需要认证 */}
             <Route path="/login" element={<Login />} />
@@ -129,8 +131,6 @@ const AppContent: React.FC = () => {
               <Route path="clusters/:clusterId/pods/:namespace/:name" element={<PodDetail />} />
               <Route path="clusters/:clusterId/pods/:namespace/:name/logs" element={<PodLogs />} />
               <Route path="clusters/:clusterId/pods/:namespace/:name/terminal" element={<PodTerminal />} />
-              <Route path="clusters/:clusterId/pods" element={<PodList />} />
-              <Route path="clusters/:clusterId/pods/:namespace/:name" element={<PodDetail />} />
               <Route path="clusters/:clusterId/workloads" element={<WorkloadList />} />
               <Route path="clusters/:clusterId/workloads/create" element={<DeploymentCreate />} />
               <Route path="clusters/:clusterId/workloads/deployment/:namespace/:name" element={<DeploymentDetail />} />
@@ -231,6 +231,7 @@ const AppContent: React.FC = () => {
               <Route path="profile" element={<UserProfile />} />
             </Route>
           </Routes>
+          </ErrorBoundary>
         </Router>
       </AntdApp>
     </ConfigProvider>

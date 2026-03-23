@@ -70,11 +70,7 @@ const [loading, setLoading] = useState(false);
         workloadName
       );
 
-      if (response.code === 200 && response.data) {
-        setPods(((response.data as { items?: unknown[] }).items || []) as PodInfo[]);
-      } else {
-        message.error(response.message || t('messages.fetchPodListError'));
-      }
+      setPods(((response as unknown as { items?: unknown[] }).items || []) as PodInfo[]);
     } catch (error) {
       console.error('获取Pod列表失败:', error);
       message.error(t('messages.fetchPodListError'));

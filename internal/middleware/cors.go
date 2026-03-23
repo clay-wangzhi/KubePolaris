@@ -33,6 +33,16 @@ func CORS() gin.HandlerFunc {
 	}
 }
 
+// ParseAllowedOrigins 解析 CORS_ALLOWED_ORIGINS 环境变量
+func ParseAllowedOrigins() []string {
+	return parseAllowedOrigins()
+}
+
+// IsOriginAllowed 检查 origin 是否在允许列表中（导出供 WebSocket CheckOrigin 使用）
+func IsOriginAllowed(origin string) bool {
+	return isOriginAllowed(origin, parseAllowedOrigins())
+}
+
 func parseAllowedOrigins() []string {
 	envOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if envOrigins == "" {

@@ -66,7 +66,7 @@ func (cp *ClusterPermission) GetNamespaceList() []string {
 	}
 	var namespaces []string
 	if err := json.Unmarshal([]byte(cp.Namespaces), &namespaces); err != nil {
-		return []string{"*"}
+		return []string{}
 	}
 	return namespaces
 }

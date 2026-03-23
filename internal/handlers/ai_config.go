@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 )
@@ -30,25 +30,18 @@ func (h *AIConfigHandler) GetConfig(c *gin.Context) {
 	config, err := h.configService.GetConfig()
 	if err != nil {
 		logger.Error("获取 AI 配置失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取 AI 配置失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取 AI 配置失败: "+err.Error())
 		return
 	}
 
 	if config == nil {
 		defaultCfg := models.GetDefaultAIConfig()
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "获取成功",
-			"data": gin.H{
-				"provider": defaultCfg.Provider,
-				"endpoint": defaultCfg.Endpoint,
-				"api_key":  "",
-				"model":    defaultCfg.Model,
-				"enabled":  defaultCfg.Enabled,
-			},
+		response.OK(c, gin.H{
+			"provider": defaultCfg.Provider,
+			"endpoint": defaultCfg.Endpoint,
+			"api_key":  "",
+			"model":    defaultCfg.Model,
+			"enabled":  defaultCfg.Enabled,
 		})
 		return
 	}
@@ -62,16 +55,12 @@ func (h *AIConfigHandler) GetConfig(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": gin.H{
-			"provider": config.Provider,
-			"endpoint": config.Endpoint,
-			"api_key":  apiKeyDisplay,
-			"model":    config.Model,
-			"enabled":  config.Enabled,
-		},
+	response.OK(c, gin.H{
+		"provider": config.Provider,
+		"endpoint": config.Endpoint,
+		"api_key":  apiKeyDisplay,
+		"model":    config.Model,
+		"enabled":  config.Enabled,
 	})
 }
 
@@ -86,10 +75,7 @@ func (h *AIConfigHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -103,17 +89,11 @@ func (h *AIConfigHandler) UpdateConfig(c *gin.Context) {
 
 	if err := h.configService.SaveConfig(config); err != nil {
 		logger.Error("保存 AI 配置失败", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "保存 AI 配置失败: " + err.Error(),
-		})
+		response.InternalError(c, "保存 AI 配置失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "保存成功",
-	})
+	response.OK(c, gin.H{"message": "保存成功"})
 }
 
 // TestConnection 测试 AI 连接
@@ -126,10 +106,7 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -137,10 +114,7 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 	if apiKey == "" || apiKey == "******" {
 		fullConfig, err := h.configService.GetConfigWithAPIKey()
 		if err != nil || fullConfig == nil || fullConfig.APIKey == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "请提供 API Key",
-			})
+			response.BadRequest(c, "请提供 API Key")
 			return
 		}
 		apiKey = fullConfig.APIKey
@@ -170,17 +144,15 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 
 	if err := provider.TestConnection(ctx); err != nil {
 		logger.Error("AI 连接测试失败", "error", err)
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
+		response.OK(c, gin.H{
 			"message": "连接测试失败: " + err.Error(),
-			"data":    gin.H{"success": false},
+			"success": false,
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
+	response.OK(c, gin.H{
 		"message": "连接测试成功",
-		"data":    gin.H{"success": true},
+		"success": true,
 	})
 }

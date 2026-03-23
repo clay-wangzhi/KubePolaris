@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/clay-wangzhi/KubePolaris/internal/models"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 // PermissionHandler 权限管理处理器
@@ -33,11 +33,7 @@ func NewPermissionHandler(permissionService *services.PermissionService, cluster
 // GetPermissionTypes 获取权限类型列表
 func (h *PermissionHandler) GetPermissionTypes(c *gin.Context) {
 	types := models.GetPermissionTypes()
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    types,
-	})
+	response.OK(c, types)
 }
 
 // ========== 用户组管理 ==========
@@ -52,27 +48,17 @@ type CreateUserGroupRequest struct {
 func (h *PermissionHandler) CreateUserGroup(c *gin.Context) {
 	var req CreateUserGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	group, err := h.permissionService.CreateUserGroup(req.Name, req.Description)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "创建成功",
-		"data":    group,
-	})
+	response.OK(c, group)
 }
 
 // UpdateUserGroupRequest 更新用户组请求
@@ -85,106 +71,67 @@ type UpdateUserGroupRequest struct {
 func (h *PermissionHandler) UpdateUserGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户组ID",
-		})
+		response.BadRequest(c, "无效的用户组ID")
 		return
 	}
 
 	var req UpdateUserGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	group, err := h.permissionService.UpdateUserGroup(uint(id), req.Name, req.Description)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "更新成功",
-		"data":    group,
-	})
+	response.OK(c, group)
 }
 
 // DeleteUserGroup 删除用户组
 func (h *PermissionHandler) DeleteUserGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户组ID",
-		})
+		response.BadRequest(c, "无效的用户组ID")
 		return
 	}
 
 	if err := h.permissionService.DeleteUserGroup(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, nil)
 }
 
 // GetUserGroup 获取用户组详情
 func (h *PermissionHandler) GetUserGroup(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户组ID",
-		})
+		response.BadRequest(c, "无效的用户组ID")
 		return
 	}
 
 	group, err := h.permissionService.GetUserGroup(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": err.Error(),
-		})
+		response.NotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    group,
-	})
+	response.OK(c, group)
 }
 
 // ListUserGroups 获取用户组列表
 func (h *PermissionHandler) ListUserGroups(c *gin.Context) {
 	groups, err := h.permissionService.ListUserGroups()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    groups,
-	})
+	response.OK(c, groups)
 }
 
 // AddUserToGroupRequest 添加用户到用户组请求
@@ -196,68 +143,44 @@ type AddUserToGroupRequest struct {
 func (h *PermissionHandler) AddUserToGroup(c *gin.Context) {
 	groupID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户组ID",
-		})
+		response.BadRequest(c, "无效的用户组ID")
 		return
 	}
 
 	var req AddUserToGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	if err := h.permissionService.AddUserToGroup(req.UserID, uint(groupID)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "添加成功",
-	})
+	response.OK(c, nil)
 }
 
 // RemoveUserFromGroup 从用户组移除用户
 func (h *PermissionHandler) RemoveUserFromGroup(c *gin.Context) {
 	groupID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户组ID",
-		})
+		response.BadRequest(c, "无效的用户组ID")
 		return
 	}
 
 	userID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的用户ID",
-		})
+		response.BadRequest(c, "无效的用户ID")
 		return
 	}
 
 	if err := h.permissionService.RemoveUserFromGroup(uint(userID), uint(groupID)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "移除成功",
-	})
+	response.OK(c, nil)
 }
 
 // ========== 集群权限管理 ==========
@@ -279,10 +202,7 @@ type CreateClusterPermissionRequest struct {
 func (h *PermissionHandler) CreateClusterPermission(c *gin.Context) {
 	var req CreateClusterPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -295,10 +215,7 @@ func (h *PermissionHandler) CreateClusterPermission(c *gin.Context) {
 	}
 
 	if len(req.UserIDs) == 0 && len(req.UserGroupIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "至少需要指定一个用户或用户组",
-		})
+		response.BadRequest(c, "至少需要指定一个用户或用户组")
 		return
 	}
 
@@ -344,24 +261,15 @@ func (h *PermissionHandler) CreateClusterPermission(c *gin.Context) {
 	}
 
 	if len(created) == 0 && len(errs) > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "创建失败",
-			"data":    gin.H{"errors": errs},
-		})
+		response.BadRequest(c, "创建失败")
 		return
 	}
 
-	resp := gin.H{
-		"code":    200,
-		"message": "创建成功",
-		"data":    gin.H{"items": created, "count": len(created)},
-	}
+	data := gin.H{"items": created, "count": len(created)}
 	if len(errs) > 0 {
-		resp["message"] = fmt.Sprintf("部分创建成功（%d成功，%d失败）", len(created), len(errs))
-		resp["data"].(gin.H)["errors"] = errs
+		data["errors"] = errs
 	}
-	c.JSON(http.StatusOK, resp)
+	response.OK(c, data)
 }
 
 // ensureUserRBACInCluster 确保用户在集群中有对应的 RBAC 资源
@@ -416,19 +324,13 @@ type UpdateClusterPermissionRequest struct {
 func (h *PermissionHandler) UpdateClusterPermission(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的权限ID",
-		})
+		response.BadRequest(c, "无效的权限ID")
 		return
 	}
 
 	var req UpdateClusterPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -443,21 +345,14 @@ func (h *PermissionHandler) UpdateClusterPermission(c *gin.Context) {
 
 	permission, err := h.permissionService.UpdateClusterPermission(uint(id), serviceReq)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": err.Error(),
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	// 异步更新 RBAC 资源
 	go h.updateUserRBACInCluster(oldPermission, permission)
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "更新成功",
-		"data":    permission.ToResponse(),
-	})
+	response.OK(c, permission.ToResponse())
 }
 
 // updateUserRBACInCluster 更新用户在集群中的 RBAC 资源
@@ -508,10 +403,7 @@ func (h *PermissionHandler) updateUserRBACInCluster(oldPermission, newPermission
 func (h *PermissionHandler) DeleteClusterPermission(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的权限ID",
-		})
+		response.BadRequest(c, "无效的权限ID")
 		return
 	}
 
@@ -519,10 +411,7 @@ func (h *PermissionHandler) DeleteClusterPermission(c *gin.Context) {
 	permission, _ := h.permissionService.GetClusterPermission(uint(id))
 
 	if err := h.permissionService.DeleteClusterPermission(uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -531,10 +420,7 @@ func (h *PermissionHandler) DeleteClusterPermission(c *gin.Context) {
 		go h.cleanupUserRBACInCluster(permission)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, nil)
 }
 
 // cleanupUserRBACInCluster 清理用户在集群中的 RBAC 资源
@@ -574,52 +460,33 @@ type BatchDeleteClusterPermissionsRequest struct {
 func (h *PermissionHandler) BatchDeleteClusterPermissions(c *gin.Context) {
 	var req BatchDeleteClusterPermissionsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误",
-		})
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	if err := h.permissionService.BatchDeleteClusterPermissions(req.IDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "批量删除成功",
-	})
+	response.OK(c, nil)
 }
 
 // GetClusterPermission 获取集群权限详情
 func (h *PermissionHandler) GetClusterPermission(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的权限ID",
-		})
+		response.BadRequest(c, "无效的权限ID")
 		return
 	}
 
 	permission, err := h.permissionService.GetClusterPermission(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": err.Error(),
-		})
+		response.NotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    permission.ToResponse(),
-	})
+	response.OK(c, permission.ToResponse())
 }
 
 // ListClusterPermissions 获取集群权限列表
@@ -629,10 +496,7 @@ func (h *PermissionHandler) ListClusterPermissions(c *gin.Context) {
 	if clusterIDStr != "" {
 		id, err := strconv.ParseUint(clusterIDStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "无效的集群ID",
-			})
+			response.BadRequest(c, "无效的集群ID")
 			return
 		}
 		clusterID = uint(id)
@@ -640,10 +504,7 @@ func (h *PermissionHandler) ListClusterPermissions(c *gin.Context) {
 
 	permissions, err := h.permissionService.ListClusterPermissions(clusterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -653,21 +514,14 @@ func (h *PermissionHandler) ListClusterPermissions(c *gin.Context) {
 		responses[i] = p.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    responses,
-	})
+	response.OK(c, responses)
 }
 
 // ListAllClusterPermissions 获取所有集群权限列表
 func (h *PermissionHandler) ListAllClusterPermissions(c *gin.Context) {
 	permissions, err := h.permissionService.ListAllClusterPermissions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -677,11 +531,7 @@ func (h *PermissionHandler) ListAllClusterPermissions(c *gin.Context) {
 		responses[i] = p.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    responses,
-	})
+	response.OK(c, responses)
 }
 
 // ========== 用户权限查询 ==========
@@ -690,19 +540,13 @@ func (h *PermissionHandler) ListAllClusterPermissions(c *gin.Context) {
 func (h *PermissionHandler) GetMyPermissions(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    401,
-			"message": "未登录",
-		})
+		response.Unauthorized(c, "未登录")
 		return
 	}
 
 	permissions, err := h.permissionService.GetUserAllClusterPermissions(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -732,39 +576,26 @@ func (h *PermissionHandler) GetMyPermissions(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    responses,
-	})
+	response.OK(c, responses)
 }
 
 // GetMyClusterPermission 获取当前用户在指定集群的权限
 func (h *PermissionHandler) GetMyClusterPermission(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    401,
-			"message": "未登录",
-		})
+		response.Unauthorized(c, "未登录")
 		return
 	}
 
 	clusterID, err := strconv.ParseUint(c.Param("clusterID"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的集群ID",
-		})
+		response.BadRequest(c, "无效的集群ID")
 		return
 	}
 
 	permission, err := h.permissionService.GetUserClusterPermission(userID, uint(clusterID))
 	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": "无权限访问该集群",
-		})
+		response.Forbidden(c, "无权限访问该集群")
 		return
 	}
 
@@ -779,17 +610,13 @@ func (h *PermissionHandler) GetMyClusterPermission(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data": models.MyPermissionsResponse{
-			ClusterID:      permission.ClusterID,
-			PermissionType: permission.PermissionType,
-			PermissionName: permissionName,
-			Namespaces:     permission.GetNamespaceList(),
-			AllowedActions: allowedActions,
-			CustomRoleRef:  permission.CustomRoleRef,
-		},
+	response.OK(c, models.MyPermissionsResponse{
+		ClusterID:      permission.ClusterID,
+		PermissionType: permission.PermissionType,
+		PermissionName: permissionName,
+		Namespaces:     permission.GetNamespaceList(),
+		AllowedActions: allowedActions,
+		CustomRoleRef:  permission.CustomRoleRef,
 	})
 }
 
@@ -799,16 +626,9 @@ func (h *PermissionHandler) GetMyClusterPermission(c *gin.Context) {
 func (h *PermissionHandler) ListUsers(c *gin.Context) {
 	users, err := h.permissionService.ListUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": err.Error(),
-		})
+		response.InternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    users,
-	})
+	response.OK(c, users)
 }

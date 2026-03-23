@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/clay-wangzhi/KubePolaris/internal/config"
 	"github.com/clay-wangzhi/KubePolaris/internal/k8s"
 	"github.com/clay-wangzhi/KubePolaris/internal/middleware"
+	"github.com/clay-wangzhi/KubePolaris/internal/response"
 	"github.com/clay-wangzhi/KubePolaris/internal/services"
 	"github.com/clay-wangzhi/KubePolaris/pkg/logger"
 
@@ -72,13 +72,14 @@ type RolloutInfo struct {
 func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
 	clusterId := c.Param("clusterID")
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -87,10 +88,7 @@ func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
 
 	// 确保 informer 缓存就绪
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
@@ -98,13 +96,7 @@ func (h *RolloutHandler) CheckRolloutCRD(c *gin.Context) {
 	lister := h.k8sMgr.RolloutsLister(cluster.ID)
 	enabled := lister != nil
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"enabled": enabled,
-		},
-	})
+	response.OK(c, gin.H{"enabled": enabled})
 }
 
 // ListRollouts 获取Rollout列表
@@ -118,13 +110,14 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	logger.Info("获取Rollout列表: cluster=%s, namespace=%s, search=%s", clusterId, namespace, searchName)
 
 	// 获取集群信息
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -133,10 +126,7 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 
 	// 确保 informer 缓存就绪
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
@@ -147,17 +137,13 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	lister := h.k8sMgr.RolloutsLister(cluster.ID)
 	if lister == nil {
 		// 集群未安装 Argo Rollouts CRD，返回空列表
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "success",
-			"data": gin.H{
-				"items":           []RolloutInfo{},
-				"total":           0,
-				"page":            page,
-				"pageSize":        pageSize,
-				"rolloutEnabled":  false,
-				"rolloutDisabled": true,
-			},
+		response.OK(c, gin.H{
+			"items":           []RolloutInfo{},
+			"total":           0,
+			"page":            page,
+			"pageSize":        pageSize,
+			"rolloutEnabled":  false,
+			"rolloutDisabled": true,
 		})
 		return
 	}
@@ -165,10 +151,7 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	// 检查命名空间权限
 	nsInfo, hasAccess := middleware.CheckNamespacePermission(c, namespace)
 	if !hasAccess {
-		c.JSON(http.StatusForbidden, gin.H{
-			"code":    403,
-			"message": fmt.Sprintf("无权访问命名空间: %s", namespace),
-		})
+		response.Forbidden(c, fmt.Sprintf("无权访问命名空间: %s", namespace))
 		return
 	}
 
@@ -229,16 +212,7 @@ func (h *RolloutHandler) ListRollouts(c *gin.Context) {
 	}
 	pagedRollouts := rolloutList[start:end]
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items":    pagedRollouts,
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-		},
-	})
+	response.PagedList(c, pagedRollouts, int64(total), page, pageSize)
 }
 
 // GetRollout 获取Rollout详情
@@ -249,23 +223,21 @@ func (h *RolloutHandler) GetRollout(c *gin.Context) {
 
 	logger.Info("获取Rollout详情: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -274,19 +246,13 @@ func (h *RolloutHandler) GetRollout(c *gin.Context) {
 
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "Rollout不存在: " + err.Error(),
-		})
+		response.NotFound(c, "Rollout不存在: "+err.Error())
 		return
 	}
 
@@ -315,15 +281,11 @@ func (h *RolloutHandler) GetRollout(c *gin.Context) {
 		yamlString = ""
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"workload": h.convertToRolloutInfo(rollout),
-			"raw":      cleanRollout,
-			"yaml":     yamlString,
-			"pods":     pods,
-		},
+	response.OK(c, gin.H{
+		"workload": h.convertToRolloutInfo(rollout),
+		"raw":      cleanRollout,
+		"yaml":     yamlString,
+		"pods":     pods,
 	})
 }
 
@@ -331,13 +293,14 @@ func (h *RolloutHandler) GetRollout(c *gin.Context) {
 func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 	clusterId := c.Param("clusterID")
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
@@ -346,10 +309,7 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 
 	// 确保 informer 缓存就绪
 	if _, err := h.k8sMgr.EnsureAndWait(ctx, cluster, 5*time.Second); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "informer 未就绪: " + err.Error(),
-		})
+		response.ServiceUnavailable(c, "informer 未就绪: "+err.Error())
 		return
 	}
 
@@ -358,19 +318,12 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 	lister := h.k8sMgr.RolloutsLister(cluster.ID)
 	if lister == nil {
 		// 集群未安装 Argo Rollouts CRD，返回空列表
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "success",
-			"data":    []interface{}{},
-		})
+		response.OK(c, []interface{}{})
 		return
 	}
 	rs, err := lister.List(sel)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "读取Rollout缓存失败: " + err.Error(),
-		})
+		response.InternalError(c, "读取Rollout缓存失败: "+err.Error())
 		return
 	}
 
@@ -399,11 +352,7 @@ func (h *RolloutHandler) GetRolloutNamespaces(c *gin.Context) {
 		return namespaces[i].Name < namespaces[j].Name
 	})
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    namespaces,
-	})
+	response.OK(c, namespaces)
 }
 
 // ScaleRollout 扩缩容Rollout
@@ -414,32 +363,27 @@ func (h *RolloutHandler) ScaleRollout(c *gin.Context) {
 
 	var req ScaleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	logger.Info("扩缩容Rollout: %s/%s/%s to %d", clusterId, namespace, name, req.Replicas)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -448,20 +392,14 @@ func (h *RolloutHandler) ScaleRollout(c *gin.Context) {
 
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	// 获取Rollout
 	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout失败: "+err.Error())
 		return
 	}
 
@@ -469,17 +407,11 @@ func (h *RolloutHandler) ScaleRollout(c *gin.Context) {
 	rollout.Spec.Replicas = &req.Replicas
 	_, err = rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(ctx, rollout, metav1.UpdateOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "扩缩容失败: " + err.Error(),
-		})
+		response.InternalError(c, "扩缩容失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "扩缩容成功",
-	})
+	response.OK(c, gin.H{"message": "扩缩容成功"})
 }
 
 // ApplyYAML 应用Rollout YAML
@@ -488,32 +420,27 @@ func (h *RolloutHandler) ApplyYAML(c *gin.Context) {
 
 	var req YAMLApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "参数错误: " + err.Error(),
-		})
+		response.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
 	logger.Info("应用Rollout YAML: cluster=%s, dryRun=%v", clusterId, req.DryRun)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -523,38 +450,26 @@ func (h *RolloutHandler) ApplyYAML(c *gin.Context) {
 	// 解析YAML
 	var objMap map[string]interface{}
 	if err := yaml.Unmarshal([]byte(req.YAML), &objMap); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML格式错误: " + err.Error(),
-		})
+		response.BadRequest(c, "YAML格式错误: "+err.Error())
 		return
 	}
 
 	// 验证必要字段
 	if objMap["apiVersion"] == nil || objMap["kind"] == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML缺少必要字段: apiVersion 或 kind",
-		})
+		response.BadRequest(c, "YAML缺少必要字段: apiVersion 或 kind")
 		return
 	}
 
 	kind := objMap["kind"].(string)
 	if kind != "Rollout" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML类型错误，期望Rollout，实际为: " + kind,
-		})
+		response.BadRequest(c, "YAML类型错误，期望Rollout，实际为: "+kind)
 		return
 	}
 
 	// 获取metadata
 	metadata, ok := objMap["metadata"].(map[string]interface{})
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "YAML缺少 metadata 字段",
-		})
+		response.BadRequest(c, "YAML缺少 metadata 字段")
 		return
 	}
 
@@ -566,18 +481,11 @@ func (h *RolloutHandler) ApplyYAML(c *gin.Context) {
 	// 应用YAML
 	result, err := h.applyYAML(ctx, k8sClient, req.YAML, namespace, req.DryRun)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "YAML应用失败: " + err.Error(),
-		})
+		response.InternalError(c, "YAML应用失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "YAML应用成功",
-		"data":    result,
-	})
+	response.OK(c, result)
 }
 
 // DeleteRollout 删除Rollout
@@ -588,23 +496,21 @@ func (h *RolloutHandler) DeleteRollout(c *gin.Context) {
 
 	logger.Info("删除Rollout: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -613,26 +519,17 @@ func (h *RolloutHandler) DeleteRollout(c *gin.Context) {
 
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	err = rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "删除失败: " + err.Error(),
-		})
+		response.InternalError(c, "删除失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-	})
+	response.OK(c, gin.H{"message": "删除成功"})
 }
 
 // 辅助方法：转换Rollout到RolloutInfo
@@ -732,23 +629,21 @@ func (h *RolloutHandler) GetRolloutPods(c *gin.Context) {
 
 	logger.Info("获取Rollout关联的Pods: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -758,19 +653,13 @@ func (h *RolloutHandler) GetRolloutPods(c *gin.Context) {
 	// 获取Rollout
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "Rollout不存在: " + err.Error(),
-		})
+		response.NotFound(c, "Rollout不存在: "+err.Error())
 		return
 	}
 
@@ -780,10 +669,7 @@ func (h *RolloutHandler) GetRolloutPods(c *gin.Context) {
 		LabelSelector: metav1.FormatLabelSelector(rollout.Spec.Selector),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Pods失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Pods失败: "+err.Error())
 		return
 	}
 
@@ -838,14 +724,7 @@ func (h *RolloutHandler) GetRolloutPods(c *gin.Context) {
 		pods = append(pods, podInfo)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items": pods,
-			"total": len(pods),
-		},
-	})
+	response.List(c, pods, int64(len(pods)))
 }
 
 // GetRolloutServices 获取Rollout关联的Services
@@ -856,23 +735,21 @@ func (h *RolloutHandler) GetRolloutServices(c *gin.Context) {
 
 	logger.Info("获取Rollout关联的Services: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -882,19 +759,13 @@ func (h *RolloutHandler) GetRolloutServices(c *gin.Context) {
 	// 获取Rollout
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "Rollout不存在: " + err.Error(),
-		})
+		response.NotFound(c, "Rollout不存在: "+err.Error())
 		return
 	}
 
@@ -902,10 +773,7 @@ func (h *RolloutHandler) GetRolloutServices(c *gin.Context) {
 	clientset := k8sClient.GetClientset()
 	serviceList, err := clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Services失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Services失败: "+err.Error())
 		return
 	}
 
@@ -948,14 +816,7 @@ func (h *RolloutHandler) GetRolloutServices(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items": matchedServices,
-			"total": len(matchedServices),
-		},
-	})
+	response.List(c, matchedServices, int64(len(matchedServices)))
 }
 
 // GetRolloutIngresses 获取Rollout关联的Ingresses
@@ -966,23 +827,21 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 
 	logger.Info("获取Rollout关联的Ingresses: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -992,19 +851,13 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 	// 获取Rollout对象
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	rollout, err := rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "Rollout不存在: " + err.Error(),
-		})
+		response.NotFound(c, "Rollout不存在: "+err.Error())
 		return
 	}
 
@@ -1067,10 +920,7 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 	// 获取Ingresses
 	ingressList, err := clientset.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Ingresses失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Ingresses失败: "+err.Error())
 		return
 	}
 
@@ -1141,14 +991,7 @@ func (h *RolloutHandler) GetRolloutIngresses(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items": matchedIngresses,
-			"total": len(matchedIngresses),
-		},
-	})
+	response.List(c, matchedIngresses, int64(len(matchedIngresses)))
 }
 
 // GetRolloutHPA 获取Rollout关联的HPA
@@ -1159,23 +1002,21 @@ func (h *RolloutHandler) GetRolloutHPA(c *gin.Context) {
 
 	logger.Info("获取Rollout关联的HPA: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -1185,10 +1026,7 @@ func (h *RolloutHandler) GetRolloutHPA(c *gin.Context) {
 	clientset := k8sClient.GetClientset()
 	hpaList, err := clientset.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取HPA失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取HPA失败: "+err.Error())
 		return
 	}
 
@@ -1201,11 +1039,7 @@ func (h *RolloutHandler) GetRolloutHPA(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    targetHPA,
-	})
+	response.OK(c, targetHPA)
 }
 
 // GetRolloutReplicaSets 获取Rollout关联的ReplicaSets
@@ -1216,23 +1050,21 @@ func (h *RolloutHandler) GetRolloutReplicaSets(c *gin.Context) {
 
 	logger.Info("获取Rollout关联的ReplicaSets: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -1242,29 +1074,20 @@ func (h *RolloutHandler) GetRolloutReplicaSets(c *gin.Context) {
 	// 获取Rollout
 	rolloutClient, err := k8sClient.GetRolloutClient()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Rollout客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Rollout客户端失败: "+err.Error())
 		return
 	}
 
 	_, err = rolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "Rollout不存在: " + err.Error(),
-		})
+		response.NotFound(c, "Rollout不存在: "+err.Error())
 		return
 	}
 
 	clientset := k8sClient.GetClientset()
 	replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取ReplicaSets失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取ReplicaSets失败: "+err.Error())
 		return
 	}
 
@@ -1279,11 +1102,7 @@ func (h *RolloutHandler) GetRolloutReplicaSets(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    relatedReplicaSets,
-	})
+	response.OK(c, relatedReplicaSets)
 }
 
 // GetRolloutEvents 获取Rollout相关的Events
@@ -1294,23 +1113,21 @@ func (h *RolloutHandler) GetRolloutEvents(c *gin.Context) {
 
 	logger.Info("获取Rollout相关的Events: %s/%s/%s", clusterId, namespace, name)
 
-	clusterID := parseClusterID(clusterId)
+	clusterID, err := parseClusterID(clusterId)
+	if err != nil {
+		response.BadRequest(c, "无效的集群ID")
+		return
+	}
 	cluster, err := h.clusterService.GetCluster(clusterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "集群不存在",
-		})
+		response.NotFound(c, "集群不存在")
 		return
 	}
 
 	// 获取缓存的 K8s 客户端
 	k8sClient, err := h.k8sMgr.GetK8sClient(cluster)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取K8s客户端失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取K8s客户端失败: "+err.Error())
 		return
 	}
 
@@ -1322,16 +1139,9 @@ func (h *RolloutHandler) GetRolloutEvents(c *gin.Context) {
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Rollout", name),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取Events失败: " + err.Error(),
-		})
+		response.InternalError(c, "获取Events失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    events,
-	})
+	response.OK(c, events)
 }

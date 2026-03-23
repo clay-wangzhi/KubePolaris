@@ -213,6 +213,11 @@ website/node_modules/
 # sqlite database
 data/
 
+# Playwright
+ui/playwright-report/
+ui/test-results/
+.test-backend.pid
+
 # Embedded frontend build artifacts
 ui/dist
 !ui/dist/index.html

@@ -16,8 +16,8 @@ export function useGrafanaUrl(): { grafanaUrl: string; loading: boolean } {
 
     systemSettingService.getGrafanaConfig()
       .then((res) => {
-        if (res.code === 200 && res.data?.url) {
-          const u = res.data.url.replace(/\/+$/, '');
+        if (res?.url) {
+          const u = res.url.replace(/\/+$/, '');
           cachedUrl = u;
           setUrl(u);
         } else {

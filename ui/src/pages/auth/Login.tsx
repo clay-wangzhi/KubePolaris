@@ -9,7 +9,6 @@ import {
   Typography,
   Tabs,
   Space,
-  Spin,
   App,
 } from 'antd';
 
@@ -24,6 +23,7 @@ import {
   CodeOutlined,
 } from '@ant-design/icons';
 import { authService, tokenManager } from '../../services/authService';
+import { parseApiError } from '@/utils/api';
 import './Login.css';
 
 const { Text } = Typography;
@@ -43,7 +43,6 @@ const Login: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [ldapEnabled, setLdapEnabled] = useState(false);
-  const [checkingStatus, setCheckingStatus] = useState(true);
   const [activeTab, setActiveTab] = useState<'local' | 'ldap'>('local');
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -58,13 +57,9 @@ const Login: React.FC = () => {
     const fetchAuthStatus = async () => {
       try {
         const response = await authService.getAuthStatus();
-        if (response.code === 200) {
-          setLdapEnabled(response.data.ldap_enabled);
-        }
+        setLdapEnabled(response.ldap_enabled);
       } catch (error) {
         console.error('Failed to fetch auth status:', error);
-      } finally {
-        setCheckingStatus(false);
       }
     };
 
@@ -80,39 +75,22 @@ const Login: React.FC = () => {
         auth_type: activeTab,
       });
 
-      if (response.code === 200) {
-        tokenManager.setToken(response.data.token);
-        tokenManager.setUser(response.data.user);
-        tokenManager.setExpiresAt(response.data.expires_at);
+      tokenManager.setToken(response.token);
+      tokenManager.setUser(response.user);
+      tokenManager.setExpiresAt(response.expires_at);
 
-        if (response.data.permissions) {
-          tokenManager.setPermissions(response.data.permissions);
-        }
-
-        message.success(t('auth.loginSuccess'));
-        navigate(from, { replace: true });
-      } else {
-        message.error(response.message || t('auth.loginError'));
+      if (response.permissions) {
+        tokenManager.setPermissions(response.permissions);
       }
+
+      message.success(t('auth.loginSuccess'));
+      navigate(from, { replace: true });
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      message.error(err.response?.data?.message || t('messages.networkError'));
+      message.error(parseApiError(error) || t('messages.networkError'));
     } finally {
       setLoading(false);
     }
   };
-
-  if (checkingStatus) {
-    return (
-      <div className="login-loading">
-        <div className="login-loading-logo">
-          <img src={kubernetesLogo} alt="KubePolaris" width={44} height={44} />
-          <span>KubePolaris</span>
-        </div>
-        <Spin size="large" />
-      </div>
-    );
-  }
 
   const tabItems = [
     {
