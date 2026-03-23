@@ -24,7 +24,7 @@ RUN npm run build
 # ==========================================
 # Stage 2: Build Backend (with embedded frontend)
 # ==========================================
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 
 # 安装必要的构建工具
 RUN apk add --no-cache git ca-certificates tzdata

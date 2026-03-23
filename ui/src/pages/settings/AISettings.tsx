@@ -72,7 +72,7 @@ const AISettings: React.FC = () => {
       await form.validateFields();
       setSaving(true);
       const submitData = getSubmitData();
-      const response = await aiService.updateConfig(submitData);
+      await aiService.updateConfig(submitData);
       message.success(t('settings:ai.saveConfigSuccess'));
       if (form.getFieldValue('api_key')) {
         setHasApiKey(true);

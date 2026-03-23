@@ -126,7 +126,7 @@ const navigate = useNavigate();
     if (!clusterId || !namespace || !name) return;
     
     try {
-      const response = await WorkloadService.scaleWorkload(
+      await WorkloadService.scaleWorkload(
         clusterId,
         namespace,
         name,
@@ -148,7 +148,7 @@ const navigate = useNavigate();
     if (!clusterId || !namespace || !name) return;
     
     try {
-      const response = await WorkloadService.deleteWorkload(
+      await WorkloadService.deleteWorkload(
         clusterId,
         namespace,
         name,

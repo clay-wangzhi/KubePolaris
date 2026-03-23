@@ -72,7 +72,7 @@ const [form] = Form.useForm();
       const values = await form.validateFields();
       setSaving(true);
       
-      const response = await systemSettingService.updateLDAPConfig(values as LDAPConfig);
+      await systemSettingService.updateLDAPConfig(values as LDAPConfig);
       message.success(t('settings:ldap.saveConfigSuccess'));
     } catch (error) {
       message.error(t('settings:ldap.saveConfigFailed'));

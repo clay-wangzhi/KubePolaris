@@ -107,7 +107,7 @@ const GrafanaSettings: React.FC = () => {
 
       const submitData = getSubmitData();
 
-      const response = await systemSettingService.updateGrafanaConfig(submitData);
+      await systemSettingService.updateGrafanaConfig(submitData);
       message.success(t('settings:grafana.saveConfigSuccess'));
       invalidateGrafanaUrlCache();
       if (form.getFieldValue('api_key')) {

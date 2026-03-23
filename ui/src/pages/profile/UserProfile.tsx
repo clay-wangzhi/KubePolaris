@@ -52,7 +52,7 @@ const [user, setUser] = useState<User | null>(null);
 
       setChangePasswordLoading(true);
 
-      const response = await authService.changePassword({
+      await authService.changePassword({
         old_password: values.old_password,
         new_password: values.new_password,
       });

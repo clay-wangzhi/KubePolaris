@@ -69,7 +69,7 @@ const [form] = Form.useForm();
       const values = await form.validateFields();
       setSaving(true);
       
-      const response = await argoCDService.saveConfig(clusterId!, values);
+      await argoCDService.saveConfig(clusterId!, values);
       message.success(t('plugins:config.saveSuccess'));
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('plugins:config.saveFailed');

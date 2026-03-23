@@ -298,7 +298,7 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
     setDryRunResult(null);
     
     try {
-      const response = await WorkloadService.applyYAML(clusterId!, yaml, true);
+      await WorkloadService.applyYAML(clusterId!, yaml, true);
       
       setDryRunResult({
         success: true,
@@ -323,7 +323,7 @@ const workloadType = (searchParams.get('type') || 'Deployment') as WorkloadType;
     
     setSubmitting(true);
     try {
-      const response = await WorkloadService.applyYAML(clusterId, yaml, false);
+      await WorkloadService.applyYAML(clusterId, yaml, false);
       
       messageApi.success(isEdit ? t('messages.updateSuccess') : t('messages.createSuccess'));
       navigate(`/clusters/${clusterId}/workloads`);

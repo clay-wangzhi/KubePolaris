@@ -225,7 +225,7 @@ const [allStorageClasses, setAllStorageClasses] = useState<StorageClass[]>([]);
   // 删除StorageClass
   const handleDelete = async (sc: StorageClass) => {
     try {
-      const response = await StorageService.deleteStorageClass(
+      await StorageService.deleteStorageClass(
         clusterId,
         sc.name
       );

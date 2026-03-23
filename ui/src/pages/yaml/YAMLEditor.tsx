@@ -165,7 +165,7 @@ const { clusterId } = useParams<{ clusterId: string }>();
     if (workloadRef && originalYaml) {
       setApplying(true);
       try {
-        const response = await WorkloadService.applyYAML(clusterId, yaml, true);
+        await WorkloadService.applyYAML(clusterId, yaml, true);
         setPendingYaml(yaml);
         setDiffModalVisible(true);
       } catch (error) {

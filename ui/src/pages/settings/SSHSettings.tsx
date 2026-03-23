@@ -79,7 +79,7 @@ const [form] = Form.useForm();
         submitData.private_key = '******';
       }
       
-      const response = await systemSettingService.updateSSHConfig(submitData as SSHConfig);
+      await systemSettingService.updateSSHConfig(submitData as SSHConfig);
       message.success(t('settings:ssh.saveConfigSuccess'));
       if (values.password) {
         setHasPassword(true);

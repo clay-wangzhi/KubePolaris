@@ -246,7 +246,7 @@ const [allPVCs, setAllPVCs] = useState<PVC[]>([]);
   // 删除PVC
   const handleDelete = async (pvc: PVC) => {
     try {
-      const response = await StorageService.deletePVC(
+      await StorageService.deletePVC(
         clusterId,
         pvc.namespace,
         pvc.name

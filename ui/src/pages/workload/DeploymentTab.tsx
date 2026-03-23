@@ -186,7 +186,7 @@ message.error(t('messages.fetchError', { type: 'Deployment' }));
     if (!scaleWorkload || !clusterId) return;
     
     try {
-      const response = await WorkloadService.scaleWorkload(
+      await WorkloadService.scaleWorkload(
         clusterId,
         scaleWorkload.namespace,
         scaleWorkload.name,
@@ -208,7 +208,7 @@ message.error(t('messages.scaleError'));
     if (!clusterId) return;
     
     try {
-      const response = await WorkloadService.deleteWorkload(
+      await WorkloadService.deleteWorkload(
         clusterId,
         workload.namespace,
         workload.name,

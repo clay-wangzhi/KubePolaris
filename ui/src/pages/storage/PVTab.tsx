@@ -226,7 +226,7 @@ const [allPVs, setAllPVs] = useState<PV[]>([]);
   // 删除PV
   const handleDelete = async (pv: PV) => {
     try {
-      const response = await StorageService.deletePV(
+      await StorageService.deletePV(
         clusterId,
         pv.name
       );
