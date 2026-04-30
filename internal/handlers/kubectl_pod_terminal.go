@@ -61,7 +61,7 @@ func NewKubectlPodTerminalHandler(clusterService *services.ClusterService, audit
 				if origin == "" {
 					return true
 				}
-				return middleware.IsOriginAllowed(origin)
+				return middleware.IsRequestOriginAllowed(origin, r.Host)
 			},
 		},
 	}

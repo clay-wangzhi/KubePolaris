@@ -70,7 +70,7 @@ var upgrader = websocket.Upgrader{
 		if origin == "" {
 			return true
 		}
-		return middleware.IsOriginAllowed(origin)
+		return middleware.IsRequestOriginAllowed(origin, r.Host)
 	},
 }
 

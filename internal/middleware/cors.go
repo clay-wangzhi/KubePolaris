@@ -16,7 +16,7 @@ func CORS() gin.HandlerFunc {
 		method := c.Request.Method
 		origin := c.Request.Header.Get("Origin")
 
-		if origin != "" && isOriginAllowed(origin, allowedOrigins) {
+		if origin != "" && isOriginAllowedForRequest(origin, c.Request.Host, allowedOrigins) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 			c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, X-File-Name")
@@ -43,6 +43,11 @@ func IsOriginAllowed(origin string) bool {
 	return isOriginAllowed(origin, parseAllowedOrigins())
 }
 
+// IsRequestOriginAllowed 检查请求 Origin 是否允许访问当前 Host。
+func IsRequestOriginAllowed(origin, requestHost string) bool {
+	return isOriginAllowedForRequest(origin, requestHost, parseAllowedOrigins())
+}
+
 func parseAllowedOrigins() []string {
 	envOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if envOrigins == "" {
@@ -58,8 +63,12 @@ func parseAllowedOrigins() []string {
 }
 
 func isOriginAllowed(origin string, allowedOrigins []string) bool {
+	return isOriginAllowedForRequest(origin, "", allowedOrigins)
+}
+
+func isOriginAllowedForRequest(origin, requestHost string, allowedOrigins []string) bool {
 	if len(allowedOrigins) == 0 {
-		return isDevOrigin(origin)
+		return isDevOrigin(origin) || isSameRequestHost(origin, requestHost)
 	}
 	for _, allowed := range allowedOrigins {
 		if allowed == "*" || allowed == origin {
@@ -67,6 +76,17 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 		}
 	}
 	return false
+}
+
+func isSameRequestHost(origin, requestHost string) bool {
+	if requestHost == "" {
+		return false
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, requestHost)
 }
 
 // isDevOrigin 开发模式下允许 localhost 来源

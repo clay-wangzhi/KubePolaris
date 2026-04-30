@@ -91,7 +91,7 @@ func NewPodTerminalHandler(clusterService *services.ClusterService, auditService
 				if origin == "" {
 					return true
 				}
-				return middleware.IsOriginAllowed(origin)
+				return middleware.IsRequestOriginAllowed(origin, r.Host)
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
